@@ -1,0 +1,126 @@
+<Window x:Class="N64RecompLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:N64RecompLauncher"
+        Title="N64Recomp Launcher" 
+        Height="720" Width="1280"
+        Background="#1e1e1e"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="{Binding ButtonColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GameCard" TargetType="Border">
+            <Setter Property="Background" Value="#2d2d30"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,30">
+            <TextBlock Text="N64Recomp Launcher"
+                       FontSize="32" 
+                       FontWeight="Bold" 
+                       Foreground="White" 
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Games}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource GameCard}" Height="120">
+                            <Grid>
+                                <Image Source="{Binding IconUrl}" 
+                                       Width="256" 
+                                       Height="256"
+                                       VerticalAlignment="Center" 
+                                       HorizontalAlignment="Left"
+                                       Opacity="0.2" 
+                                       Margin="20,0,0,0"
+                                       Stretch="Uniform"/>
+
+                                <Grid Margin="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Margin="0,0,0,0">
+                                        <TextBlock Text="{Binding Name}" 
+                                                   FontSize="20" 
+                                                   FontWeight="SemiBold" 
+                                                   Foreground="White"/>
+                                        <TextBlock Text="{Binding StatusText}" 
+                                                   FontSize="14" 
+                                                   Foreground="#cccccc" 
+                                                   Margin="0,5,0,0"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                            <TextBlock Text="Latest: " 
+                                                       FontSize="12" 
+                                                       Foreground="#999999"/>
+                                            <TextBlock Text="{Binding LatestVersion}" 
+                                                       FontSize="12" 
+                                                       Foreground="#cccccc"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1" 
+                                            Style="{StaticResource ModernButton}"
+                                            Content="{Binding ButtonText}"
+                                            MinWidth="120"
+                                            IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+                                            Click="GameButton_Click"
+                                            Tag="{Binding}"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <TextBlock Text="{Binding currentVersionString}"
+                   Grid.Row="1"
+                   VerticalAlignment="Bottom"
+                   HorizontalAlignment="Left"
+                   Margin="0,0,0,0"
+                   Foreground="#808080"
+                   FontSize="12" />
+    </Grid>
+</Window>
