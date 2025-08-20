@@ -1,0 +1,516 @@
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Media;
+
+public enum GameStatus
+{
+    NotInstalled,
+    Installed,
+    UpdateAvailable,
+    Downloading,
+    Installing
+}
+
+namespace N64RecompLauncher.Models
+{
+    public class GameInfo : INotifyPropertyChanged
+    {
+        private string _latestVersion;
+        private string _installedVersion;
+        private GameStatus _status = GameStatus.NotInstalled;
+        private bool _isLoading;
+
+        public string Name { get; set; }
+        public string Repository { get; set; }
+        public string Branch { get; set; }
+        public string ImageRes { get; set; }
+        public string FolderName { get; set; }
+
+        public string IconUrl => $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+
+        public string LatestVersion
+        {
+            get => _latestVersion;
+            set { _latestVersion = value; OnPropertyChanged(); }
+        }
+
+        public string InstalledVersion
+        {
+            get => _installedVersion;
+            set { _installedVersion = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
+        }
+
+        public GameStatus Status
+        {
+            get => _status;
+            set { _status = value; OnPropertyChanged(); OnPropertyChanged(nameof(ButtonText)); OnPropertyChanged(nameof(ButtonColor)); }
+        }
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set { _isLoading = value; OnPropertyChanged(); }
+        }
+
+        public string ButtonText
+        {
+            get
+            {
+                return Status switch
+                {
+                    GameStatus.NotInstalled => "Download",
+                    GameStatus.Installed => "Launch",
+                    GameStatus.UpdateAvailable => "Update",
+                    GameStatus.Downloading => "Downloading...",
+                    GameStatus.Installing => "Installing...",
+                    _ => "Download"
+                };
+            }
+        }
+
+        public Brush ButtonColor
+        {
+            get
+            {
+                return Status switch
+                {
+                    GameStatus.NotInstalled => new SolidColorBrush(Color.FromRgb(0, 122, 255)),
+                    GameStatus.Installed => new SolidColorBrush(Color.FromRgb(52, 199, 89)),
+                    GameStatus.UpdateAvailable => new SolidColorBrush(Color.FromRgb(255, 149, 0)),
+                    GameStatus.Downloading or GameStatus.Installing => new SolidColorBrush(Color.FromRgb(142, 142, 147)),
+                    _ => new SolidColorBrush(Color.FromRgb(0, 122, 255))
+                };
+            }
+        }
+
+        public string StatusText
+        {
+            get
+            {
+                if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion))
+                    return $"Installed: {InstalledVersion}";
+                if (Status == GameStatus.UpdateAvailable && !string.IsNullOrEmpty(LatestVersion))
+                    return $"Update available: {LatestVersion}";
+                return Status switch
+                {
+                    GameStatus.NotInstalled => "Not installed",
+                    GameStatus.Downloading => "Downloading...",
+                    GameStatus.Installing => "Installing...",
+                    _ => ""
+                };
+            }
+        }
+
+        public async Task CheckStatusAsync(HttpClient httpClient, string gamesFolder)
+        {
+            IsLoading = true;
+
+            try
+            {
+                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var versionFile = Path.Combine(gamePath, "version.txt");
+
+                bool directoryExists = Directory.Exists(gamePath);
+                bool versionFileExists = File.Exists(versionFile);
+
+                if (directoryExists)
+                {
+                    if (versionFileExists)
+                    {
+                        try
+                        {
+                            InstalledVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            InstalledVersion = "Unknown";
+                        }
+
+                        Status = GameStatus.Installed;
+                    }
+                    else
+                    {
+                        Status = GameStatus.Installed;
+                        InstalledVersion = "Unknown";
+                    }
+                }
+                else
+                {
+                    Status = GameStatus.NotInstalled;
+                    InstalledVersion = null;
+                }
+
+                await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(LatestVersion) &&
+                    !string.IsNullOrEmpty(InstalledVersion) &&
+                    InstalledVersion != LatestVersion)
+                {
+                    Status = GameStatus.UpdateAvailable;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error checking status for {Name}: {ex.Message}",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Status = GameStatus.NotInstalled;
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+
+
+        private async Task CheckLatestVersionAsync(HttpClient httpClient)
+        {
+            try
+            {
+                var response = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                var release = JsonSerializer.Deserialize<GitHubRelease>(response);
+                
+                LatestVersion = release.tag_name;
+
+                if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                {
+                    Status = GameStatus.UpdateAvailable;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
+            }
+        }
+
+        public async Task PerformActionAsync(HttpClient httpClient, string gamesFolder)
+        {
+            switch (Status)
+            {
+                case GameStatus.NotInstalled:
+                case GameStatus.UpdateAvailable:
+                    await DownloadAndInstallAsync(httpClient, gamesFolder);
+                    break;
+                case GameStatus.Installed:
+                    Launch(gamesFolder);
+                    break;
+            }
+        }
+
+        private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder)
+        {
+            try
+            {
+                Status = GameStatus.Downloading;
+
+                string platformIdentifier = GetPlatformIdentifier();
+
+                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var versionFile = Path.Combine(gamePath, "version.txt");
+
+                if (File.Exists(versionFile))
+                {
+                    var existingVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
+
+                    var response = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                    var release = JsonSerializer.Deserialize<GitHubRelease>(response);
+
+                    LatestVersion = release.tag_name;
+
+                    if (existingVersion == LatestVersion)
+                    {
+                        Status = GameStatus.Installed;
+                        InstalledVersion = existingVersion;
+                        return;
+                    }
+                }
+
+                var releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                var latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
+
+                var asset = latestRelease.assets.FirstOrDefault(a =>
+                    a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase));
+
+                if (asset == null)
+                {
+                    MessageBox.Show($"No downloadable release found for {Name} on {platformIdentifier}",
+                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Status = GameStatus.NotInstalled;
+                    return;
+                }
+
+                var downloadPath = Path.Combine(Path.GetTempPath(), asset.name);
+                using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
+                {
+                    downloadResponse.EnsureSuccessStatusCode();
+                    using (var fs = new FileStream(downloadPath, FileMode.Create))
+                    {
+                        await downloadResponse.Content.CopyToAsync(fs);
+                    }
+                }
+
+                Status = GameStatus.Installing;
+
+                if (Directory.Exists(gamePath))
+                {
+                    Directory.Delete(gamePath, true);
+                }
+                Directory.CreateDirectory(gamePath);
+
+                if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    ZipFile.ExtractToDirectory(downloadPath, gamePath);
+                }
+                else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                {
+                    ExtractTarGz(downloadPath, gamePath);
+                }
+
+                await File.WriteAllTextAsync(versionFile, latestRelease.tag_name).ConfigureAwait(false);
+
+                File.Delete(downloadPath);
+
+                InstalledVersion = latestRelease.tag_name;
+                Status = GameStatus.Installed;
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Network error installing {Name}: {ex.Message}",
+                    "Network Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Status = GameStatus.NotInstalled;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error installing {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Status = GameStatus.NotInstalled;
+            }
+        }
+
+        private void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
+        {
+            Directory.CreateDirectory(destinationDirectoryPath);
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                ExtractTarGzWindows(sourceFilePath, destinationDirectoryPath);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                     RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                ExtractTarGzUnix(sourceFilePath, destinationDirectoryPath);
+            }
+            else
+            {
+                throw new PlatformNotSupportedException("Unsupported operating system for tar.gz extraction");
+            }
+        }
+
+        private void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
+        {
+            try
+            {
+                using (var inputStream = File.OpenRead(sourceFilePath))
+                using (var gzipStream = new System.IO.Compression.GZipStream(inputStream, System.IO.Compression.CompressionMode.Decompress))
+                {
+                    ExtractTarFromStream(gzipStream, destinationDirectoryPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
+                    "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                throw;
+            }
+        }
+
+        private void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
+        {
+            using (var reader = new BinaryReader(tarStream))
+            {
+                while (true)
+                {
+                    var headerBytes = reader.ReadBytes(512);
+                    if (headerBytes.Length < 512) break;
+
+                    var fileName = Encoding.ASCII.GetString(headerBytes, 0, 100).TrimEnd('\0');
+                    if (string.IsNullOrWhiteSpace(fileName)) break;
+
+                    var fileSizeStr = Encoding.ASCII.GetString(headerBytes, 124, 12).TrimEnd('\0');
+                    var fileSize = Convert.ToInt64(fileSizeStr, 8);
+
+                    var fileType = headerBytes[156];
+
+                    var destPath = Path.Combine(destinationDirectoryPath, fileName);
+
+                    if (fileType == '5')
+                    {
+                        Directory.CreateDirectory(destPath);
+                    }
+                    else
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+
+                        using (var fileStream = File.Create(destPath))
+                        {
+                            int blocksToRead = (int)Math.Ceiling((double)fileSize / 512);
+
+                            byte[] fileBytes = new byte[blocksToRead * 512];
+                            reader.Read(fileBytes, 0, fileBytes.Length);
+
+                            fileStream.Write(fileBytes, 0, (int)fileSize);
+                        }
+                    }
+
+                    int paddingBytes = 512 - (int)(fileSize % 512);
+                    if (paddingBytes < 512)
+                    {
+                        reader.ReadBytes(paddingBytes);
+                    }
+                }
+            }
+        }
+
+        private void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "tar",
+                    Arguments = $"-xzf \"{sourceFilePath}\" -C \"{destinationDirectoryPath}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(startInfo))
+                {
+                    process.WaitForExit();
+
+                    if (process.ExitCode != 0)
+                    {
+                        string errorOutput = process.StandardError.ReadToEnd();
+                        throw new Exception($"Tar extraction failed: {errorOutput}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
+                    "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                throw;
+            }
+        }
+
+        private string GetPlatformIdentifier()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return "Windows";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return "macOS";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var arch = RuntimeInformation.OSArchitecture;
+                return arch switch
+                {
+                    Architecture.Arm64 => "ARM64",
+                    Architecture.X64 => Environment.GetEnvironmentVariable("FLATPAK_ID") != null
+                        ? "X64-Flatpak"
+                        : "Linux-X64",
+                    _ => "Linux-X64"
+                };
+            }
+
+            throw new PlatformNotSupportedException("Unsupported operating system");
+        }
+        private void Launch(string gamesFolder)
+        {
+            try
+            {
+                var gamePath = Path.Combine(gamesFolder, FolderName);
+
+                var executablePath = Directory.GetFiles(gamePath, "*.exe")
+                    .FirstOrDefault();
+
+                if (string.IsNullOrEmpty(executablePath))
+                {
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        executablePath = Directory.GetFiles(gamePath)
+                            .FirstOrDefault(f =>
+                                !f.EndsWith(".dll") &&
+                                !f.EndsWith(".so") &&
+                                File.GetAttributes(f).HasFlag(FileAttributes.Normal));
+                    }
+                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        executablePath = Directory.GetFiles(gamePath, "*")
+                            .FirstOrDefault(f =>
+                                !f.EndsWith(".dll") &&
+                                !f.EndsWith(".so"));
+                    }
+                }
+
+                if (string.IsNullOrEmpty(executablePath))
+                {
+                    MessageBox.Show($"No executable found in {gamePath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = executablePath,
+                    WorkingDirectory = gamePath,
+                    UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                };
+
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    startInfo.UseShellExecute = false;
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                        RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        var chmodProcess = new ProcessStartInfo
+                        {
+                            FileName = "chmod",
+                            Arguments = $"+x \"{executablePath}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        Process.Start(chmodProcess).WaitForExit();
+                    }
+                }
+
+                Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error launching {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}
