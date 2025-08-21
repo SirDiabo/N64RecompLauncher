@@ -142,9 +142,19 @@ taskkill /F /IM ""{Path.GetFileName(applicationExecutable)}"" > nul 2>&1
 timeout /t 3 /nobreak > nul
 
 echo Applying update...
-rem Delete old application files, but exclude the updater script itself
-for /D %%i in (""{currentAppDirectory}""\*) do rmdir /S /Q ""%%i"" > nul 2>&1
-for %%i in (""{currentAppDirectory}""\*.*) do if not ""%%~nxi""==""{Path.GetFileName(updaterScriptPath)}"" del ""%%i"" > nul 2>&1
+rem Delete old application files, but exclude the updater script and RecompiledGames folder
+for /D %%i in (""{currentAppDirectory}""\*) do (
+    if /I not ""%%~nxi""==""RecompiledGames"" (
+        rmdir /S /Q ""%%i"" > nul 2>&1
+    )
+)
+for %%i in (""{currentAppDirectory}""\*.*) do (
+    if /I not ""%%~nxi""==""{Path.GetFileName(updaterScriptPath)}"" (
+        if /I not ""%%~nxi""==""RecompiledGames"" (
+            del ""%%i"" > nul 2>&1
+        )
+    )
+)
 
 rem Copy new files from temporary update folder to the application directory
 xcopy ""{tempUpdateFolder}\*"" ""{currentAppDirectory}"" /S /E /Y /I > nul 2>&1
