@@ -37,7 +37,7 @@ namespace N64RecompLauncher
         private const string VersionFileName = "version.txt";
         private const string UpdateCheckFileName = "update_check.json";
 
-        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromDays(1);
+        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(20);
 
         protected override async void OnStartup(StartupEventArgs e)
         {
