@@ -1,14 +1,16 @@
 using System;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using System.Text.Json; 
 using System.Threading.Tasks;
 using System.Windows;
-using System.Diagnostics;
-using System.Linq;
 
 namespace N64RecompLauncher
 {
@@ -156,9 +158,17 @@ rmdir /S /Q ""{tempUpdateFolder}"" > nul 2>&1
 
 echo Update applied. Restarting N64RecompLauncher...
 start """" ""{applicationExecutable}""
+
+rem Wait for a moment to ensure the application starts
+timeout /t 2 > nul
+
+rem Focus the application window using nircmd
+nircmd win activate ititle ""N64RecompLauncher""
+
 rem Delete the updater script itself after restarting the app
 del ""%~f0""
 ";
+
                     await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
 
                     Process.Start(new ProcessStartInfo
