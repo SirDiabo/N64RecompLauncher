@@ -39,10 +39,73 @@
             </Setter>
         </Style>
 
+        <Style x:Key="OptionsButton" TargetType="Button">
+            <Setter Property="Background" Value="#3a3a3a"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4a4a4a"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#2a2a2a"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="GameCard" TargetType="Border">
             <Setter Property="Background" Value="#2d2d30"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Margin" Value="0,0,0,15"/>
+        </Style>
+
+        <Style x:Key="ContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="Background" Value="#2d2d30"/>
+            <Setter Property="BorderBrush" Value="#4a4a4a"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="2"/>
+        </Style>
+
+        <Style x:Key="ContextMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border Background="{TemplateBinding Background}" 
+                        Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <ContentPresenter ContentSource="Header"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="#4a4a4a"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -52,7 +115,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,30">
+        <StackPanel Grid.Row="0" Margin="0,0,0,0">
             <TextBlock Text="N64Recomp Launcher"
                        FontSize="32" 
                        FontWeight="Bold" 
@@ -100,13 +163,40 @@
                                         </StackPanel>
                                     </StackPanel>
 
-                                    <Button Grid.Column="1" 
-                                            Style="{StaticResource ModernButton}"
-                                            Content="{Binding ButtonText}"
-                                            MinWidth="120"
-                                            IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-                                            Click="GameButton_Click"
-                                            Tag="{Binding}"/>
+                                    <StackPanel Grid.Column="1" Orientation="Vertical">
+                                        <Button Style="{StaticResource ModernButton}"
+                                                Content="{Binding ButtonText}"
+                                                MinWidth="120"
+                                                Margin="0,0,0,10"
+                                                IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+                                                Click="GameButton_Click"
+                                                Tag="{Binding}"/>
+
+                                        <Button Style="{StaticResource OptionsButton}"
+                                                Content="Options"
+                                                Padding="2"
+                                                Width="120"
+                                                Height="30"
+                                                FontSize="12"
+                                                IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+                                                Click="OptionsButton_Click"
+                                                Tag="{Binding}">
+                                            <Button.ContextMenu>
+                                                <ContextMenu Style="{StaticResource ContextMenuStyle}"
+                                                             Placement="Bottom"
+                                                             PlacementTarget="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Button}}">
+                                                    <MenuItem Header="Open GitHub Page"
+                                                              Style="{StaticResource ContextMenuItemStyle}"
+                                                              Click="OpenGitHubPage_Click"
+                                                              Tag="{Binding}"/>
+                                                    <MenuItem Header="Delete"
+                                                              Style="{StaticResource ContextMenuItemStyle}"
+                                                              Click="DeleteGame_Click"
+                                                              Tag="{Binding}"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                    </StackPanel>
                                 </Grid>
                             </Grid>
                         </Border>
