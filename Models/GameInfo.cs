@@ -42,7 +42,6 @@ namespace N64RecompLauncher.Models
         {
             if (_cache.TryGetValue(repository, out cache))
             {
-                // Check if cache is still valid
                 if (DateTime.UtcNow - cache.LastChecked < CacheExpiry)
                 {
                     return true;
@@ -397,6 +396,9 @@ namespace N64RecompLauncher.Models
                 {
                     ExtractTarGz(downloadPath, gamePath);
                 }
+
+                var portableFilePath = Path.Combine(gamePath, "portable.txt");
+                await File.WriteAllTextAsync(portableFilePath, string.Empty).ConfigureAwait(false);
 
                 await File.WriteAllTextAsync(versionFile, latestRelease.tag_name).ConfigureAwait(false);
 
