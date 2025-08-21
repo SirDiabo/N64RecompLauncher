@@ -184,9 +184,9 @@
         <local:AnimatedGifImage GifSource="/Assets/icon.gif"
                                 Opacity="0.2"
                                 Width="Auto"
-                                Height="Auto"
+                                Height="512"
                                 HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
+                                VerticalAlignment="Bottom"
                                 Grid.RowSpan="2"
                                 Grid.ColumnSpan="3"
                                 Panel.ZIndex="-1"/>
@@ -199,19 +199,29 @@
                        HorizontalAlignment="Center"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0">
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0" VerticalAlignment="Top">
             <Button Style="{StaticResource SettingsButton}"
                     Background="Transparent"
                     Width="60"
                     Height="60"
-                    FontSize="20"
                     Click="SettingsButton_Click"
                     ToolTip="Settings">
                 <Image Source="/Assets/Settings.png" Width="60" Height="60" Margin="-16"/>
             </Button>
         </StackPanel>
 
-        <Border x:Name="SettingsPanel"
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0" VerticalAlignment="Bottom">
+            <Button Style="{StaticResource SettingsButton}"
+                    Background="Transparent"
+                    Width="60"
+                    Height="60"
+                    Click="DiscordButton_Click"
+                    ToolTip="Settings">
+            <Image Source="/Assets/Discord.png" Width="60" Height="60" Margin="-16"/>
+            </Button>
+        </StackPanel>
+
+            <Border x:Name="SettingsPanel"
                 Grid.Row="1" 
                 Grid.Column="1"
                 Width="0"
@@ -246,6 +256,37 @@
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
+
+                    <TextBlock Text="UI" 
+                               FontSize="16" 
+                               FontWeight="SemiBold" 
+                               Foreground="#cccccc" 
+                               Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Icon Size" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+                    <TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+                    
+                    <Slider x:Name="IconSizeSlider"
+                               Foreground="White" 
+                               Margin="0,0,0,0"
+                               Minimum="64"
+                               Maximum="512"
+                               Value="256"
+                               TickFrequency="8"
+                               IsSnapToTickEnabled="True"
+                               ValueChanged="IconSizeSlider_ValueChanged" />
+
+                    <TextBlock Text="Size of the Game Icons."
+                               FontSize="12" 
+                               Foreground="#999999" 
+                               Margin="0,0,0,10"/>
+
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -257,13 +298,13 @@
                         <Border Style="{StaticResource GameCard}" Height="120">
                             <Grid>
                                 <Image Source="{Binding IconUrl}" 
-                                       Width="256" 
-                                       Height="256"
-                                       VerticalAlignment="Center" 
-                                       HorizontalAlignment="Left"
-                                       Opacity="0.2" 
-                                       Margin="0,0,20,0"
-                                       Stretch="Uniform"/>
+                                    Width="{Binding ElementName=IconSizeSlider, Path=Value}"
+                                    Height="{Binding ElementName=IconSizeSlider, Path=Value}"
+                                    VerticalAlignment="Center" 
+                                    HorizontalAlignment="Left"
+                                    Opacity="0.2" 
+                                    Margin="20,0,20,0"
+                                    Stretch="Uniform"/>
 
                                 <Grid Margin="20">
                                     <Grid.ColumnDefinitions>

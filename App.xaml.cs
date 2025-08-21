@@ -30,7 +30,9 @@ namespace N64RecompLauncher
         {
             public DateTime LastCheckTime { get; set; }
             public string LastKnownVersion { get; set; }
+            public string CurrentVersion { get; set; }  // Added to track current version at time of check
             public string ETag { get; set; }
+            public bool UpdateAvailable { get; set; }  // Added to track if update is available
         }
 
         private const string Repository = "SirDiabo/N64RecompLauncher";
@@ -73,6 +75,25 @@ namespace N64RecompLauncher
             if (ShouldSkipUpdateCheck(updateCheckInfo, currentVersionString))
             {
                 Trace.WriteLine($"Skipping update check - last checked {updateCheckInfo.LastCheckTime}, current version {currentVersionString}");
+
+                // If we have cached info that an update is available, still process it
+                if (updateCheckInfo.UpdateAvailable &&
+                    !string.IsNullOrEmpty(updateCheckInfo.LastKnownVersion) &&
+                    IsNewerVersion(updateCheckInfo.LastKnownVersion, currentVersionString))
+                {
+                    Trace.WriteLine($"Cached update available: {updateCheckInfo.LastKnownVersion}");
+                    // Create a mock release object with cached info
+                    var cachedRelease = new GitHubRelease
+                    {
+                        tag_name = updateCheckInfo.LastKnownVersion,
+                        assets = new GitHubAsset[0] // We'll need to fetch assets if user wants to update
+                    };
+
+                    // For now, just log that an update is available
+                    // You might want to show a notification or prompt here
+                    Trace.WriteLine($"Update {updateCheckInfo.LastKnownVersion} is available (cached info)");
+                }
+
                 return;
             }
 
@@ -91,10 +112,13 @@ namespace N64RecompLauncher
                     var response = await httpClient.GetAsync(apiUrl);
 
                     updateCheckInfo.LastCheckTime = DateTime.UtcNow;
+                    updateCheckInfo.CurrentVersion = currentVersionString; // Cache current version
 
                     if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
                     {
                         Trace.WriteLine("No updates available (304 Not Modified)");
+                        // Update was not available when we last checked, and nothing has changed
+                        updateCheckInfo.UpdateAvailable = false;
                         await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
                         return;
                     }
@@ -112,24 +136,23 @@ namespace N64RecompLauncher
                     if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.tag_name))
                     {
                         Trace.WriteLine("No valid latest release information found on GitHub.");
+                        updateCheckInfo.UpdateAvailable = false;
                         await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
                         return;
                     }
 
                     updateCheckInfo.LastKnownVersion = latestRelease.tag_name;
 
-                    Version current = new Version(currentVersionString.TrimStart('v'));
-                    Version latest = new Version(latestRelease.tag_name.TrimStart('v'));
-
-                    if (latest.CompareTo(current) <= 0)
+                    if (!IsNewerVersion(latestRelease.tag_name, currentVersionString))
                     {
                         Trace.WriteLine($"Current version {currentVersionString} is up to date or newer than {latestRelease.tag_name}. No update needed.");
+                        updateCheckInfo.UpdateAvailable = false;
                         await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
                         return;
                     }
 
                     Trace.WriteLine($"Newer version {latestRelease.tag_name} available. Current version is {currentVersionString}.");
-
+                    updateCheckInfo.UpdateAvailable = true;
                     await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
                     await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, versionFilePath);
@@ -175,14 +198,22 @@ namespace N64RecompLauncher
                 {
                     LastCheckTime = DateTime.MinValue,
                     LastKnownVersion = string.Empty,
-                    ETag = string.Empty
+                    CurrentVersion = string.Empty,
+                    ETag = string.Empty,
+                    UpdateAvailable = false
                 };
             }
 
             try
             {
                 string json = await File.ReadAllTextAsync(filePath);
-                return JsonSerializer.Deserialize<UpdateCheckInfo>(json) ?? new UpdateCheckInfo();
+                var info = JsonSerializer.Deserialize<UpdateCheckInfo>(json) ?? new UpdateCheckInfo();
+
+                // Ensure new properties have default values if deserializing old format
+                if (string.IsNullOrEmpty(info.CurrentVersion))
+                    info.CurrentVersion = string.Empty;
+
+                return info;
             }
             catch (Exception ex)
             {
@@ -191,7 +222,9 @@ namespace N64RecompLauncher
                 {
                     LastCheckTime = DateTime.MinValue,
                     LastKnownVersion = string.Empty,
-                    ETag = string.Empty
+                    CurrentVersion = string.Empty,
+                    ETag = string.Empty,
+                    UpdateAvailable = false
                 };
             }
         }
@@ -211,18 +244,45 @@ namespace N64RecompLauncher
 
         private bool ShouldSkipUpdateCheck(UpdateCheckInfo info, string currentVersion)
         {
+            // Never checked before
             if (info.LastCheckTime == DateTime.MinValue)
                 return false;
 
+            // Haven't waited long enough since last check
             if (DateTime.UtcNow - info.LastCheckTime < UpdateCheckInterval)
                 return true;
 
+            // If the current version has changed since last check, we should check again
+            if (!string.IsNullOrEmpty(info.CurrentVersion) &&
+                !info.CurrentVersion.Equals(currentVersion.TrimStart('v'), StringComparison.OrdinalIgnoreCase))
+            {
+                return false; // Version changed, need to check
+            }
+
+            // If we have cached info and know we're up to date, skip the check
             if (!string.IsNullOrEmpty(info.LastKnownVersion) &&
                 !string.IsNullOrEmpty(currentVersion) &&
-                info.LastKnownVersion.Equals(currentVersion.TrimStart('v'), StringComparison.OrdinalIgnoreCase))
-                return true;
+                !IsNewerVersion(info.LastKnownVersion, currentVersion))
+            {
+                return true; // We're up to date based on cached info
+            }
 
             return false;
+        }
+
+        private bool IsNewerVersion(string latestVersion, string currentVersion)
+        {
+            try
+            {
+                Version current = new Version(currentVersion.TrimStart('v'));
+                Version latest = new Version(latestVersion.TrimStart('v'));
+                return latest.CompareTo(current) > 0;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Error comparing versions '{latestVersion}' vs '{currentVersion}': {ex.Message}");
+                return false; // If we can't compare, assume no update needed
+            }
         }
 
         private async Task DownloadAndApplyUpdate(GitHubRelease latestRelease, string currentAppDirectory, string versionFilePath)

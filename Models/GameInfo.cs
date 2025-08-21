@@ -34,7 +34,7 @@ namespace N64RecompLauncher.Models
     public static class GitHubApiCache
     {
         private static readonly ConcurrentDictionary<string, GameVersionCache> _cache = new();
-        private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(30);
+        private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(20);
 
         public static bool TryGetCachedVersion(string repository, out GameVersionCache cache)
         {

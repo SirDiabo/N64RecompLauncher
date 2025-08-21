@@ -2,6 +2,7 @@ using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Policy;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Animation;
@@ -78,6 +79,7 @@ namespace N64RecompLauncher
             if (_settings != null)
             {
                 PortableCheckBox.IsChecked = _settings.IsPortable;
+                IconSizeSlider.Value = _settings.IconSize;
             }
         }
 
@@ -104,15 +106,21 @@ namespace N64RecompLauncher
             }
         }
 
-        private void BackgroundGif_MediaEnded(object sender, RoutedEventArgs e)
-{
-    var mediaElement = sender as MediaElement;
-    if (mediaElement != null)
-    {
-        mediaElement.Position = TimeSpan.Zero;
-        mediaElement.Play();
-    }
-}
+        private void IconSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings != null)
+            {
+                _settings.IconSize = (int)e.NewValue;
+                OnSettingChanged();
+            }
+        }
+
+        private void DiscordButton_Click(object sender, RoutedEventArgs e)
+        {
+            string url = "https://discord.gg/DptggHetGZ";
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
