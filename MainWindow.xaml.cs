@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Animation;
 
 namespace N64RecompLauncher
 {
@@ -11,19 +12,18 @@ namespace N64RecompLauncher
     {
         private readonly GameManager _gameManager;
         private AppSettings _settings;
+        private bool isSettingsPanelOpen = false;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            // Load settings
             _settings = AppSettings.Load();
 
             _gameManager = new GameManager();
             DataContext = _gameManager;
 
-            // Set initial checkbox state
-            cb1.IsChecked = _settings.IsPortable;
+            UpdateSettingsUI();
 
             Loaded += MainWindow_Loaded;
         }
@@ -43,7 +43,6 @@ namespace N64RecompLauncher
             }
         }
 
-
         private void OptionsButton_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
@@ -53,23 +52,56 @@ namespace N64RecompLauncher
                 button.ContextMenu.IsOpen = true;
             }
         }
-        private void PortableTrue(object sender, RoutedEventArgs e)
-        {
-            _settings.IsPortable = true;
-            AppSettings.Save(_settings);
-        }
-
-        private void PortableFalse(object sender, RoutedEventArgs e)
-        {
-            _settings.IsPortable = false;
-            AppSettings.Save(_settings);
-        }
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            SettingsPanel.Visibility = SettingsPanel.Visibility == Visibility.Visible
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            if (isSettingsPanelOpen)
+            {
+                var collapseStoryboard = (Storyboard)FindResource("CollapseSettingsPanel");
+                collapseStoryboard.Completed += (s, args) => {
+                    SettingsPanelColumn.Width = new GridLength(0);
+                };
+                collapseStoryboard.Begin();
+            }
+            else
+            {
+                SettingsPanelColumn.Width = new GridLength(300);
+                var expandStoryboard = (Storyboard)FindResource("ExpandSettingsPanel");
+                expandStoryboard.Begin();
+            }
+
+            isSettingsPanelOpen = !isSettingsPanelOpen;
+        }
+
+        private void UpdateSettingsUI()
+        {
+            if (_settings != null)
+            {
+                PortableCheckBox.IsChecked = _settings.IsPortable;
+            }
+        }
+
+        private void OnSettingChanged()
+        {
+            AppSettings.Save(_settings);
+        }
+
+        private void PortableCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.IsPortable = true;
+                OnSettingChanged();
+            }
+        }
+
+        private void PortableCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.IsPortable = false;
+                OnSettingChanged();
+            }
         }
 
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)

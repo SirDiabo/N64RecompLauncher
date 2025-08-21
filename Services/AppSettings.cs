@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 
 namespace N64RecompLauncher.Services
@@ -36,11 +35,18 @@ namespace N64RecompLauncher.Services
 
         public static void Save(AppSettings settings)
         {
-            string jsonString = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+            try
             {
-                WriteIndented = true
-            });
-            File.WriteAllText(SettingsPath, jsonString);
+                string jsonString = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                File.WriteAllText(SettingsPath, jsonString);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save settings: {ex.Message}");
+            }
         }
     }
 }
