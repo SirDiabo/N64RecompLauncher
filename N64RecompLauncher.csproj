@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFrameworks>net8.0;net8.0-linux-arm64;net8.0-linux-x64;net8.0-macos</TargetFrameworks>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net9.0-windows</TargetFramework>
 		<UseWPF>true</UseWPF>
 		<ApplicationIcon>icon.ico</ApplicationIcon>
 		<AssemblyTitle>N64Recomp Launcher</AssemblyTitle>
@@ -16,17 +16,5 @@
 	<ItemGroup>
 		<PackageReference Include="System.Text.Json" Version="9.0.8" />
 	</ItemGroup>
-
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-linux-arm64'">
-		<RuntimeIdentifier>linux-arm64</RuntimeIdentifier>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-linux-x64'">
-		<RuntimeIdentifier>linux-x64</RuntimeIdentifier>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-macos'">
-		<RuntimeIdentifier>osx-x64</RuntimeIdentifier>
-	</PropertyGroup>
 
 </Project>
