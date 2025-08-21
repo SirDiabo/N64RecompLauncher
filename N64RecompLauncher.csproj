@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net9.0-windows</TargetFramework>
@@ -14,25 +13,13 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
-
 	<ItemGroup>
 		<PackageReference Include="System.Text.Json" Version="9.0.8" />
+		<PackageReference Include="System.Drawing.Common" Version="9.0.8" />
 	</ItemGroup>
-
 	<ItemGroup>
-		<None Update="Assets\*">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-		<Content Include="Assets\**\*">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Resource Include="Assets\**\*.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<Resource Include="Assets\**\*">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 		</Resource>
 	</ItemGroup>
-
-	<ItemGroup>
-		<Folder Include="Assets\" />
-	</ItemGroup>
-
 </Project>

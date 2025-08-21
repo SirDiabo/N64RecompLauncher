@@ -104,6 +104,15 @@ namespace N64RecompLauncher
             }
         }
 
+        private void BackgroundGif_MediaEnded(object sender, RoutedEventArgs e)
+{
+    var mediaElement = sender as MediaElement;
+    if (mediaElement != null)
+    {
+        mediaElement.Position = TimeSpan.Zero;
+        mediaElement.Play();
+    }
+}
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;

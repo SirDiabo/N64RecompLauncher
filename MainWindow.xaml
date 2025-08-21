@@ -181,6 +181,16 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <local:AnimatedGifImage GifSource="/Assets/icon.gif"
+                                Opacity="0.2"
+                                Width="Auto"
+                                Height="Auto"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Grid.RowSpan="2"
+                                Grid.ColumnSpan="3"
+                                Panel.ZIndex="-1"/>
+
         <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,20">
             <TextBlock Text="N64Recomp Launcher"
                        FontSize="32" 
@@ -189,7 +199,7 @@
                        HorizontalAlignment="Center"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,15,0">
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0">
             <Button Style="{StaticResource SettingsButton}"
                     Background="Transparent"
                     Width="60"
@@ -231,7 +241,7 @@
                               Margin="0,0,0,0"
                               Checked="PortableCheckBox_Checked"
                               Unchecked="PortableCheckBox_Unchecked" />
-                    
+
                     <TextBlock Text="Store data in the application directory."
                                FontSize="12" 
                                Foreground="#999999" 
@@ -250,7 +260,7 @@
                                        Width="256" 
                                        Height="256"
                                        VerticalAlignment="Center" 
-                                       HorizontalAlignment="Right"
+                                       HorizontalAlignment="Left"
                                        Opacity="0.2" 
                                        Margin="0,0,20,0"
                                        Stretch="Uniform"/>
