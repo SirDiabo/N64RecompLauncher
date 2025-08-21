@@ -1,14 +1,12 @@
 using System;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.Arm;
 using System.Text;
-using System.Text.Json; 
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -28,8 +26,18 @@ namespace N64RecompLauncher
             public GitHubAsset[] assets { get; set; }
         }
 
+        private class UpdateCheckInfo
+        {
+            public DateTime LastCheckTime { get; set; }
+            public string LastKnownVersion { get; set; }
+            public string ETag { get; set; }
+        }
+
         private const string Repository = "SirDiabo/N64RecompLauncher";
         private const string VersionFileName = "version.txt";
+        private const string UpdateCheckFileName = "update_check.json";
+
+        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromDays(1);
 
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -40,10 +48,12 @@ namespace N64RecompLauncher
                 await CheckForUpdatesAndApplyAsync();
             });
         }
+
         private async Task CheckForUpdatesAndApplyAsync()
         {
             string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string versionFilePath = Path.Combine(currentAppDirectory, VersionFileName);
+            string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
             string currentVersionString = "0.0";
 
             if (File.Exists(versionFilePath))
@@ -58,20 +68,55 @@ namespace N64RecompLauncher
                 }
             }
 
+            UpdateCheckInfo updateCheckInfo = await LoadUpdateCheckInfo(updateCheckFilePath);
+
+            if (ShouldSkipUpdateCheck(updateCheckInfo, currentVersionString))
+            {
+                Trace.WriteLine($"Skipping update check - last checked {updateCheckInfo.LastCheckTime}, current version {currentVersionString}");
+                return;
+            }
+
             using (var httpClient = new HttpClient())
             {
                 httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("N64RecompLauncher-Updater");
 
+                if (!string.IsNullOrEmpty(updateCheckInfo.ETag))
+                {
+                    httpClient.DefaultRequestHeaders.TryAddWithoutValidation("If-None-Match", updateCheckInfo.ETag);
+                }
+
                 try
                 {
-                    string releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                    string apiUrl = $"https://api.github.com/repos/{Repository}/releases/latest";
+                    var response = await httpClient.GetAsync(apiUrl);
+
+                    updateCheckInfo.LastCheckTime = DateTime.UtcNow;
+
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
+                    {
+                        Trace.WriteLine("No updates available (304 Not Modified)");
+                        await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+                        return;
+                    }
+
+                    response.EnsureSuccessStatusCode();
+
+                    if (response.Headers.ETag != null)
+                    {
+                        updateCheckInfo.ETag = response.Headers.ETag.Tag;
+                    }
+
+                    string releaseResponse = await response.Content.ReadAsStringAsync();
                     GitHubRelease latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
 
                     if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.tag_name))
                     {
                         Trace.WriteLine("No valid latest release information found on GitHub.");
+                        await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
                         return;
                     }
+
+                    updateCheckInfo.LastKnownVersion = latestRelease.tag_name;
 
                     Version current = new Version(currentVersionString.TrimStart('v'));
                     Version latest = new Version(latestRelease.tag_name.TrimStart('v'));
@@ -79,63 +124,169 @@ namespace N64RecompLauncher
                     if (latest.CompareTo(current) <= 0)
                     {
                         Trace.WriteLine($"Current version {currentVersionString} is up to date or newer than {latestRelease.tag_name}. No update needed.");
+                        await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
                         return;
                     }
 
                     Trace.WriteLine($"Newer version {latestRelease.tag_name} available. Current version is {currentVersionString}.");
 
-                    string platformIdentifier = GetPlatformIdentifier();
-                    var asset = latestRelease.assets.FirstOrDefault(a =>
-                        a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase) &&
-                        (a.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || a.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-                    );
+                    await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
-                    if (asset == null)
-                    {
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            MessageBox.Show($"No downloadable update found for your platform ({platformIdentifier}).",
-                                "Update Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        });
-                        return;
-                    }
-
-                    string tempDownloadPath = Path.Combine(Path.GetTempPath(), asset.name);
-                    using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
-                    {
-                        downloadResponse.EnsureSuccessStatusCode();
-                        using (var fs = new FileStream(tempDownloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                        {
-                            await downloadResponse.Content.CopyToAsync(fs);
-                        }
-                    }
-
-                    string tempUpdateFolder = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_temp_update");
-                    if (Directory.Exists(tempUpdateFolder))
-                    {
-                        Directory.Delete(tempUpdateFolder, true);
-                    }
-                    Directory.CreateDirectory(tempUpdateFolder);
-
-                    if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                    {
-                        ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
-                    }
-                    else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-                    {
-                        ExtractTarGz(tempDownloadPath, tempUpdateFolder);
-                    }
+                    await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, versionFilePath);
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        MessageBox.Show($"A new version ({latestRelease.tag_name}) has been downloaded. The application will now restart to apply the update.",
-                            "Update Available", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show($"Could not check for updates (Network Error): {httpEx.Message}",
+                            "Update Check Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
                     });
+                }
+                catch (JsonException jsonEx)
+                {
+                    await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
-                    string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
-                    string applicationExecutable = Process.GetCurrentProcess().MainModule.FileName;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"Could not parse GitHub release information: {jsonEx.Message}",
+                            "Update Check Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
-                    string scriptContent = $@"
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"An error occurred during update: {ex.Message}",
+                            "Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
+                }
+            }
+        }
+
+        private async Task<UpdateCheckInfo> LoadUpdateCheckInfo(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                return new UpdateCheckInfo
+                {
+                    LastCheckTime = DateTime.MinValue,
+                    LastKnownVersion = string.Empty,
+                    ETag = string.Empty
+                };
+            }
+
+            try
+            {
+                string json = await File.ReadAllTextAsync(filePath);
+                return JsonSerializer.Deserialize<UpdateCheckInfo>(json) ?? new UpdateCheckInfo();
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Error loading update check info: {ex.Message}");
+                return new UpdateCheckInfo
+                {
+                    LastCheckTime = DateTime.MinValue,
+                    LastKnownVersion = string.Empty,
+                    ETag = string.Empty
+                };
+            }
+        }
+
+        private async Task SaveUpdateCheckInfo(string filePath, UpdateCheckInfo info)
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(filePath, json);
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Error saving update check info: {ex.Message}");
+            }
+        }
+
+        private bool ShouldSkipUpdateCheck(UpdateCheckInfo info, string currentVersion)
+        {
+            if (info.LastCheckTime == DateTime.MinValue)
+                return false;
+
+            if (DateTime.UtcNow - info.LastCheckTime < UpdateCheckInterval)
+                return true;
+
+            if (!string.IsNullOrEmpty(info.LastKnownVersion) &&
+                !string.IsNullOrEmpty(currentVersion) &&
+                info.LastKnownVersion.Equals(currentVersion.TrimStart('v'), StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        }
+
+        private async Task DownloadAndApplyUpdate(GitHubRelease latestRelease, string currentAppDirectory, string versionFilePath)
+        {
+            string platformIdentifier = GetPlatformIdentifier();
+            var asset = latestRelease.assets.FirstOrDefault(a =>
+                a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase) &&
+                (a.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || a.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+            );
+
+            if (asset == null)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"No downloadable update found for your platform ({platformIdentifier}).",
+                        "Update Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
+                return;
+            }
+
+            using (var httpClient = new HttpClient())
+            {
+                string tempDownloadPath = Path.Combine(Path.GetTempPath(), asset.name);
+                using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
+                {
+                    downloadResponse.EnsureSuccessStatusCode();
+                    using (var fs = new FileStream(tempDownloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        await downloadResponse.Content.CopyToAsync(fs);
+                    }
+                }
+
+                string tempUpdateFolder = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_temp_update");
+                if (Directory.Exists(tempUpdateFolder))
+                {
+                    Directory.Delete(tempUpdateFolder, true);
+                }
+                Directory.CreateDirectory(tempUpdateFolder);
+
+                if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
+                }
+                else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                {
+                    ExtractTarGz(tempDownloadPath, tempUpdateFolder);
+                }
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"A new version ({latestRelease.tag_name}) has been downloaded. The application will now restart to apply the update.",
+                        "Update Available", MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+
+                await CreateAndRunUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath);
+            }
+        }
+
+        private async Task CreateAndRunUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, string versionFilePath)
+        {
+            string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
+            string applicationExecutable = Process.GetCurrentProcess().MainModule.FileName;
+
+            string scriptContent = $@"
 @echo off
 echo Waiting for N64RecompLauncher to close...
 taskkill /F /IM ""{Path.GetFileName(applicationExecutable)}"" > nul 2>&1
@@ -179,48 +330,23 @@ rem Delete the updater script itself after restarting the app
 del ""%~f0""
 ";
 
-                    await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
+            await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
 
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/C \"\"{updaterScriptPath}\"\"",
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                        CreateNoWindow = true,
-                        UseShellExecute = true
-                    });
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/C \"\"{updaterScriptPath}\"\"",
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true,
+                UseShellExecute = true
+            });
 
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        Application.Current.Shutdown();
-                    });
-                }
-                catch (HttpRequestException httpEx)
-                {
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        MessageBox.Show($"Could not check for updates (Network Error): {httpEx.Message}",
-                            "Update Check Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
-                }
-                catch (JsonException jsonEx)
-                {
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        MessageBox.Show($"Could not parse GitHub release information: {jsonEx.Message}",
-                            "Update Check Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        MessageBox.Show($"An error occurred during update: {ex.Message}",
-                            "Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                    });
-                }
-            }
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                Application.Current.Shutdown();
+            });
         }
+
         private void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
         {
             Directory.CreateDirectory(destinationDirectoryPath);
@@ -305,7 +431,7 @@ del ""%~f0""
                         Directory.CreateDirectory(dirName);
                     }
 
-                    if (fileType == '5') 
+                    if (fileType == '5')
                     {
                         Directory.CreateDirectory(destPath);
                         long paddingBytesDir = (512 - (fileSize % 512)) % 512;
@@ -314,7 +440,7 @@ del ""%~f0""
                             tarStream.Seek(fileSize + paddingBytesDir, SeekOrigin.Current);
                         }
                     }
-                    else if (fileType == '0' || fileType == '\0') 
+                    else if (fileType == '0' || fileType == '\0')
                     {
                         using (var fileStream = File.Create(destPath))
                         {
@@ -345,6 +471,7 @@ del ""%~f0""
                 }
             }
         }
+
         private void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
         {
             try

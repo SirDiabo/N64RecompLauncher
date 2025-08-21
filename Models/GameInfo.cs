@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -24,12 +25,65 @@ public enum GameStatus
 
 namespace N64RecompLauncher.Models
 {
+    public class GameVersionCache
+    {
+        public string Version { get; set; }
+        public DateTime LastChecked { get; set; }
+        public string ETag { get; set; }
+        public GitHubRelease CachedRelease { get; set; }
+    }
+
+    public static class GitHubApiCache
+    {
+        private static readonly ConcurrentDictionary<string, GameVersionCache> _cache = new();
+        private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(30);
+
+        public static bool TryGetCachedVersion(string repository, out GameVersionCache cache)
+        {
+            if (_cache.TryGetValue(repository, out cache))
+            {
+                // Check if cache is still valid
+                if (DateTime.UtcNow - cache.LastChecked < CacheExpiry)
+                {
+                    return true;
+                }
+            }
+            cache = null;
+            return false;
+        }
+
+        public static void SetCache(string repository, string version, string etag, GitHubRelease release = null)
+        {
+            _cache.AddOrUpdate(repository,
+                new GameVersionCache
+                {
+                    Version = version,
+                    LastChecked = DateTime.UtcNow,
+                    ETag = etag,
+                    CachedRelease = release
+                },
+                (key, old) => new GameVersionCache
+                {
+                    Version = version,
+                    LastChecked = DateTime.UtcNow,
+                    ETag = etag ?? old.ETag,
+                    CachedRelease = release ?? old.CachedRelease
+                });
+        }
+
+        public static string GetETag(string repository)
+        {
+            return _cache.TryGetValue(repository, out var cache) ? cache.ETag : null;
+        }
+    }
+
     public class GameInfo : INotifyPropertyChanged
     {
         private string _latestVersion;
         private string _installedVersion;
         private GameStatus _status = GameStatus.NotInstalled;
         private bool _isLoading;
+        private GitHubRelease _cachedRelease;
 
         public string Name { get; set; }
         public string Repository { get; set; }
@@ -172,20 +226,61 @@ namespace N64RecompLauncher.Models
             }
         }
 
-
-
         private async Task CheckLatestVersionAsync(HttpClient httpClient)
         {
             try
             {
-                var response = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
-                var release = JsonSerializer.Deserialize<GitHubRelease>(response);
-                
-                LatestVersion = release.tag_name;
-
-                if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache))
                 {
-                    Status = GameStatus.UpdateAvailable;
+                    LatestVersion = cache.Version;
+                    _cachedRelease = cache.CachedRelease;
+
+                    if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                    {
+                        Status = GameStatus.UpdateAvailable;
+                    }
+                    return;
+                }
+
+                var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{Repository}/releases/latest");
+
+                string etag = GitHubApiCache.GetETag(Repository);
+                if (!string.IsNullOrEmpty(etag))
+                {
+                    request.Headers.TryAddWithoutValidation("If-None-Match", etag);
+                }
+
+                var response = await httpClient.SendAsync(request);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
+                {
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var existingCache))
+                    {
+                        LatestVersion = existingCache.Version;
+                        _cachedRelease = existingCache.CachedRelease;
+
+                        GitHubApiCache.SetCache(Repository, existingCache.Version, existingCache.ETag, existingCache.CachedRelease);
+                    }
+                    return;
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                string responseContent = await response.Content.ReadAsStringAsync();
+                var release = JsonSerializer.Deserialize<GitHubRelease>(responseContent);
+
+                if (release != null && !string.IsNullOrWhiteSpace(release.tag_name))
+                {
+                    LatestVersion = release.tag_name;
+                    _cachedRelease = release;
+
+                    string newETag = response.Headers.ETag?.Tag;
+                    GitHubApiCache.SetCache(Repository, release.tag_name, newETag, release);
+
+                    if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                    {
+                        Status = GameStatus.UpdateAvailable;
+                    }
                 }
             }
             catch (Exception ex)
@@ -223,8 +318,21 @@ namespace N64RecompLauncher.Models
                 {
                     var existingVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
 
-                    var response = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
-                    var release = JsonSerializer.Deserialize<GitHubRelease>(response);
+                    GitHubRelease release = _cachedRelease;
+                    if (release == null)
+                    {
+                        if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache.CachedRelease != null)
+                        {
+                            release = cache.CachedRelease;
+                        }
+                        else
+                        {
+                            var response = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                            release = JsonSerializer.Deserialize<GitHubRelease>(response);
+
+                            GitHubApiCache.SetCache(Repository, release.tag_name, null, release);
+                        }
+                    }
 
                     LatestVersion = release.tag_name;
 
@@ -236,8 +344,21 @@ namespace N64RecompLauncher.Models
                     }
                 }
 
-                var releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
-                var latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
+                GitHubRelease latestRelease = _cachedRelease;
+                if (latestRelease == null)
+                {
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache.CachedRelease != null)
+                    {
+                        latestRelease = cache.CachedRelease;
+                    }
+                    else
+                    {
+                        var releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                        latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
+
+                        GitHubApiCache.SetCache(Repository, latestRelease.tag_name, null, latestRelease);
+                    }
+                }
 
                 var asset = latestRelease.assets.FirstOrDefault(a =>
                     a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase));
@@ -282,6 +403,7 @@ namespace N64RecompLauncher.Models
                 File.Delete(downloadPath);
 
                 InstalledVersion = latestRelease.tag_name;
+                LatestVersion = latestRelease.tag_name;
                 Status = GameStatus.Installed;
             }
             catch (HttpRequestException ex)
@@ -439,6 +561,7 @@ namespace N64RecompLauncher.Models
 
             throw new PlatformNotSupportedException("Unsupported operating system");
         }
+
         private void Launch(string gamesFolder)
         {
             try
