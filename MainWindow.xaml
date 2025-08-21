@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:N64RecompLauncher"
-        Title="N64Recomp Launcher" 
+        Title="N64Recomp Launcher"
         Height="720" Width="1280"
         Background="#1e1e1e"
         WindowStartupLocation="CenterScreen">
@@ -84,13 +84,14 @@
         </Style>
 
         <Style x:Key="ContextMenuItemStyle" TargetType="MenuItem">
+            
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Padding" Value="8"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
-                        <Border Background="{TemplateBinding Background}" 
+                        <Border Background="{TemplateBinding Background}"
                         Padding="{TemplateBinding Padding}">
                             <Grid>
                                 <ContentPresenter ContentSource="Header"
@@ -111,19 +112,67 @@
 
     <Grid Margin="30">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="70"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,0">
-            <TextBlock Text="N64Recomp Launcher"
-                       FontSize="32" 
-                       FontWeight="Bold" 
-                       Foreground="White" 
-                       HorizontalAlignment="Center"/>
-        </StackPanel>
+        <Button x:Name="SettingsButton"
+                Grid.Row="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Width="64"
+                Height="64"
+                Background="Transparent"
+                Foreground="White"
+                BorderThickness="0"
+                Click="SettingsButton_Click">
+            <Button.Content>
+                <Image Source="/Assets/Settings.png"
+                Stretch="UniformToFill"
+                Width="64"
+                Height="64"/>
+            </Button.Content>
+        </Button>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <StackPanel Grid.Row="0" Margin="0,8,0,0">
+            <TextBlock Text="N64Recomp Launcher"
+                       FontSize="32"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Bottom" />
+        </StackPanel>
+        
+        <Grid x:Name="SettingsPanel"
+              Grid.Row="0"
+              Grid.RowSpan="2"
+              Width="300"
+              Margin="0,64,0,0"
+              HorizontalAlignment="Left"
+              Background="#2d2d30"
+              Visibility="Collapsed"
+              Panel.ZIndex="100">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Settings"
+                       FontSize="32"
+                       Padding="8"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+
+            <StackPanel Grid.Row="1" Margin="20">
+
+                <CheckBox x:Name="cb1" Grid.Row="1" Margin="5,0,0,0" 
+                Content="Portable" Foreground="White"
+                Checked="PortableTrue" Unchecked="PortableFalse"/>
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False">
             <ItemsControl ItemsSource="{Binding Games}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -145,20 +194,20 @@
                                     </Grid.ColumnDefinitions>
 
                                     <StackPanel Grid.Column="0" Margin="0,0,0,0">
-                                        <TextBlock Text="{Binding Name}" 
-                                                   FontSize="20" 
-                                                   FontWeight="SemiBold" 
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="20"
+                                                   FontWeight="SemiBold"
                                                    Foreground="White"/>
-                                        <TextBlock Text="{Binding StatusText}" 
-                                                   FontSize="14" 
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   FontSize="14"
                                                    Foreground="#cccccc" 
                                                    Margin="0,5,0,0"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                            <TextBlock Text="Latest: " 
-                                                       FontSize="12" 
+                                            <TextBlock Text="Latest: "
+                                                       FontSize="12"
                                                        Foreground="#999999"/>
-                                            <TextBlock Text="{Binding LatestVersion}" 
-                                                       FontSize="12" 
+                                            <TextBlock Text="{Binding LatestVersion}"
+                                                       FontSize="12"
                                                        Foreground="#cccccc"/>
                                         </StackPanel>
                                     </StackPanel>

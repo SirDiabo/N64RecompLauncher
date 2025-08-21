@@ -288,15 +288,37 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        public async Task PerformActionAsync(HttpClient httpClient, string gamesFolder)
+        public async Task PerformActionAsync(HttpClient httpClient, string gamesFolder, bool isPortable)
         {
+            string gamePath = Path.Combine(gamesFolder, FolderName);
+            string portableFilePath = Path.Combine(gamePath, "portable.txt");
+            string disabledPortableFilePath = Path.Combine(gamePath, "portable_disabled.txt");
+
             switch (Status)
             {
                 case GameStatus.NotInstalled:
                 case GameStatus.UpdateAvailable:
                     await DownloadAndInstallAsync(httpClient, gamesFolder);
+
+                    if (File.Exists(portableFilePath))
+                    {
+                        if (!isPortable)
+                        {
+                            File.Move(portableFilePath, disabledPortableFilePath, true);
+                        }
+                    }
                     break;
+
                 case GameStatus.Installed:
+                    if (File.Exists(portableFilePath) && !isPortable)
+                    {
+                        File.Move(portableFilePath, disabledPortableFilePath, true);
+                    }
+                    else if (File.Exists(disabledPortableFilePath) && isPortable)
+                    {
+                        File.Move(disabledPortableFilePath, portableFilePath, true);
+                    }
+
                     Launch(gamesFolder);
                     break;
             }
