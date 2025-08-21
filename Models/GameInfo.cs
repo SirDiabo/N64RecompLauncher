@@ -4,13 +4,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 
@@ -317,6 +315,11 @@ namespace N64RecompLauncher.Models
                     else if (File.Exists(disabledPortableFilePath) && isPortable)
                     {
                         File.Move(disabledPortableFilePath, portableFilePath, true);
+                    }
+                    else if (!File.Exists(portableFilePath) && !File.Exists(disabledPortableFilePath) && isPortable)
+                    {
+                        Directory.CreateDirectory(gamePath);
+                        File.Create(portableFilePath).Close();
                     }
 
                     Launch(gamesFolder);
