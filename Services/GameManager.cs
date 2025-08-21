@@ -1,10 +1,8 @@
 using N64RecompLauncher.Models;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
-using System.Threading.Tasks;
 
 namespace N64RecompLauncher.Services
 {

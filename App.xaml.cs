@@ -293,40 +293,29 @@ taskkill /F /IM ""{Path.GetFileName(applicationExecutable)}"" > nul 2>&1
 timeout /t 3 /nobreak > nul
 
 echo Applying update...
-rem Delete old application files, but exclude the updater script and RecompiledGames folder
-for /D %%i in (""{currentAppDirectory}""\*) do (
-    if /I not ""%%~nxi""==""RecompiledGames"" (
-        rmdir /S /Q ""%%i"" > nul 2>&1
-    )
-)
-for %%i in (""{currentAppDirectory}""\*.*) do (
+
+set ""appDir={currentAppDirectory}""
+
+for %%i in (""%appDir%\*.*"") do (
     if /I not ""%%~nxi""==""{Path.GetFileName(updaterScriptPath)}"" (
-        if /I not ""%%~nxi""==""RecompiledGames"" (
-            del ""%%i"" > nul 2>&1
-        )
+        if /I not ""%%~nxi""==""RecompiledGames""
     )
 )
 
-rem Copy new files from temporary update folder to the application directory
-xcopy ""{tempUpdateFolder}\*"" ""{currentAppDirectory}"" /S /E /Y /I > nul 2>&1
+xcopy ""{tempUpdateFolder}\*"" ""%appDir%"" /S /E /Y /I > nul 2>&1
 
-rem Write the new version to version.txt
 echo {latestRelease.tag_name} > ""{versionFilePath}""
 
-rem Clean up temporary downloaded file and extracted folder
 del ""{tempDownloadPath}"" > nul 2>&1
 rmdir /S /Q ""{tempUpdateFolder}"" > nul 2>&1
 
 echo Update applied. Restarting N64RecompLauncher...
-start """" ""{applicationExecutable}""
+start """""" ""{applicationExecutable}""
 
-rem Wait for a moment to ensure the application starts
-timeout /t 2 > nul
+timeout /t 1 > nul
 
-rem Focus the application window using nircmd
 nircmd win activate ititle ""N64RecompLauncher""
 
-rem Delete the updater script itself after restarting the app
 del ""%~f0""
 ";
 
