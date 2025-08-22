@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -37,6 +38,7 @@ namespace N64RecompLauncher
         private const string UpdateCheckFileName = "update_check.json";
 
         private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(20);
+        private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -92,6 +94,7 @@ namespace N64RecompLauncher
 
             using (var httpClient = new HttpClient())
             {
+                httpClient.Timeout = DownloadTimeout;
                 httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("N64RecompLauncher-Updater");
 
                 if (!string.IsNullOrEmpty(updateCheckInfo.ETag))
@@ -167,6 +170,16 @@ namespace N64RecompLauncher
                     {
                         MessageBox.Show($"Could not parse GitHub release information: {jsonEx.Message}",
                             "Update Check Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
+                }
+                catch (TaskCanceledException)
+                {
+                    await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show("Update check timed out. Please check your internet connection.",
+                            "Update Check Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
                     });
                 }
                 catch (Exception ex)
@@ -290,41 +303,110 @@ namespace N64RecompLauncher
                 return;
             }
 
-            using (var httpClient = new HttpClient())
+            DriveInfo drive = new DriveInfo(Path.GetPathRoot(currentAppDirectory));
+            if (drive.AvailableFreeSpace < 500 * 1024 * 1024)
             {
-                string tempDownloadPath = Path.Combine(Path.GetTempPath(), asset.name);
-                using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
-                {
-                    downloadResponse.EnsureSuccessStatusCode();
-                    using (var fs = new FileStream(tempDownloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                    {
-                        await downloadResponse.Content.CopyToAsync(fs);
-                    }
-                }
-
-                string tempUpdateFolder = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_temp_update");
-                if (Directory.Exists(tempUpdateFolder))
-                {
-                    Directory.Delete(tempUpdateFolder, true);
-                }
-                Directory.CreateDirectory(tempUpdateFolder);
-
-                if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                {
-                    ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
-                }
-                else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-                {
-                    ExtractTarGz(tempDownloadPath, tempUpdateFolder);
-                }
-
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    MessageBox.Show($"A new version ({latestRelease.tag_name}) has been downloaded. The application will now restart to apply the update.",
-                        "Update Available", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"Insufficient disk space for update. At least 500MB required.",
+                        "Update Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
+                return;
+            }
 
-                await CreateAndRunUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath);
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.Timeout = DownloadTimeout;
+
+                string tempDownloadPath = Path.Combine(Path.GetTempPath(), asset.name);
+                try
+                {
+                    using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
+                    {
+                        downloadResponse.EnsureSuccessStatusCode();
+                        using (var fs = new FileStream(tempDownloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            await downloadResponse.Content.CopyToAsync(fs);
+                        }
+                    }
+
+                    string tempUpdateFolder = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_temp_update");
+                    if (Directory.Exists(tempUpdateFolder))
+                    {
+                        Directory.Delete(tempUpdateFolder, true);
+                    }
+                    Directory.CreateDirectory(tempUpdateFolder);
+
+                    if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
+                    }
+                    else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ExtractTarGz(tempDownloadPath, tempUpdateFolder);
+                    }
+
+                    if (!ValidateUpdateFiles(tempUpdateFolder))
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            MessageBox.Show("Downloaded update appears to be corrupted or incomplete.",
+                                "Update Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        });
+                        return;
+                    }
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"A new version ({latestRelease.tag_name}) has been downloaded. The application will now restart to apply the update.",
+                            "Update Available", MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+
+                    await CreateAndRunUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath);
+                }
+                catch (TaskCanceledException)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show("Update download timed out. Please check your internet connection.",
+                            "Update Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"Error downloading update: {ex.Message}",
+                            "Update Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
+                }
+            }
+        }
+
+        private bool ValidateUpdateFiles(string updateDirectory)
+        {
+            try
+            {
+                string mainExe = Path.Combine(updateDirectory, "N64RecompLauncher.exe");
+                if (!File.Exists(mainExe))
+                {
+                    Trace.WriteLine("Main executable not found in update package");
+                    return false;
+                }
+
+                FileInfo exeInfo = new FileInfo(mainExe);
+                if (exeInfo.Length < 1024)
+                {
+                    Trace.WriteLine($"Main executable too small: {exeInfo.Length} bytes");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Error validating update files: {ex.Message}");
+                return false;
             }
         }
 
@@ -333,36 +415,58 @@ namespace N64RecompLauncher
             string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
             string applicationExecutable = Process.GetCurrentProcess().MainModule.FileName;
 
-            string scriptContent = $@"
-@echo off
+            string backupDir = Path.Combine(currentAppDirectory, "backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+
+            string scriptContent = $@"@echo off
+echo N64RecompLauncher Updater - Version {latestRelease.tag_name}
+echo.
+
 echo Waiting for N64RecompLauncher to close...
-taskkill /F /IM ""{Path.GetFileName(applicationExecutable)}"" > nul 2>&1
-timeout /t 3 /nobreak > nul
+:wait_loop
+tasklist /FI ""IMAGENAME eq {Path.GetFileName(applicationExecutable)}"" 2>NUL | find /I /N ""{Path.GetFileName(applicationExecutable)}"">NUL
+if ""%ERRORLEVEL%""==""0"" (
+    timeout /T 1 >NUL
+    goto wait_loop
+)
 
-echo Applying update...
-
+echo Creating backup...
 set ""appDir={currentAppDirectory}""
+set ""backupDir={backupDir}""
+set ""updateDir={tempUpdateFolder}""
 
-for %%i in (""%appDir%\*.*"") do (
-    if /I not ""%%~nxi""==""{Path.GetFileName(updaterScriptPath)}"" (
-        if /I not ""%%~nxi""==""RecompiledGames""
+if not exist ""%backupDir%"" mkdir ""%backupDir%""
+
+echo Backing up current version...
+for %%i in (""%appDir%\*.exe"" ""%appDir%\*.dll"" ""%appDir%\*.config"" ""%appDir%\*.json"") do (
+    if exist ""%%i"" (
+        copy ""%%i"" ""%backupDir%\"" >nul 2>&1
     )
 )
 
-xcopy ""{tempUpdateFolder}\*"" ""%appDir%"" /S /E /Y /I > nul 2>&1
+echo Applying update...
+xcopy ""%updateDir%\*"" ""%appDir%"" /S /E /Y /I >nul 2>&1
+if errorlevel 1 (
+    echo Update failed! Restoring backup...
+    xcopy ""%backupDir%\*"" ""%appDir%"" /S /E /Y /I >nul 2>&1
+    echo Backup restored. Update failed.
+    pause
+    goto cleanup
+)
 
+echo Updating version file...
 echo {latestRelease.tag_name} > ""{versionFilePath}""
 
-del ""{tempDownloadPath}"" > nul 2>&1
-rmdir /S /Q ""{tempUpdateFolder}"" > nul 2>&1
+echo Update completed successfully!
+echo Restarting N64RecompLauncher...
+timeout /T 2 >nul
+start """" ""{applicationExecutable}""
 
-echo Update applied. Restarting N64RecompLauncher...
-start """""" ""{applicationExecutable}""
+:cleanup
+echo Cleaning up temporary files...
+if exist ""{tempDownloadPath}"" del ""{tempDownloadPath}"" >nul 2>&1
+if exist ""%updateDir%"" rmdir /S /Q ""%updateDir%"" >nul 2>&1
 
-timeout /t 1 > nul
-
-nircmd win activate ititle ""N64RecompLauncher""
-
+timeout /T 1 >nul
 del ""%~f0""
 ";
 
@@ -372,8 +476,8 @@ del ""%~f0""
             {
                 FileName = "cmd.exe",
                 Arguments = $"/C \"\"{updaterScriptPath}\"\"",
-                WindowStyle = ProcessWindowStyle.Hidden,
-                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Normal, 
+                CreateNoWindow = false,
                 UseShellExecute = true
             });
 
@@ -420,6 +524,28 @@ del ""%~f0""
             }
         }
 
+        private bool IsSafePath(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+                return false;
+
+            if (fileName.Contains("..") || fileName.Contains("./") || fileName.Contains(".\\"))
+                return false;
+
+            if (Path.IsPathRooted(fileName))
+                return false;
+
+            if (fileName.IndexOfAny(Path.GetInvalidPathChars()) != -1)
+                return false;
+
+            string[] reservedNames = { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
+            string nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
+            if (reservedNames.Contains(nameWithoutExtension))
+                return false;
+
+            return true;
+        }
+
         private void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
         {
             using (var reader = new BinaryReader(tarStream, Encoding.ASCII, true))
@@ -440,6 +566,22 @@ del ""%~f0""
 
                     string fileSizeStr = Encoding.ASCII.GetString(headerBytes, 124, 12).TrimEnd('\0');
                     long fileSize;
+
+                    if (!IsSafePath(fileName))
+                    {
+                        Trace.WriteLine($"Skipping potentially unsafe path in tar: {fileName}");
+                        try
+                        {
+                            fileSize = Convert.ToInt64(fileSizeStr, 8);
+                            long paddingBytes = (512 - (fileSize % 512)) % 512;
+                            tarStream.Seek(fileSize + paddingBytes, SeekOrigin.Current);
+                        }
+                        catch
+                        {
+                            tarStream.Seek(512 - (tarStream.Position % 512), SeekOrigin.Current);
+                        }
+                        continue;
+                    }
                     try
                     {
                         fileSize = Convert.ToInt64(fileSizeStr, 8);
