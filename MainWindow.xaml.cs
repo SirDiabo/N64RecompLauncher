@@ -212,7 +212,18 @@ namespace N64RecompLauncher
                 OnSettingChanged();
             }
         }
-
+        private void GithubButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string url = "https://github.com/SirDiabo/N64RecompLauncher/";
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to open Github link: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
         private void DiscordButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -399,6 +410,10 @@ namespace N64RecompLauncher
                     else
                     {
                         await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder);
+                    }
+                    if (_gameManager != null)
+                    {
+                        await _gameManager.LoadGamesAsync();
                     }
                 }
                 catch (Exception ex)

@@ -49,6 +49,7 @@ namespace N64RecompLauncher.Services
                     Branch = "dev",
                     ImageRes = "512",
                     FolderName = "Zelda64Recomp",
+                    GameManager = this,
                 },
                 new GameInfo
                 {
@@ -57,6 +58,7 @@ namespace N64RecompLauncher.Services
                     Branch = "dev",
                     ImageRes = "512",
                     FolderName = "Goemon64Recomp",
+                    GameManager = this,
                 },
                 new GameInfo
                 {
@@ -65,6 +67,7 @@ namespace N64RecompLauncher.Services
                     Branch = "main",
                     ImageRes = "512",
                     FolderName = "MarioKart64Recomp",
+                    GameManager = this,
                 },
                 new GameInfo
                 {
@@ -73,6 +76,7 @@ namespace N64RecompLauncher.Services
                     Branch = "main",
                     ImageRes = "64",
                     FolderName = "DinosaurPlanetRecomp",
+                    GameManager = this,
                 },
             };
 

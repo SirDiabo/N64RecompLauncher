@@ -217,7 +217,17 @@
             </Button>
         </StackPanel>
 
+        
+
         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0" VerticalAlignment="Bottom">
+            <Button Style="{StaticResource SettingsButton}"
+                    Background="Transparent"
+                    Width="60"
+                    Height="60"
+                    Click="GithubButton_Click"
+                    ToolTip="Open N64RecompLauncher Github Page">
+                <Image Source="/Assets/Github.png" Width="60" Height="60" Margin="-16"/>
+            </Button>
             <Button Style="{StaticResource SettingsButton}"
                     Background="Transparent"
                     Width="60"
@@ -271,18 +281,18 @@
                                Margin="0,0,0,10"/>
 
                     <CheckBox x:Name="IconFillCheckBox"
-                               Content="Icon Fill" 
+                               Content="Image Fill" 
                                Foreground="White" 
                                Margin="0,0,0,0"
                                Checked="IconFillCheckBox_Checked"
                                Unchecked="IconFillCheckBox_Unchecked" />
 
-                    <TextBlock Text="Icons fill entire slot."
+                    <TextBlock Text="Images fill the entire slots."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Icon Opacity" 
+                    <TextBlock Text="Image Opacity" 
                                FontSize="12" 
                                FontWeight="SemiBold" 
                                Foreground="White"/>
@@ -301,12 +311,12 @@
                                IsSnapToTickEnabled="True"
                                ValueChanged="IconOpacitySlider_ValueChanged" />
 
-                    <TextBlock Text="Opacity of the game icons."
+                    <TextBlock Text="Opacity of the game images."
                                FontSize="12"
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Icon Size" 
+                    <TextBlock Text="Image Size" 
                                FontSize="12" 
                                FontWeight="SemiBold" 
                                Foreground="White"/>
@@ -325,12 +335,12 @@
                                IsSnapToTickEnabled="True"
                                ValueChanged="IconSizeSlider_ValueChanged" />
 
-                    <TextBlock Text="Size of the game icons."
+                    <TextBlock Text="Size of the game images."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Icon Margin" 
+                    <TextBlock Text="Image Margin" 
                                FontSize="12" 
                                FontWeight="SemiBold" 
                                Foreground="White"/>
@@ -349,7 +359,7 @@
                                IsSnapToTickEnabled="True"
                                ValueChanged="IconMarginSlider_ValueChanged" />
 
-                    <TextBlock Text="The icon's left margin."
+                    <TextBlock Text="The image's left margin."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
@@ -447,11 +457,11 @@
                                                               Style="{StaticResource ContextMenuItemStyle}"
                                                               Click="OpenGitHubPage_Click"
                                                               Tag="{Binding}"/>
-                                                    <MenuItem Header="Add Custom Icon"
+                                                    <MenuItem Header="Add Custom Image"
                                                               Style="{StaticResource ContextMenuItemStyle}"
                                                               Click="SetCustomIcon_Click"
                                                               Tag="{Binding}"/>
-                                                    <MenuItem Header="Remove Custom Icon"
+                                                    <MenuItem Header="Remove Custom Image"
                                                               Style="{StaticResource ContextMenuItemStyle}"
                                                               Click="RemoveCustomIcon_Click"
                                                               Tag="{Binding}"

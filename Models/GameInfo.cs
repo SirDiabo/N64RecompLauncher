@@ -1,3 +1,4 @@
+using N64RecompLauncher.Services;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -80,6 +81,7 @@ namespace N64RecompLauncher.Models
         private GameStatus _status = GameStatus.NotInstalled;
         private bool _isLoading;
         private GitHubRelease _cachedRelease;
+        public GameManager GameManager { get; set; }
 
         public string Name { get; set; }
         public string Repository { get; set; }
@@ -444,13 +446,19 @@ namespace N64RecompLauncher.Models
 
                     LatestVersion = release.tag_name;
 
+                    if (GameManager != null)
+                    {
+                        await GameManager.LoadGamesAsync();
+                    }
+
                     if (existingVersion == LatestVersion)
                     {
                         Status = GameStatus.Installed;
                         InstalledVersion = existingVersion;
                         return;
                     }
-                }
+
+        }
 
                 GitHubRelease latestRelease = _cachedRelease;
                 if (latestRelease == null)
@@ -673,7 +681,7 @@ namespace N64RecompLauncher.Models
             throw new PlatformNotSupportedException("Unsupported operating system");
         }
 
-        private void Launch(string gamesFolder)
+        private async void Launch(string gamesFolder)
         {
             try
             {
@@ -735,6 +743,11 @@ namespace N64RecompLauncher.Models
                 UpdateLastPlayedTime(gamePath);
 
                 Process.Start(startInfo);
+
+                if (GameManager != null)
+                {
+                    await GameManager.LoadGamesAsync();
+                }
             }
             catch (Exception ex)
             {
