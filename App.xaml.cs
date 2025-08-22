@@ -1,13 +1,10 @@
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 
 namespace N64RecompLauncher
@@ -30,9 +27,9 @@ namespace N64RecompLauncher
         {
             public DateTime LastCheckTime { get; set; }
             public string LastKnownVersion { get; set; }
-            public string CurrentVersion { get; set; }  // Added to track current version at time of check
+            public string CurrentVersion { get; set; }
             public string ETag { get; set; }
-            public bool UpdateAvailable { get; set; }  // Added to track if update is available
+            public bool UpdateAvailable { get; set; }
         }
 
         private const string Repository = "SirDiabo/N64RecompLauncher";
@@ -76,21 +73,17 @@ namespace N64RecompLauncher
             {
                 Trace.WriteLine($"Skipping update check - last checked {updateCheckInfo.LastCheckTime}, current version {currentVersionString}");
 
-                // If we have cached info that an update is available, still process it
                 if (updateCheckInfo.UpdateAvailable &&
                     !string.IsNullOrEmpty(updateCheckInfo.LastKnownVersion) &&
                     IsNewerVersion(updateCheckInfo.LastKnownVersion, currentVersionString))
                 {
                     Trace.WriteLine($"Cached update available: {updateCheckInfo.LastKnownVersion}");
-                    // Create a mock release object with cached info
                     var cachedRelease = new GitHubRelease
                     {
                         tag_name = updateCheckInfo.LastKnownVersion,
-                        assets = new GitHubAsset[0] // We'll need to fetch assets if user wants to update
+                        assets = new GitHubAsset[0]
                     };
 
-                    // For now, just log that an update is available
-                    // You might want to show a notification or prompt here
                     Trace.WriteLine($"Update {updateCheckInfo.LastKnownVersion} is available (cached info)");
                 }
 
@@ -112,12 +105,11 @@ namespace N64RecompLauncher
                     var response = await httpClient.GetAsync(apiUrl);
 
                     updateCheckInfo.LastCheckTime = DateTime.UtcNow;
-                    updateCheckInfo.CurrentVersion = currentVersionString; // Cache current version
+                    updateCheckInfo.CurrentVersion = currentVersionString;
 
                     if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
                     {
                         Trace.WriteLine("No updates available (304 Not Modified)");
-                        // Update was not available when we last checked, and nothing has changed
                         updateCheckInfo.UpdateAvailable = false;
                         await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
                         return;
@@ -209,7 +201,6 @@ namespace N64RecompLauncher
                 string json = await File.ReadAllTextAsync(filePath);
                 var info = JsonSerializer.Deserialize<UpdateCheckInfo>(json) ?? new UpdateCheckInfo();
 
-                // Ensure new properties have default values if deserializing old format
                 if (string.IsNullOrEmpty(info.CurrentVersion))
                     info.CurrentVersion = string.Empty;
 
@@ -244,27 +235,23 @@ namespace N64RecompLauncher
 
         private bool ShouldSkipUpdateCheck(UpdateCheckInfo info, string currentVersion)
         {
-            // Never checked before
             if (info.LastCheckTime == DateTime.MinValue)
                 return false;
 
-            // Haven't waited long enough since last check
             if (DateTime.UtcNow - info.LastCheckTime < UpdateCheckInterval)
                 return true;
 
-            // If the current version has changed since last check, we should check again
             if (!string.IsNullOrEmpty(info.CurrentVersion) &&
                 !info.CurrentVersion.Equals(currentVersion.TrimStart('v'), StringComparison.OrdinalIgnoreCase))
             {
-                return false; // Version changed, need to check
+                return false;
             }
 
-            // If we have cached info and know we're up to date, skip the check
             if (!string.IsNullOrEmpty(info.LastKnownVersion) &&
                 !string.IsNullOrEmpty(currentVersion) &&
                 !IsNewerVersion(info.LastKnownVersion, currentVersion))
             {
-                return true; // We're up to date based on cached info
+                return true;
             }
 
             return false;
@@ -281,7 +268,7 @@ namespace N64RecompLauncher
             catch (Exception ex)
             {
                 Trace.WriteLine($"Error comparing versions '{latestVersion}' vs '{currentVersion}': {ex.Message}");
-                return false; // If we can't compare, assume no update needed
+                return false;
             }
         }
 

@@ -1,8 +1,10 @@
 using N64RecompLauncher.Models;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
+using System.Windows;
 
 namespace N64RecompLauncher.Services
 {
@@ -10,10 +12,12 @@ namespace N64RecompLauncher.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _gamesFolder;
+        private readonly string _cacheFolder;
 
         public ObservableCollection<GameInfo> Games { get; }
         public HttpClient HttpClient => _httpClient;
         public string GamesFolder => _gamesFolder;
+        public string CacheFolder => _cacheFolder;
 
         private string _currentVersionString;
         public string currentVersionString
@@ -31,7 +35,10 @@ namespace N64RecompLauncher.Services
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "N64Recomp-Launcher/1.0");
             _gamesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RecompiledGames");
+            _cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Cache");
+
             Directory.CreateDirectory(_gamesFolder);
+            Directory.CreateDirectory(_cacheFolder);
 
             LoadVersionString();
 
@@ -70,6 +77,8 @@ namespace N64RecompLauncher.Services
                     FolderName = "DinosaurPlanetRecomp",
                 },
             };
+
+            LoadCustomIcons();
         }
 
         private void LoadVersionString()
@@ -83,6 +92,24 @@ namespace N64RecompLauncher.Services
             {
                 currentVersionString = "Version information not found";
             }
+        }
+
+        private void LoadCustomIcons()
+        {
+            foreach (var game in Games)
+            {
+                game.LoadCustomIcon(_cacheFolder);
+            }
+        }
+
+        public GameInfo FindGameByName(string name)
+        {
+            return Games.FirstOrDefault(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public GameInfo FindGameByFolderName(string folderName)
+        {
+            return Games.FirstOrDefault(g => g.FolderName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
         }
 
         protected void OnPropertyChanged(string propertyName)

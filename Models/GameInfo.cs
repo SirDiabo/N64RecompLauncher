@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -88,7 +87,34 @@ namespace N64RecompLauncher.Models
         public string ImageRes { get; set; }
         public string FolderName { get; set; }
 
-        public string IconUrl => $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+        private string _customIconPath;
+        public string CustomIconPath
+        {
+            get => _customIconPath;
+            set
+            {
+                if (_customIconPath != value)
+                {
+                    _customIconPath = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IconUrl));
+                    OnPropertyChanged(nameof(HasCustomIcon));
+                }
+            }
+        }
+        public bool HasCustomIcon => !string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath);
+
+        public string IconUrl
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath))
+                {
+                    return CustomIconPath;
+                }
+                return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+            }
+        }
 
         public string LatestVersion
         {
@@ -220,6 +246,64 @@ namespace N64RecompLauncher.Models
             finally
             {
                 IsLoading = false;
+            }
+        }
+
+        public void SetCustomIcon(string sourcePath, string cacheDirectory)
+        {
+            if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+                return;
+
+            var customIconsDir = Path.Combine(cacheDirectory, "CustomIcons");
+            Directory.CreateDirectory(customIconsDir);
+
+            var extension = Path.GetExtension(sourcePath);
+            var fileName = $"{FolderName}_custom{extension}";
+            var destinationPath = Path.Combine(customIconsDir, fileName);
+
+            try
+            {
+                File.Copy(sourcePath, destinationPath, true);
+                CustomIconPath = destinationPath;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to copy custom icon: {ex.Message}");
+            }
+        }
+
+        public void RemoveCustomIcon()
+        {
+            if (!string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath))
+            {
+                try
+                {
+                    File.Delete(CustomIconPath);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to delete custom icon: {ex.Message}");
+                }
+            }
+            CustomIconPath = null;
+        }
+
+        public void LoadCustomIcon(string cacheDirectory)
+        {
+            var customIconsDir = Path.Combine(cacheDirectory, "CustomIcons");
+            if (!Directory.Exists(customIconsDir))
+                return;
+
+            var possibleExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".ico" };
+            foreach (var ext in possibleExtensions)
+            {
+                var fileName = $"{FolderName}_custom{ext}";
+                var iconPath = Path.Combine(customIconsDir, fileName);
+                if (File.Exists(iconPath))
+                {
+                    CustomIconPath = iconPath;
+                    break;
+                }
             }
         }
 

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
 using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
@@ -62,7 +59,6 @@ namespace N64RecompLauncher
             {
                 _bitmap?.Dispose();
 
-                // Load from application resources
                 var uri = new Uri($"pack://application:,,,{GifSource}", UriKind.Absolute);
                 var resourceStream = Application.GetResourceStream(uri);
 
@@ -81,7 +77,6 @@ namespace N64RecompLauncher
                     }
                     else
                     {
-                        // Static image
                         var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
                             _bitmap.GetHbitmap(),
                             IntPtr.Zero,
@@ -93,7 +88,6 @@ namespace N64RecompLauncher
             }
             catch (Exception ex)
             {
-                // Handle error - could log or show placeholder
                 System.Diagnostics.Debug.WriteLine($"Error loading GIF: {ex.Message}");
             }
         }
@@ -117,10 +111,9 @@ namespace N64RecompLauncher
                 _bitmapSources[i] = bitmapSource;
             }
 
-            // Get frame delay (in 1/100th seconds, convert to milliseconds)
-            var propItem = _bitmap.GetPropertyItem(0x5100); // Frame delay property
+            var propItem = _bitmap.GetPropertyItem(0x5100);
             var frameDelay = BitConverter.ToInt32(propItem.Value, 0) * 10;
-            if (frameDelay == 0) frameDelay = 100; // Default to 100ms if not specified
+            if (frameDelay == 0) frameDelay = 100; 
 
             _timer.Interval = TimeSpan.FromMilliseconds(frameDelay);
         }
