@@ -9,8 +9,8 @@ namespace N64RecompLauncher.Services
         public bool IsPortable { get; set; } = false;
         public bool IconFill { get; set; } = false;
         public int IconSize { get; set; } = 112;
-        public int IconMargin { get; set; } = 0;
-        public int SlotTextMargin { get; set; } = 0;
+        public int IconMargin { get; set; } = 8;
+        public int SlotTextMargin { get; set; } = 112;
 
         private static string SettingsPath => Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,

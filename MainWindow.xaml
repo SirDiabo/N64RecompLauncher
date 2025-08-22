@@ -10,6 +10,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:BooleanToStretchConverter x:Key="BooleanToStretchConverter"/>
+        <local:ThicknessConverter x:Key="ThicknessConverter"/>
 
         <Style x:Key="ModernButton" TargetType="Button">
             <Setter Property="Background" Value="{Binding ButtonColor}"/>
@@ -318,13 +319,13 @@
                                Foreground="White" 
                                Margin="0,0,0,0"
                                Minimum="0"
-                               Maximum="16"
+                               Maximum="512"
                                Value="0"
-                               TickFrequency="1"
+                               TickFrequency="8"
                                IsSnapToTickEnabled="True"
                                ValueChanged="IconMarginSlider_ValueChanged" />
 
-                    <TextBlock Text="The Icon's Uniform Margin."
+                    <TextBlock Text="The Icon's Left Margin."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
@@ -368,7 +369,7 @@
                                     VerticalAlignment="Center" 
                                     HorizontalAlignment="Left"
                                     Opacity="0.2" 
-                                    Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
+                                    Margin="{Binding ElementName=IconMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}"
                                     Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
                                     <Grid Margin="20">
                                     <Grid.ColumnDefinitions>
@@ -376,32 +377,25 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <WrapPanel Margin="0,0,0,0">
+                                    <StackPanel Grid.Row="1" Margin="{Binding ElementName=TextMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}">
 
-                                        <Border Grid.Row="0" Background="Transparent"
-                                            Width="{Binding ElementName=TextMarginSlider, Path=Value}" >
-                                        </Border>
-
-                                        <StackPanel Grid.Row="1" Margin="0,0,0,0">
-                                        
-                                            <TextBlock Text="{Binding Name}" 
+                                        <TextBlock Text="{Binding Name}" 
                                                        FontSize="20" 
                                                        FontWeight="SemiBold" 
                                                        Foreground="White"/>
-                                            <TextBlock Text="{Binding StatusText}" 
+                                        <TextBlock Text="{Binding StatusText}" 
                                                        FontSize="14" 
                                                        Foreground="#cccccc" 
                                                        Margin="0,5,0,0"/>
-                                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                                <TextBlock Text="Latest: " 
+                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                            <TextBlock Text="Latest: " 
                                                            FontSize="12" 
                                                            Foreground="#999999"/>
-                                                <TextBlock Text="{Binding LatestVersion}" 
+                                            <TextBlock Text="{Binding LatestVersion}" 
                                                            FontSize="12" 
                                                            Foreground="#cccccc"/>
-                                            </StackPanel>
                                         </StackPanel>
-                                    </WrapPanel>
+                                    </StackPanel>
 
                                     <StackPanel Grid.Column="1" Orientation="Vertical">
                                         <Button Style="{StaticResource ModernButton}"
