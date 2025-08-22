@@ -117,6 +117,10 @@ namespace N64RecompLauncher
                     IconSizeSlider.Value = _settings.IconSize;
                 if (IconFillCheckBox != null)
                     IconFillCheckBox.IsChecked = _settings.IconFill;
+                if (TextMarginSlider != null)
+                    TextMarginSlider.Value = _settings.SlotTextMargin;
+                if (IconMarginSlider != null)
+                    IconMarginSlider.Value = _settings.IconMargin;
             }
         }
 
@@ -155,6 +159,24 @@ namespace N64RecompLauncher
             if (_settings != null)
             {
                 _settings.IconSize = (int)e.NewValue;
+                OnSettingChanged();
+            }
+        }
+
+        private void IconMarginSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings != null)
+            {
+                _settings.IconMargin = (int)e.NewValue;
+                OnSettingChanged();
+            }
+        }
+
+        private void TextMarginSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings != null)
+            {
+                _settings.SlotTextMargin = (int)e.NewValue;
                 OnSettingChanged();
             }
         }
@@ -311,9 +333,6 @@ namespace N64RecompLauncher
                 try
                 {
                     selectedGame.RemoveCustomIcon();
-
-                    MessageBox.Show($"Custom icon removed for {selectedGame.Name}. Default icon restored.",
-                                   "Icon Removed", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {

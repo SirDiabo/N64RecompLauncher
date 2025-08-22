@@ -305,6 +305,54 @@
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
 
+                    <TextBlock Text="Icon Margin" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+                    <TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+
+                    <Slider x:Name="IconMarginSlider"
+                               Foreground="White" 
+                               Margin="0,0,0,0"
+                               Minimum="0"
+                               Maximum="16"
+                               Value="0"
+                               TickFrequency="1"
+                               IsSnapToTickEnabled="True"
+                               ValueChanged="IconMarginSlider_ValueChanged" />
+
+                    <TextBlock Text="The Icon's Uniform Margin."
+                               FontSize="12" 
+                               Foreground="#999999" 
+                               Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Game Text Margin" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+                    <TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+
+                    <Slider x:Name="TextMarginSlider"
+                               Foreground="White" 
+                               Margin="0,0,0,0"
+                               Minimum="0"
+                               Maximum="256"
+                               Value="0"
+                               TickFrequency="8"
+                               IsSnapToTickEnabled="True"
+                               ValueChanged="TextMarginSlider_ValueChanged" />
+
+                    <TextBlock Text="Horizontal Spacing of Texts inside Game Slots."
+                               FontSize="12" 
+                               Foreground="#999999" 
+                               Margin="0,0,0,10"/>
+
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -320,32 +368,40 @@
                                     VerticalAlignment="Center" 
                                     HorizontalAlignment="Left"
                                     Opacity="0.2" 
-                                    Margin="20,0,20,0"
+                                    Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
                                     Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
-                                <Grid Margin="20">
+                                    <Grid Margin="20">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0" Margin="0,0,0,0">
-                                        <TextBlock Text="{Binding Name}" 
-                                                   FontSize="20" 
-                                                   FontWeight="SemiBold" 
-                                                   Foreground="White"/>
-                                        <TextBlock Text="{Binding StatusText}" 
-                                                   FontSize="14" 
-                                                   Foreground="#cccccc" 
-                                                   Margin="0,5,0,0"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                            <TextBlock Text="Latest: " 
-                                                       FontSize="12" 
-                                                       Foreground="#999999"/>
-                                            <TextBlock Text="{Binding LatestVersion}" 
-                                                       FontSize="12" 
-                                                       Foreground="#cccccc"/>
+                                    <WrapPanel Margin="0,0,0,0">
+
+                                        <Border Grid.Row="0" Background="Transparent"
+                                            Width="{Binding ElementName=TextMarginSlider, Path=Value}" >
+                                        </Border>
+
+                                        <StackPanel Grid.Row="1" Margin="0,0,0,0">
+                                        
+                                            <TextBlock Text="{Binding Name}" 
+                                                       FontSize="20" 
+                                                       FontWeight="SemiBold" 
+                                                       Foreground="White"/>
+                                            <TextBlock Text="{Binding StatusText}" 
+                                                       FontSize="14" 
+                                                       Foreground="#cccccc" 
+                                                       Margin="0,5,0,0"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                                <TextBlock Text="Latest: " 
+                                                           FontSize="12" 
+                                                           Foreground="#999999"/>
+                                                <TextBlock Text="{Binding LatestVersion}" 
+                                                           FontSize="12" 
+                                                           Foreground="#cccccc"/>
+                                            </StackPanel>
                                         </StackPanel>
-                                    </StackPanel>
+                                    </WrapPanel>
 
                                     <StackPanel Grid.Column="1" Orientation="Vertical">
                                         <Button Style="{StaticResource ModernButton}"
