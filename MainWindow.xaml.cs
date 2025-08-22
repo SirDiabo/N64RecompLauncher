@@ -1,15 +1,16 @@
+using Microsoft.Win32;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Policy;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Animation;
 
 namespace N64RecompLauncher
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private readonly GameManager _gameManager;
         private AppSettings _settings;
@@ -19,10 +20,26 @@ namespace N64RecompLauncher
         {
             InitializeComponent();
 
-            _settings = AppSettings.Load();
+            try
+            {
+                _settings = AppSettings.Load();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load settings: {ex.Message}", "Settings Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                _settings = new AppSettings();
+            }
 
-            _gameManager = new GameManager();
-            DataContext = _gameManager;
+            try
+            {
+                _gameManager = new GameManager();
+                DataContext = _gameManager;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to initialize GameManager: {ex.Message}", "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
             UpdateSettingsUI();
 
@@ -31,7 +48,14 @@ namespace N64RecompLauncher
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            await _gameManager.LoadGamesAsync();
+            try
+            {
+                await _gameManager.LoadGamesAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load games: {ex.Message}", "Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async void GameButton_Click(object sender, RoutedEventArgs e)
@@ -40,7 +64,14 @@ namespace N64RecompLauncher
             var game = button?.Tag as GameInfo;
             if (game != null)
             {
-                await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable);
+                try
+                {
+                    await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to perform action for {game.Name}: {ex.Message}", "Action Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
@@ -59,7 +90,8 @@ namespace N64RecompLauncher
             if (isSettingsPanelOpen)
             {
                 var collapseStoryboard = (Storyboard)FindResource("CollapseSettingsPanel");
-                collapseStoryboard.Completed += (s, args) => {
+                collapseStoryboard.Completed += (s, args) =>
+                {
                     SettingsPanelColumn.Width = new GridLength(0);
                 };
                 collapseStoryboard.Begin();
@@ -78,14 +110,23 @@ namespace N64RecompLauncher
         {
             if (_settings != null)
             {
-                PortableCheckBox.IsChecked = _settings.IsPortable;
-                IconSizeSlider.Value = _settings.IconSize;
+                if (PortableCheckBox != null)
+                    PortableCheckBox.IsChecked = _settings.IsPortable;
+                if (IconSizeSlider != null)
+                    IconSizeSlider.Value = _settings.IconSize;
             }
         }
 
         private void OnSettingChanged()
         {
-            AppSettings.Save(_settings);
+            try
+            {
+                AppSettings.Save(_settings);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save settings: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void PortableCheckBox_Checked(object sender, RoutedEventArgs e)
@@ -117,8 +158,15 @@ namespace N64RecompLauncher
 
         private void DiscordButton_Click(object sender, RoutedEventArgs e)
         {
-            string url = "https://discord.gg/DptggHetGZ";
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            try
+            {
+                string url = "https://discord.gg/DptggHetGZ";
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to open Discord link: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)
@@ -137,10 +185,119 @@ namespace N64RecompLauncher
                         UseShellExecute = true
                     });
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     MessageBox.Show($"Failed to open GitHub page: {ex.Message}",
                         "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void SetCustomIcon_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var selectedGame = menuItem?.Tag as GameInfo;
+
+            if (selectedGame == null)
+            {
+                MessageBox.Show("Unable to identify the selected game.", "Error",
+                               MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            bool hasExistingCustomIcon = !string.IsNullOrEmpty(selectedGame.CustomIconPath);
+            string confirmMessage = hasExistingCustomIcon
+                ? $"Replace the existing custom icon for {selectedGame.Name}?"
+                : $"Set custom icon for {selectedGame.Name}?";
+
+            if (hasExistingCustomIcon)
+            {
+                var confirmResult = MessageBox.Show(confirmMessage, "Confirm Icon Replacement",
+                                                  MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirmResult != MessageBoxResult.Yes)
+                    return;
+            }
+
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Title = $"Select Custom Icon for {selectedGame.Name}",
+                Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico|" +
+                        "PNG Files|*.png|" +
+                        "JPEG Files|*.jpg;*.jpeg|" +
+                        "Bitmap Files|*.bmp|" +
+                        "Icon Files|*.ico|" +
+                        "All Files|*.*",
+                FilterIndex = 1,
+                Multiselect = false
+            };
+
+            bool? result = openFileDialog.ShowDialog();
+
+            if (result == true && !string.IsNullOrEmpty(openFileDialog.FileName))
+            {
+                try
+                {
+                    if (hasExistingCustomIcon)
+                    {
+                        try
+                        {
+                            selectedGame.RemoveCustomIcon();
+                        }
+                        catch (Exception removeEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Warning: Failed to remove existing custom icon: {removeEx.Message}");
+                        }
+                    }
+
+                    selectedGame.SetCustomIcon(openFileDialog.FileName, _gameManager.CacheFolder);
+                }
+                catch (Exception ex)
+                {
+                    string errorMessage = hasExistingCustomIcon
+                        ? $"Failed to replace custom icon: {ex.Message}"
+                        : $"Failed to set custom icon: {ex.Message}";
+
+                    MessageBox.Show(errorMessage, "Error",
+                                   MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void RemoveCustomIcon_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var selectedGame = menuItem?.Tag as GameInfo;
+
+            if (selectedGame == null)
+            {
+                MessageBox.Show("Unable to identify the selected game.", "Error",
+                               MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(selectedGame.CustomIconPath))
+            {
+                MessageBox.Show($"{selectedGame.Name} is already using the default icon.",
+                               "No Custom Icon", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show($"Remove custom icon for {selectedGame.Name}?",
+                                        "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    selectedGame.RemoveCustomIcon();
+
+                    MessageBox.Show($"Custom icon removed for {selectedGame.Name}. Default icon restored.",
+                                   "Icon Removed", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to remove custom icon: {ex.Message}",
+                                   "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -189,13 +346,20 @@ namespace N64RecompLauncher
                         await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder);
                     }
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     game.IsLoading = false;
                     MessageBox.Show($"Failed to delete {game.Name}: {ex.Message}",
                         "Deletion Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

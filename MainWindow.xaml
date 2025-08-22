@@ -8,6 +8,9 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
+        
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
         <Style x:Key="ModernButton" TargetType="Button">
             <Setter Property="Background" Value="{Binding ButtonColor}"/>
             <Setter Property="Foreground" Value="White"/>
@@ -132,6 +135,9 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter Property="Background" Value="#4a4a4a"/>
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="False">
+                                <Setter Property="Background" Value="#2a2a2a"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -357,6 +363,15 @@
                                                               Style="{StaticResource ContextMenuItemStyle}"
                                                               Click="OpenGitHubPage_Click"
                                                               Tag="{Binding}"/>
+                                                    <MenuItem Header="Add Custom Icon"
+                                                              Style="{StaticResource ContextMenuItemStyle}"
+                                                              Click="SetCustomIcon_Click"
+                                                              Tag="{Binding}"/>
+                                                    <MenuItem Header="Remove Custom Icon"
+                                                              Style="{StaticResource ContextMenuItemStyle}"
+                                                              Click="RemoveCustomIcon_Click"
+                                                              Tag="{Binding}"
+                                                              Visibility="{Binding HasCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                     <MenuItem Header="Delete"
                                                               Style="{StaticResource ContextMenuItemStyle}"
                                                               Click="DeleteGame_Click"
