@@ -732,11 +732,27 @@ namespace N64RecompLauncher.Models
                     }
                 }
 
+                UpdateLastPlayedTime(gamePath);
+
                 Process.Start(startInfo);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error launching {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateLastPlayedTime(string gamePath)
+        {
+            try
+            {
+                var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
+                var currentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                File.WriteAllText(lastPlayedPath, currentTime);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to update LastPlayed.txt for {Name}: {ex.Message}");
             }
         }
 

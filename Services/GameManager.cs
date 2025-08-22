@@ -117,10 +117,52 @@ namespace N64RecompLauncher.Services
 
         public async Task LoadGamesAsync()
         {
+            var sortedGames = Games
+                .Select(g => new {
+                    Game = g,
+                    IsInstalled = Directory.Exists(Path.Combine(_gamesFolder, g.FolderName)),
+                    LastPlayed = GetLastPlayedTime(g.FolderName)
+                })
+                .OrderBy(x => !x.IsInstalled) 
+                .ThenByDescending(x => x.IsInstalled ? x.LastPlayed : DateTime.MinValue)
+                .ThenBy(x => !x.IsInstalled ? x.Game.Name : "") 
+                .Select(x => x.Game)
+                .ToList();
+
+            Games.Clear();
+            foreach (var game in sortedGames)
+            {
+                Games.Add(game);
+            }
+
             foreach (var game in Games)
             {
                 await game.CheckStatusAsync(_httpClient, _gamesFolder);
             }
+        }
+
+        private DateTime GetLastPlayedTime(string folderName)
+        {
+            try
+            {
+                var gamePath = Path.Combine(_gamesFolder, folderName);
+                var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
+
+                if (File.Exists(lastPlayedPath))
+                {
+                    var timeString = File.ReadAllText(lastPlayedPath).Trim();
+                    if (DateTime.TryParseExact(timeString, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime lastPlayed))
+                    {
+                        return lastPlayed;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to read LastPlayed.txt for {folderName}: {ex.Message}");
+            }
+
+            return DateTime.MinValue;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
