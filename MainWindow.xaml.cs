@@ -15,6 +15,7 @@ namespace N64RecompLauncher
         private readonly GameManager _gameManager;
         private AppSettings _settings;
         private bool isSettingsPanelOpen = false;
+        public string IconFillStretch = "Uniform";
 
         public MainWindow()
         {
@@ -114,6 +115,8 @@ namespace N64RecompLauncher
                     PortableCheckBox.IsChecked = _settings.IsPortable;
                 if (IconSizeSlider != null)
                     IconSizeSlider.Value = _settings.IconSize;
+                if (IconFillCheckBox != null)
+                    IconFillCheckBox.IsChecked = _settings.IconFill;
             }
         }
 
@@ -152,6 +155,24 @@ namespace N64RecompLauncher
             if (_settings != null)
             {
                 _settings.IconSize = (int)e.NewValue;
+                OnSettingChanged();
+            }
+        }
+
+        private void IconFillCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.IconFill = true;
+                OnSettingChanged();
+            }
+        }
+
+        private void IconFillCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.IconFill = false;
                 OnSettingChanged();
             }
         }

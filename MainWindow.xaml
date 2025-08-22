@@ -8,8 +8,8 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:BooleanToStretchConverter x:Key="BooleanToStretchConverter"/>
 
         <Style x:Key="ModernButton" TargetType="Button">
             <Setter Property="Background" Value="{Binding ButtonColor}"/>
@@ -269,6 +269,18 @@
                                Foreground="#cccccc" 
                                Margin="0,0,0,10"/>
 
+                    <CheckBox x:Name="IconFillCheckBox"
+                               Content="Icon Fill" 
+                               Foreground="White" 
+                               Margin="0,0,0,0"
+                               Checked="IconFillCheckBox_Checked"
+                               Unchecked="IconFillCheckBox_Unchecked" />
+
+                    <TextBlock Text="Should Icons fill the windows."
+                               FontSize="12" 
+                               Foreground="#999999" 
+                               Margin="0,0,0,10"/>
+
                     <TextBlock Text="Icon Size" 
                                FontSize="12" 
                                FontWeight="SemiBold" 
@@ -277,7 +289,7 @@
                                FontSize="12" 
                                FontWeight="SemiBold" 
                                Foreground="White"/>
-                    
+
                     <Slider x:Name="IconSizeSlider"
                                Foreground="White" 
                                Margin="0,0,0,0"
@@ -304,14 +316,12 @@
                         <Border Style="{StaticResource GameCard}" Height="120">
                             <Grid>
                                 <Image Source="{Binding IconUrl}" 
-                                    Width="{Binding ElementName=IconSizeSlider, Path=Value}"
                                     Height="{Binding ElementName=IconSizeSlider, Path=Value}"
                                     VerticalAlignment="Center" 
                                     HorizontalAlignment="Left"
                                     Opacity="0.2" 
                                     Margin="20,0,20,0"
-                                    Stretch="Uniform"/>
-
+                                    Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
                                 <Grid Margin="20">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>

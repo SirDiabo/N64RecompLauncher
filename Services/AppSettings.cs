@@ -6,6 +6,7 @@ namespace N64RecompLauncher.Services
     public class AppSettings
     {
         public bool IsPortable { get; set; } = false;
+        public bool IconFill { get; set; } = false;
         public int IconSize { get; set; } = 112;
 
         private static string SettingsPath => Path.Combine(
