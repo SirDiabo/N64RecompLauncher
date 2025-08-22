@@ -223,7 +223,7 @@
                     Width="60"
                     Height="60"
                     Click="DiscordButton_Click"
-                    ToolTip="Settings">
+                    ToolTip="Join N64 Recomp Discord Server">
             <Image Source="/Assets/Discord.png" Width="60" Height="60" Margin="-16"/>
             </Button>
         </StackPanel>
@@ -259,7 +259,7 @@
                               Checked="PortableCheckBox_Checked"
                               Unchecked="PortableCheckBox_Unchecked" />
 
-                    <TextBlock Text="Store data in the application directory."
+                    <TextBlock Text="Store data in the game directory."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
@@ -277,8 +277,32 @@
                                Checked="IconFillCheckBox_Checked"
                                Unchecked="IconFillCheckBox_Unchecked" />
 
-                    <TextBlock Text="Should Icons fill the windows."
+                    <TextBlock Text="Icons fill entire slot."
                                FontSize="12" 
+                               Foreground="#999999" 
+                               Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Icon Opacity" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+                    <TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value}" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+
+                    <Slider x:Name="IconOpacitySlider"
+                               Foreground="White" 
+                               Margin="0,0,0,0"
+                               Minimum="0"
+                               Maximum="1"
+                               Value="0.2"
+                               TickFrequency="0.1"
+                               IsSnapToTickEnabled="True"
+                               ValueChanged="IconOpacitySlider_ValueChanged" />
+
+                    <TextBlock Text="Opacity of the game icons."
+                               FontSize="12"
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
 
@@ -301,7 +325,7 @@
                                IsSnapToTickEnabled="True"
                                ValueChanged="IconSizeSlider_ValueChanged" />
 
-                    <TextBlock Text="Size of the Game Icons."
+                    <TextBlock Text="Size of the game icons."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
@@ -325,7 +349,7 @@
                                IsSnapToTickEnabled="True"
                                ValueChanged="IconMarginSlider_ValueChanged" />
 
-                    <TextBlock Text="The Icon's Left Margin."
+                    <TextBlock Text="The icon's left margin."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
@@ -349,7 +373,7 @@
                                IsSnapToTickEnabled="True"
                                ValueChanged="TextMarginSlider_ValueChanged" />
 
-                    <TextBlock Text="Horizontal Spacing of Texts inside Game Slots."
+                    <TextBlock Text="Horizontal spacing of texts inside game slots."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,10"/>
@@ -368,7 +392,7 @@
                                     Height="{Binding ElementName=IconSizeSlider, Path=Value}"
                                     VerticalAlignment="Center" 
                                     HorizontalAlignment="Left"
-                                    Opacity="0.2" 
+                                    Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}" 
                                     Margin="{Binding ElementName=IconMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}"
                                     Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
                                     <Grid Margin="20">

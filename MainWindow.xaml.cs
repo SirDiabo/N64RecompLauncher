@@ -113,12 +113,19 @@ namespace N64RecompLauncher
             {
                 if (PortableCheckBox != null)
                     PortableCheckBox.IsChecked = _settings.IsPortable;
+
+                if (IconOpacitySlider != null)
+                    IconOpacitySlider.Value = _settings.IconOpacity;
+
                 if (IconSizeSlider != null)
                     IconSizeSlider.Value = _settings.IconSize;
+
                 if (IconFillCheckBox != null)
                     IconFillCheckBox.IsChecked = _settings.IconFill;
+
                 if (TextMarginSlider != null)
                     TextMarginSlider.Value = _settings.SlotTextMargin;
+
                 if (IconMarginSlider != null)
                     IconMarginSlider.Value = _settings.IconMargin;
             }
@@ -153,7 +160,14 @@ namespace N64RecompLauncher
                 OnSettingChanged();
             }
         }
-
+        private void IconOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings != null)
+            {
+                _settings.IconOpacity = (int)e.NewValue;
+                OnSettingChanged();
+            }
+        }
         private void IconSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (_settings != null)
@@ -264,9 +278,10 @@ namespace N64RecompLauncher
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
                 Title = $"Select Custom Icon for {selectedGame.Name}",
-                Filter = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico|" +
+                Filter = "Image Files|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif;*.ico|" +
                         "PNG Files|*.png|" +
                         "JPEG Files|*.jpg;*.jpeg|" +
+                        "Webp Files|*.webp|" +
                         "Bitmap Files|*.bmp|" +
                         "Icon Files|*.ico|" +
                         "All Files|*.*",
