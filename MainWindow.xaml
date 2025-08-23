@@ -11,6 +11,8 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:BooleanToStretchConverter x:Key="BooleanToStretchConverter"/>
         <local:ThicknessConverter x:Key="ThicknessConverter"/>
+        <local:SlotScaleToGridConverter x:Key="SlotScaleToGridConverter"/>
+        <local:GridWidthConverter x:Key="GridWidthConverter"/>
 
         <Style x:Key="ModernButton" TargetType="Button">
             <Setter Property="Background" Value="{Binding ButtonColor}"/>
@@ -111,6 +113,12 @@
             <Setter Property="Margin" Value="0,0,0,15"/>
         </Style>
 
+        <Style x:Key="GameCardGrid" TargetType="Border">
+            <Setter Property="Background" Value="#2d2d30"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Margin" Value="8"/>
+        </Style>
+
         <Style x:Key="ContextMenuStyle" TargetType="ContextMenu">
             <Setter Property="Background" Value="#2d2d30"/>
             <Setter Property="BorderBrush" Value="#4a4a4a"/>
@@ -145,6 +153,183 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- list view -->
+        <DataTemplate x:Key="ListViewTemplate">
+            <Border Style="{StaticResource GameCard}" Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
+                <Grid>
+                    <Image Source="{Binding IconUrl}" 
+                        Height="{Binding ElementName=IconSizeSlider, Path=Value}"
+                        VerticalAlignment="Center" 
+                        HorizontalAlignment="Left"
+                        Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
+                        Margin="{Binding ElementName=IconMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}"
+                        Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
+                    <Grid Margin="20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Row="1" Margin="{Binding ElementName=TextMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}">
+                            <TextBlock Text="{Binding Name}" 
+                                       FontSize="20" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="White"/>
+                            <TextBlock Text="{Binding StatusText}" 
+                                       FontSize="14" 
+                                       Foreground="#cccccc" 
+                                       Margin="0,5,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <TextBlock Text="Latest: " 
+                                           FontSize="12" 
+                                           Foreground="#999999"/>
+                                <TextBlock Text="{Binding LatestVersion}" 
+                                           FontSize="12" 
+                                           Foreground="#cccccc"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Vertical">
+                            <Button Style="{StaticResource ModernButton}"
+                                    Content="{Binding ButtonText}"
+                                    MinWidth="120"
+                                    Margin="0,0,0,10"
+                                    IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+                                    Click="GameButton_Click"
+                                    Tag="{Binding}"/>
+
+                            <Button Style="{StaticResource OptionsButton}"
+                                    Content="Options"
+                                    Padding="2"
+                                    Width="120"
+                                    Height="30"
+                                    FontSize="12"
+                                    IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+                                    Click="OptionsButton_Click"
+                                    Tag="{Binding}">
+                                <Button.ContextMenu>
+                                    <ContextMenu Style="{StaticResource ContextMenuStyle}"
+                                                 Placement="Bottom"
+                                                 PlacementTarget="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Button}}">
+                                        <MenuItem Header="Open GitHub Page"
+                                                  Style="{StaticResource ContextMenuItemStyle}"
+                                                  Click="OpenGitHubPage_Click"
+                                                  Tag="{Binding}"/>
+                                        <MenuItem Header="Add Custom Image"
+                                                  Style="{StaticResource ContextMenuItemStyle}"
+                                                  Click="SetCustomIcon_Click"
+                                                  Tag="{Binding}"/>
+                                        <MenuItem Header="Remove Custom Image"
+                                                  Style="{StaticResource ContextMenuItemStyle}"
+                                                  Click="RemoveCustomIcon_Click"
+                                                  Tag="{Binding}"
+                                                  Visibility="{Binding HasCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <MenuItem Header="Delete"
+                                                  Style="{StaticResource ContextMenuItemStyle}"
+                                                  Click="DeleteGame_Click"
+                                                  Tag="{Binding}"/>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- grid view -->
+        <DataTemplate x:Key="GridViewTemplate">
+            <Border Style="{StaticResource GameCardGrid}" 
+                    Width="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource GridWidthConverter}}"
+                    Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
+                <Grid>
+                    <Image Source="{Binding IconUrl}" 
+                        Width="{Binding ElementName=IconSizeSlider, Path=Value}"
+                        Height="Auto"
+                        VerticalAlignment="Top" 
+                        HorizontalAlignment="Center"
+                        Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
+                        Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
+                        Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
+
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" 
+                                       FontSize="14" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="White"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding StatusText}" 
+                                       FontSize="10" 
+                                       Foreground="#cccccc" 
+                                       TextAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,5">
+                                <TextBlock Text="Latest: " 
+                                           FontSize="10" 
+                                           Foreground="#999999"/>
+                                <TextBlock Text="{Binding LatestVersion}" 
+                                           FontSize="10" 
+                                           Foreground="#cccccc"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Style="{StaticResource ModernButton}"
+                                        Content="{Binding ButtonText}"
+                                        FontSize="10"
+                                        Padding="8,4"
+                                        MinWidth="60"
+                                        Margin="0,0,5,0"
+                                        IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+                                        Click="GameButton_Click"
+                                        Tag="{Binding}"/>
+
+                                <Button Style="{StaticResource OptionsButton}"
+                                        Padding="4"
+                                        Width="20"
+                                        Height="20"
+                                        FontSize="10"
+                                        IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+                                        Click="OptionsButton_Click"
+                                        Tag="{Binding}">
+                                    <TextBlock Text="..." Foreground="White" TextAlignment="Center"/>
+                                    <Button.ContextMenu>
+                                        <ContextMenu Style="{StaticResource ContextMenuStyle}"
+                                                     Placement="Bottom"
+                                                     PlacementTarget="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Button}}">
+                                            <MenuItem Header="Open GitHub Page"
+                                                      Style="{StaticResource ContextMenuItemStyle}"
+                                                      Click="OpenGitHubPage_Click"
+                                                      Tag="{Binding}"/>
+                                            <MenuItem Header="Add Custom Image"
+                                                      Style="{StaticResource ContextMenuItemStyle}"
+                                                      Click="SetCustomIcon_Click"
+                                                      Tag="{Binding}"/>
+                                            <MenuItem Header="Remove Custom Image"
+                                                      Style="{StaticResource ContextMenuItemStyle}"
+                                                      Click="RemoveCustomIcon_Click"
+                                                      Tag="{Binding}"
+                                                      Visibility="{Binding HasCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <MenuItem Header="Delete"
+                                                      Style="{StaticResource ContextMenuItemStyle}"
+                                                      Click="DeleteGame_Click"
+                                                      Tag="{Binding}"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
 
         <Storyboard x:Key="ExpandSettingsPanel">
             <DoubleAnimation Storyboard.TargetName="SettingsPanel"
@@ -217,8 +402,6 @@
             </Button>
         </StackPanel>
 
-        
-
         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0" VerticalAlignment="Bottom">
             <Button Style="{StaticResource SettingsButton}"
                     Background="Transparent"
@@ -234,11 +417,11 @@
                     Height="60"
                     Click="DiscordButton_Click"
                     ToolTip="Join N64 Recomp Discord Server">
-            <Image Source="/Assets/Discord.png" Width="60" Height="60" Margin="-16"/>
+                <Image Source="/Assets/Discord.png" Width="60" Height="60" Margin="-16"/>
             </Button>
         </StackPanel>
 
-            <Border x:Name="SettingsPanel"
+        <Border x:Name="SettingsPanel"
                 Grid.Row="1" 
                 Grid.Column="1"
                 Width="0"
@@ -416,94 +599,27 @@
             </ScrollViewer>
         </Border>
 
-        <ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Games}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Style="{StaticResource GameCard}" Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
-                            <Grid>
-                                <Image Source="{Binding IconUrl}" 
-                                    Height="{Binding ElementName=IconSizeSlider, Path=Value}"
-                                    VerticalAlignment="Center" 
-                                    HorizontalAlignment="Left"
-                                    Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
-                                    Margin="{Binding ElementName=IconMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}"
-                                    Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
-                                    <Grid Margin="20">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+        <ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto" x:Name="GameScrollViewer">
+            <Grid>
+                <ItemsControl ItemsSource="{Binding Games}" x:Name="ListViewControl"
+                              Visibility="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=List}">
+                    <ItemsControl.ItemTemplate>
+                        <StaticResource ResourceKey="ListViewTemplate"/>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
-                                    <StackPanel Grid.Row="1" Margin="{Binding ElementName=TextMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}">
-
-                                        <TextBlock Text="{Binding Name}" 
-                                                       FontSize="20" 
-                                                       FontWeight="SemiBold" 
-                                                       Foreground="White"/>
-                                        <TextBlock Text="{Binding StatusText}" 
-                                                       FontSize="14" 
-                                                       Foreground="#cccccc" 
-                                                       Margin="0,5,0,0"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                            <TextBlock Text="Latest: " 
-                                                           FontSize="12" 
-                                                           Foreground="#999999"/>
-                                            <TextBlock Text="{Binding LatestVersion}" 
-                                                           FontSize="12" 
-                                                           Foreground="#cccccc"/>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="1" Orientation="Vertical">
-                                        <Button Style="{StaticResource ModernButton}"
-                                                Content="{Binding ButtonText}"
-                                                MinWidth="120"
-                                                Margin="0,0,0,10"
-                                                IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-                                                Click="GameButton_Click"
-                                                Tag="{Binding}"/>
-
-                                        <Button Style="{StaticResource OptionsButton}"
-                                                Content="Options"
-                                                Padding="2"
-                                                Width="120"
-                                                Height="30"
-                                                FontSize="12"
-                                                IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-                                                Click="OptionsButton_Click"
-                                                Tag="{Binding}">
-                                            <Button.ContextMenu>
-                                                <ContextMenu Style="{StaticResource ContextMenuStyle}"
-                                                             Placement="Bottom"
-                                                             PlacementTarget="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Button}}">
-                                                    <MenuItem Header="Open GitHub Page"
-                                                              Style="{StaticResource ContextMenuItemStyle}"
-                                                              Click="OpenGitHubPage_Click"
-                                                              Tag="{Binding}"/>
-                                                    <MenuItem Header="Add Custom Image"
-                                                              Style="{StaticResource ContextMenuItemStyle}"
-                                                              Click="SetCustomIcon_Click"
-                                                              Tag="{Binding}"/>
-                                                    <MenuItem Header="Remove Custom Image"
-                                                              Style="{StaticResource ContextMenuItemStyle}"
-                                                              Click="RemoveCustomIcon_Click"
-                                                              Tag="{Binding}"
-                                                              Visibility="{Binding HasCustomIcon, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                    <MenuItem Header="Delete"
-                                                              Style="{StaticResource ContextMenuItemStyle}"
-                                                              Click="DeleteGame_Click"
-                                                              Tag="{Binding}"/>
-                                                </ContextMenu>
-                                            </Button.ContextMenu>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                <ItemsControl ItemsSource="{Binding Games}" x:Name="GridViewControl"
+                              Visibility="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=Grid}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <StaticResource ResourceKey="GridViewTemplate"/>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
         </ScrollViewer>
 
         <TextBlock Text="{Binding currentVersionString}"
