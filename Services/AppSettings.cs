@@ -12,6 +12,7 @@ namespace N64RecompLauncher.Services
         public int IconSize { get; set; } = 112;
         public int IconMargin { get; set; } = 8;
         public int SlotTextMargin { get; set; } = 112;
+        public int SlotSize { get; set; } = 120;
 
         private static string SettingsPath => Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,

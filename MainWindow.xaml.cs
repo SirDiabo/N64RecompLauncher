@@ -128,6 +128,9 @@ namespace N64RecompLauncher
 
                 if (IconMarginSlider != null)
                     IconMarginSlider.Value = _settings.IconMargin;
+
+                if (SlotSizeSlider != null)
+                    SlotSizeSlider.Value = _settings.SlotSize;
             }
         }
 
@@ -160,11 +163,19 @@ namespace N64RecompLauncher
                 OnSettingChanged();
             }
         }
+        private void SlotSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings != null)
+            {
+                _settings.SlotSize = (int)e.NewValue;
+                OnSettingChanged();
+            }
+        }
         private void IconOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (_settings != null)
             {
-                _settings.IconOpacity = (int)e.NewValue;
+                _settings.IconOpacity = (float)e.NewValue;
                 OnSettingChanged();
             }
         }

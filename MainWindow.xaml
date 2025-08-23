@@ -280,6 +280,30 @@
                                Foreground="#cccccc" 
                                Margin="0,0,0,10"/>
 
+                    <TextBlock Text="Slot Scale" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+                    <TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="White"/>
+
+                    <Slider x:Name="SlotSizeSlider"
+                               Foreground="White" 
+                               Margin="0,0,0,0"
+                               Minimum="72"
+                               Maximum="512"
+                               Value="120"
+                               TickFrequency="8"
+                               IsSnapToTickEnabled="True"
+                               ValueChanged="SlotSizeSlider_ValueChanged" />
+
+                    <TextBlock Text="The scale of each game slot."
+                               FontSize="12" 
+                               Foreground="#999999" 
+                               Margin="0,0,0,20"/>
+
                     <CheckBox x:Name="IconFillCheckBox"
                                Content="Image Fill" 
                                Foreground="White" 
@@ -290,13 +314,13 @@
                     <TextBlock Text="Images fill the entire slots."
                                FontSize="12" 
                                Foreground="#999999" 
-                               Margin="0,0,0,10"/>
+                               Margin="0,0,0,20"/>
 
                     <TextBlock Text="Image Opacity" 
                                FontSize="12" 
                                FontWeight="SemiBold" 
                                Foreground="White"/>
-                    <TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value}" 
+                    <TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
                                FontSize="12" 
                                FontWeight="SemiBold" 
                                Foreground="White"/>
@@ -304,8 +328,8 @@
                     <Slider x:Name="IconOpacitySlider"
                                Foreground="White" 
                                Margin="0,0,0,0"
-                               Minimum="0"
-                               Maximum="1"
+                               Minimum="0.0"
+                               Maximum="1.0"
                                Value="0.2"
                                TickFrequency="0.1"
                                IsSnapToTickEnabled="True"
@@ -314,7 +338,7 @@
                     <TextBlock Text="Opacity of the game images."
                                FontSize="12"
                                Foreground="#999999" 
-                               Margin="0,0,0,10"/>
+                               Margin="0,0,0,20"/>
 
                     <TextBlock Text="Image Size" 
                                FontSize="12" 
@@ -338,7 +362,7 @@
                     <TextBlock Text="Size of the game images."
                                FontSize="12" 
                                Foreground="#999999" 
-                               Margin="0,0,0,10"/>
+                               Margin="0,0,0,20"/>
 
                     <TextBlock Text="Image Margin" 
                                FontSize="12" 
@@ -362,7 +386,7 @@
                     <TextBlock Text="The image's left margin."
                                FontSize="12" 
                                Foreground="#999999" 
-                               Margin="0,0,0,10"/>
+                               Margin="0,0,0,20"/>
 
                     <TextBlock Text="Game Text Margin" 
                                FontSize="12" 
@@ -386,7 +410,7 @@
                     <TextBlock Text="Horizontal spacing of texts inside game slots."
                                FontSize="12" 
                                Foreground="#999999" 
-                               Margin="0,0,0,10"/>
+                               Margin="0,0,0,20"/>
 
                 </StackPanel>
             </ScrollViewer>
@@ -396,13 +420,13 @@
             <ItemsControl ItemsSource="{Binding Games}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource GameCard}" Height="120">
+                        <Border Style="{StaticResource GameCard}" Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
                             <Grid>
                                 <Image Source="{Binding IconUrl}" 
                                     Height="{Binding ElementName=IconSizeSlider, Path=Value}"
                                     VerticalAlignment="Center" 
                                     HorizontalAlignment="Left"
-                                    Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}" 
+                                    Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
                                     Margin="{Binding ElementName=IconMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}"
                                     Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
                                     <Grid Margin="20">
