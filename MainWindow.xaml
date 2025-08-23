@@ -476,9 +476,9 @@
                                Foreground="White" 
                                Margin="0,0,0,0"
                                Minimum="72"
-                               Maximum="512"
+                               Maximum="400"
                                Value="120"
-                               TickFrequency="8"
+                               TickFrequency="16"
                                IsSnapToTickEnabled="True"
                                ValueChanged="SlotSizeSlider_ValueChanged" />
 
@@ -590,7 +590,7 @@
                                IsSnapToTickEnabled="True"
                                ValueChanged="TextMarginSlider_ValueChanged" />
 
-                    <TextBlock Text="Horizontal spacing of texts inside game slots."
+                    <TextBlock Text="Left spacing of game slot texts."
                                FontSize="12" 
                                Foreground="#999999" 
                                Margin="0,0,0,20"/>
