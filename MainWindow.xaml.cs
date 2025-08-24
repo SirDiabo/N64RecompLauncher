@@ -276,7 +276,6 @@ namespace N64RecompLauncher
         {
             var menuItem = sender as MenuItem;
             var selectedGame = menuItem?.Tag as GameInfo;
-
             if (selectedGame == null)
             {
                 MessageBox.Show("Unable to identify the selected game.", "Error",
@@ -312,23 +311,10 @@ namespace N64RecompLauncher
             };
 
             bool? result = openFileDialog.ShowDialog();
-
             if (result == true && !string.IsNullOrEmpty(openFileDialog.FileName))
             {
                 try
                 {
-                    if (hasExistingCustomIcon)
-                    {
-                        try
-                        {
-                            selectedGame.RemoveCustomIcon();
-                        }
-                        catch (Exception removeEx)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Warning: Failed to remove existing custom icon: {removeEx.Message}");
-                        }
-                    }
-
                     selectedGame.SetCustomIcon(openFileDialog.FileName, _gameManager.CacheFolder);
                 }
                 catch (Exception ex)
@@ -336,7 +322,6 @@ namespace N64RecompLauncher
                     string errorMessage = hasExistingCustomIcon
                         ? $"Failed to replace custom icon: {ex.Message}"
                         : $"Failed to set custom icon: {ex.Message}";
-
                     MessageBox.Show(errorMessage, "Error",
                                    MessageBoxButton.OK, MessageBoxImage.Error);
                 }
@@ -347,7 +332,6 @@ namespace N64RecompLauncher
         {
             var menuItem = sender as MenuItem;
             var selectedGame = menuItem?.Tag as GameInfo;
-
             if (selectedGame == null)
             {
                 MessageBox.Show("Unable to identify the selected game.", "Error",
@@ -364,7 +348,6 @@ namespace N64RecompLauncher
 
             var result = MessageBox.Show($"Remove custom icon for {selectedGame.Name}?",
                                         "Confirm Removal", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
             if (result == MessageBoxResult.Yes)
             {
                 try

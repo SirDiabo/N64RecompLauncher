@@ -265,29 +265,56 @@ namespace N64RecompLauncher.Models
 
             try
             {
+                if (!string.IsNullOrEmpty(CustomIconPath))
+                {
+                    ClearImageFromMemory();
+
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+
+                    RemoveAllCachedIcons(cacheDirectory);
+                }
+
                 File.Copy(sourcePath, destinationPath, true);
                 CustomIconPath = destinationPath;
+
+                OnPropertyChanged(nameof(CustomIconPath));
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to copy custom icon: {ex.Message}");
+                throw new Exception($"Failed to set custom icon: {ex.Message}", ex);
             }
         }
 
         public void RemoveCustomIcon()
         {
-            if (!string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath))
+            if (string.IsNullOrEmpty(CustomIconPath))
+                return;
+
+            try
             {
-                try
+                ClearImageFromMemory();
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                if (File.Exists(CustomIconPath))
                 {
-                    File.Delete(CustomIconPath);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Failed to delete custom icon: {ex.Message}");
+                    TryDeleteFileWithRetry(CustomIconPath);
                 }
             }
-            CustomIconPath = null;
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to remove custom icon: {ex.Message}", ex);
+            }
+            finally
+            {
+                CustomIconPath = null;
+
+                OnPropertyChanged(nameof(CustomIconPath));
+            }
         }
 
         public void LoadCustomIcon(string cacheDirectory)
@@ -296,7 +323,7 @@ namespace N64RecompLauncher.Models
             if (!Directory.Exists(customIconsDir))
                 return;
 
-            var possibleExtensions = new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".ico" };
+            var possibleExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico" };
             foreach (var ext in possibleExtensions)
             {
                 var fileName = $"{FolderName}_custom{ext}";
@@ -307,6 +334,68 @@ namespace N64RecompLauncher.Models
                     break;
                 }
             }
+        }
+
+        private void RemoveAllCachedIcons(string cacheDirectory)
+        {
+            var customIconsDir = Path.Combine(cacheDirectory, "CustomIcons");
+            if (!Directory.Exists(customIconsDir))
+                return;
+
+            var possibleExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico" };
+            foreach (var ext in possibleExtensions)
+            {
+                var fileName = $"{FolderName}_custom{ext}";
+                var iconPath = Path.Combine(customIconsDir, fileName);
+                if (File.Exists(iconPath))
+                {
+                    try
+                    {
+                        TryDeleteFileWithRetry(iconPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Warning: Failed to delete cached icon {iconPath}: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private void ClearImageFromMemory()
+        {
+            var tempPath = CustomIconPath;
+            CustomIconPath = null;
+
+            if (Application.Current != null)
+            {
+                Application.Current.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+            }
+
+            System.Threading.Thread.Sleep(100);
+        }
+
+        private void TryDeleteFileWithRetry(string filePath, int maxRetries = 5, int delayMs = 200)
+        {
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    File.Delete(filePath);
+                    return;
+                }
+                catch (IOException ex) when (i < maxRetries - 1)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1} failed to delete {filePath}: {ex.Message}");
+                    System.Threading.Thread.Sleep(delayMs);
+                }
+                catch (UnauthorizedAccessException ex) when (i < maxRetries - 1)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1} failed to delete {filePath}: {ex.Message}");
+                    System.Threading.Thread.Sleep(delayMs);
+                }
+            }
+
+            throw new IOException($"Unable to delete file after {maxRetries} attempts: {filePath}");
         }
 
         private async Task CheckLatestVersionAsync(HttpClient httpClient)
