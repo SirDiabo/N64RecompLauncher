@@ -678,167 +678,27 @@ namespace N64RecompLauncher.Models
 
         private async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
         {
-            string backupDir = null;
-            bool isUpdate = Directory.Exists(gamePath);
+            Directory.CreateDirectory(gamePath);
 
-            if (isUpdate)
+            if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             {
-                backupDir = Path.Combine(Path.GetTempPath(), $"{FolderName}_backup_{Guid.NewGuid()}");
-                Directory.CreateDirectory(backupDir);
-
-                await BackupPreservedFiles(gamePath, backupDir);
+                ZipFile.ExtractToDirectory(downloadPath, gamePath, overwriteFiles: true);
+            }
+            else if (assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+            {
+                ExtractTarGz(downloadPath, gamePath);
             }
 
-            try
+            var versionFile = Path.Combine(gamePath, "version.txt");
+            await File.WriteAllTextAsync(versionFile, version).ConfigureAwait(false);
+
+            var portableFilePath = Path.Combine(gamePath, "portable.txt");
+            if (!File.Exists(portableFilePath))
             {
-                if (Directory.Exists(gamePath))
-                {
-                    Directory.Delete(gamePath, true);
-                }
-                Directory.CreateDirectory(gamePath);
-
-                if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                {
-                    ZipFile.ExtractToDirectory(downloadPath, gamePath);
-                }
-                else if (assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-                {
-                    ExtractTarGz(downloadPath, gamePath);
-                }
-
-                if (isUpdate && backupDir != null)
-                {
-                    await RestorePreservedFiles(backupDir, gamePath);
-                }
-
-                var versionFile = Path.Combine(gamePath, "version.txt");
-                await File.WriteAllTextAsync(versionFile, version).ConfigureAwait(false);
-
-                var portableFilePath = Path.Combine(gamePath, "portable.txt");
-                if (!File.Exists(portableFilePath))
-                {
-                    await File.WriteAllTextAsync(portableFilePath, string.Empty).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                if (backupDir != null && Directory.Exists(backupDir))
-                {
-                    try
-                    {
-                        Directory.Delete(backupDir, true);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Warning: Failed to delete backup directory {backupDir}: {ex.Message}");
-                    }
-                }
+                await File.WriteAllTextAsync(portableFilePath, string.Empty).ConfigureAwait(false);
             }
         }
 
-        private async Task BackupPreservedFiles(string gamePath, string backupDir)
-        {
-            foreach (var preservedItem in PreservedFiles)
-            {
-                try
-                {
-                    if (preservedItem.Contains('*'))
-                    {
-                        var matchingFiles = Directory.GetFiles(gamePath, preservedItem, SearchOption.AllDirectories);
-
-                        foreach (var matchedFile in matchingFiles)
-                        {
-                            var relativePath = Path.GetRelativePath(gamePath, matchedFile);
-                            var destPath = Path.Combine(backupDir, relativePath);
-
-                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                            File.Copy(matchedFile, destPath, true);
-                        }
-                    }
-                    else
-                    {
-                        var sourcePath = Path.Combine(gamePath, preservedItem);
-                        var destPath = Path.Combine(backupDir, preservedItem);
-
-                        if (File.Exists(sourcePath))
-                        {
-                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                            File.Copy(sourcePath, destPath, true);
-                        }
-                        else if (Directory.Exists(sourcePath))
-                        {
-                            await CopyDirectoryRecursively(sourcePath, destPath);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Warning: Failed to backup {preservedItem}: {ex.Message}");
-                }
-            }
-        }
-
-        private async Task RestorePreservedFiles(string backupDir, string gamePath)
-        {
-            foreach (var preservedItem in PreservedFiles)
-            {
-                try
-                {
-                    if (preservedItem.Contains('*'))
-                    {
-                        var matchingFiles = Directory.GetFiles(backupDir, preservedItem, SearchOption.AllDirectories);
-
-                        foreach (var matchedFile in matchingFiles)
-                        {
-                            var relativePath = Path.GetRelativePath(backupDir, matchedFile);
-                            var destPath = Path.Combine(gamePath, relativePath);
-
-                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                            File.Copy(matchedFile, destPath, true);
-                        }
-                    }
-                    else
-                    {
-                        var sourcePath = Path.Combine(backupDir, preservedItem);
-                        var destPath = Path.Combine(gamePath, preservedItem);
-
-                        if (File.Exists(sourcePath))
-                        {
-                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                            File.Copy(sourcePath, destPath, true);
-                        }
-                        else if (Directory.Exists(sourcePath))
-                        {
-                            await CopyDirectoryRecursively(sourcePath, destPath);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Warning: Failed to restore {preservedItem}: {ex.Message}");
-                }
-            }
-        }
-
-
-        private async Task CopyDirectoryRecursively(string sourceDir, string destDir)
-        {
-            Directory.CreateDirectory(destDir);
-
-            foreach (var file in Directory.GetFiles(sourceDir))
-            {
-                var fileName = Path.GetFileName(file);
-                var destFile = Path.Combine(destDir, fileName);
-                File.Copy(file, destFile, true);
-            }
-
-            foreach (var directory in Directory.GetDirectories(sourceDir))
-            {
-                var dirName = Path.GetFileName(directory);
-                var destSubDir = Path.Combine(destDir, dirName);
-                await CopyDirectoryRecursively(directory, destSubDir);
-            }
-        }
 
         private void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
         {
