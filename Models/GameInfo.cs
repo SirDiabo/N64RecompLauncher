@@ -121,25 +121,57 @@ namespace N64RecompLauncher.Models
         public string LatestVersion
         {
             get => _latestVersion;
-            set { _latestVersion = value; OnPropertyChanged(); }
+            set
+            {
+                if (_latestVersion != value)
+                {
+                    _latestVersion = value;
+                    DispatchPropertyChanged();
+                }
+            }
         }
 
         public string InstalledVersion
         {
             get => _installedVersion;
-            set { _installedVersion = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
+            set
+            {
+                if (_installedVersion != value)
+                {
+                    _installedVersion = value;
+                    DispatchPropertyChanged();
+                    DispatchPropertyChanged(nameof(StatusText));
+                }
+            }
         }
 
         public GameStatus Status
         {
             get => _status;
-            set { _status = value; OnPropertyChanged(); OnPropertyChanged(nameof(ButtonText)); OnPropertyChanged(nameof(ButtonColor)); }
+            set
+            {
+                if (_status != value)
+                {
+                    _status = value;
+                    DispatchPropertyChanged();
+                    DispatchPropertyChanged(nameof(ButtonText));
+                    DispatchPropertyChanged(nameof(ButtonColor));
+                    DispatchPropertyChanged(nameof(StatusText));
+                }
+            }
         }
 
         public bool IsLoading
         {
             get => _isLoading;
-            set { _isLoading = value; OnPropertyChanged(); }
+            set
+            {
+                if (_isLoading != value)
+                {
+                    _isLoading = value;
+                    DispatchPropertyChanged();
+                }
+            }
         }
 
         public string ButtonText
@@ -188,6 +220,25 @@ namespace N64RecompLauncher.Models
                     GameStatus.Installing => "Installing...",
                     _ => ""
                 };
+            }
+        }
+
+        private void DispatchPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            if (Application.Current?.Dispatcher != null)
+            {
+                if (Application.Current.Dispatcher.CheckAccess())
+                {
+                    OnPropertyChanged(propertyName);
+                }
+                else
+                {
+                    Application.Current.Dispatcher.Invoke(() => OnPropertyChanged(propertyName));
+                }
+            }
+            else
+            {
+                OnPropertyChanged(propertyName);
             }
         }
 
@@ -241,8 +292,11 @@ namespace N64RecompLauncher.Models
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error checking status for {Name}: {ex.Message}",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Error checking status for {Name}: {ex.Message}",
+                        "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
                 Status = GameStatus.NotInstalled;
             }
             finally
@@ -502,6 +556,16 @@ namespace N64RecompLauncher.Models
             }
         }
 
+        private readonly string[] PreservedFiles = {
+            "LastPlayed.txt",
+            "portable.txt",
+            "portable_disabled.txt",
+            "saves",
+            "config",
+            "settings",
+            "userdata",
+        };
+
         private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder)
         {
             try
@@ -509,45 +573,8 @@ namespace N64RecompLauncher.Models
                 Status = GameStatus.Downloading;
 
                 string platformIdentifier = GetPlatformIdentifier();
-
                 var gamePath = Path.Combine(gamesFolder, FolderName);
                 var versionFile = Path.Combine(gamePath, "version.txt");
-
-                if (File.Exists(versionFile))
-                {
-                    var existingVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
-
-                    GitHubRelease release = _cachedRelease;
-                    if (release == null)
-                    {
-                        if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache.CachedRelease != null)
-                        {
-                            release = cache.CachedRelease;
-                        }
-                        else
-                        {
-                            var response = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
-                            release = JsonSerializer.Deserialize<GitHubRelease>(response);
-
-                            GitHubApiCache.SetCache(Repository, release.tag_name, null, release);
-                        }
-                    }
-
-                    LatestVersion = release.tag_name;
-
-                    if (GameManager != null)
-                    {
-                        await GameManager.LoadGamesAsync();
-                    }
-
-                    if (existingVersion == LatestVersion)
-                    {
-                        Status = GameStatus.Installed;
-                        InstalledVersion = existingVersion;
-                        return;
-                    }
-
-        }
 
                 GitHubRelease latestRelease = _cachedRelease;
                 if (latestRelease == null)
@@ -560,8 +587,27 @@ namespace N64RecompLauncher.Models
                     {
                         var releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
                         latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
-
                         GitHubApiCache.SetCache(Repository, latestRelease.tag_name, null, latestRelease);
+                    }
+                }
+
+                if (File.Exists(versionFile))
+                {
+                    var existingVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
+                    if (existingVersion == latestRelease.tag_name)
+                    {
+                        Status = GameStatus.Installed;
+                        InstalledVersion = existingVersion;
+                        LatestVersion = latestRelease.tag_name;
+
+                        if (GameManager != null)
+                        {
+                            await Application.Current.Dispatcher.InvokeAsync(async () =>
+                            {
+                                await GameManager.LoadGamesAsync();
+                            });
+                        }
+                        return;
                     }
                 }
 
@@ -570,8 +616,11 @@ namespace N64RecompLauncher.Models
 
                 if (asset == null)
                 {
-                    MessageBox.Show($"No downloadable release found for {Name} on {platformIdentifier}",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"No downloadable release found for {Name} on {platformIdentifier}",
+                            "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
                     Status = GameStatus.NotInstalled;
                     return;
                 }
@@ -588,42 +637,169 @@ namespace N64RecompLauncher.Models
 
                 Status = GameStatus.Installing;
 
-                if (Directory.Exists(gamePath))
-                {
-                    Directory.Delete(gamePath, true);
-                }
-                Directory.CreateDirectory(gamePath);
-
-                if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                {
-                    ZipFile.ExtractToDirectory(downloadPath, gamePath);
-                }
-                else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-                {
-                    ExtractTarGz(downloadPath, gamePath);
-                }
-
-                var portableFilePath = Path.Combine(gamePath, "portable.txt");
-                await File.WriteAllTextAsync(portableFilePath, string.Empty).ConfigureAwait(false);
-
-                await File.WriteAllTextAsync(versionFile, latestRelease.tag_name).ConfigureAwait(false);
+                await InstallOrUpdateGame(downloadPath, gamePath, asset.name, latestRelease.tag_name);
 
                 File.Delete(downloadPath);
 
                 InstalledVersion = latestRelease.tag_name;
                 LatestVersion = latestRelease.tag_name;
                 Status = GameStatus.Installed;
+
+                if (GameManager != null)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await GameManager.LoadGamesAsync();
+                    });
+                }
             }
             catch (HttpRequestException ex)
             {
-                MessageBox.Show($"Network error installing {Name}: {ex.Message}",
-                    "Network Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Network error installing {Name}: {ex.Message}",
+                        "Network Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
                 Status = GameStatus.NotInstalled;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error installing {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Error installing {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
                 Status = GameStatus.NotInstalled;
+            }
+        }
+
+        private async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
+        {
+            string backupDir = null;
+            bool isUpdate = Directory.Exists(gamePath);
+
+            if (isUpdate)
+            {
+                backupDir = Path.Combine(Path.GetTempPath(), $"{FolderName}_backup_{Guid.NewGuid()}");
+                Directory.CreateDirectory(backupDir);
+
+                await BackupPreservedFiles(gamePath, backupDir);
+            }
+
+            try
+            {
+                if (Directory.Exists(gamePath))
+                {
+                    Directory.Delete(gamePath, true);
+                }
+                Directory.CreateDirectory(gamePath);
+
+                if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    ZipFile.ExtractToDirectory(downloadPath, gamePath);
+                }
+                else if (assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                {
+                    ExtractTarGz(downloadPath, gamePath);
+                }
+
+                if (isUpdate && backupDir != null)
+                {
+                    await RestorePreservedFiles(backupDir, gamePath);
+                }
+
+                var versionFile = Path.Combine(gamePath, "version.txt");
+                await File.WriteAllTextAsync(versionFile, version).ConfigureAwait(false);
+
+                var portableFilePath = Path.Combine(gamePath, "portable.txt");
+                if (!File.Exists(portableFilePath))
+                {
+                    await File.WriteAllTextAsync(portableFilePath, string.Empty).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                if (backupDir != null && Directory.Exists(backupDir))
+                {
+                    try
+                    {
+                        Directory.Delete(backupDir, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Warning: Failed to delete backup directory {backupDir}: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private async Task BackupPreservedFiles(string gamePath, string backupDir)
+        {
+            foreach (var preservedItem in PreservedFiles)
+            {
+                var sourcePath = Path.Combine(gamePath, preservedItem);
+                var destPath = Path.Combine(backupDir, preservedItem);
+
+                try
+                {
+                    if (File.Exists(sourcePath))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                        File.Copy(sourcePath, destPath, true);
+                    }
+                    else if (Directory.Exists(sourcePath))
+                    {
+                        await CopyDirectoryRecursively(sourcePath, destPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Warning: Failed to backup {preservedItem}: {ex.Message}");
+                }
+            }
+        }
+
+        private async Task RestorePreservedFiles(string backupDir, string gamePath)
+        {
+            foreach (var preservedItem in PreservedFiles)
+            {
+                var sourcePath = Path.Combine(backupDir, preservedItem);
+                var destPath = Path.Combine(gamePath, preservedItem);
+
+                try
+                {
+                    if (File.Exists(sourcePath))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                        File.Copy(sourcePath, destPath, true);
+                    }
+                    else if (Directory.Exists(sourcePath))
+                    {
+                        await CopyDirectoryRecursively(sourcePath, destPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Warning: Failed to restore {preservedItem}: {ex.Message}");
+                }
+            }
+        }
+
+        private async Task CopyDirectoryRecursively(string sourceDir, string destDir)
+        {
+            Directory.CreateDirectory(destDir);
+
+            foreach (var file in Directory.GetFiles(sourceDir))
+            {
+                var fileName = Path.GetFileName(file);
+                var destFile = Path.Combine(destDir, fileName);
+                File.Copy(file, destFile, true);
+            }
+
+            foreach (var directory in Directory.GetDirectories(sourceDir))
+            {
+                var dirName = Path.GetFileName(directory);
+                var destSubDir = Path.Combine(destDir, dirName);
+                await CopyDirectoryRecursively(directory, destSubDir);
             }
         }
 
@@ -658,8 +834,11 @@ namespace N64RecompLauncher.Models
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
-                    "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
+                        "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
                 throw;
             }
         }
@@ -738,8 +917,11 @@ namespace N64RecompLauncher.Models
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
-                    "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
+                        "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
                 throw;
             }
         }
@@ -800,7 +982,10 @@ namespace N64RecompLauncher.Models
 
                 if (string.IsNullOrEmpty(executablePath))
                 {
-                    MessageBox.Show($"No executable found in {gamePath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"No executable found in {gamePath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
                     return;
                 }
 
@@ -835,12 +1020,18 @@ namespace N64RecompLauncher.Models
 
                 if (GameManager != null)
                 {
-                    await GameManager.LoadGamesAsync();
+                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await GameManager.LoadGamesAsync();
+                    });
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error launching {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Error launching {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
             }
         }
 
