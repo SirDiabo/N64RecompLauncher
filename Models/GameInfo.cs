@@ -212,7 +212,7 @@ namespace N64RecompLauncher.Models
                 if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion))
                     return $"Installed: {InstalledVersion}";
                 if (Status == GameStatus.UpdateAvailable && !string.IsNullOrEmpty(LatestVersion))
-                    return $"Update available: {LatestVersion}";
+                    return $"Update available!: {InstalledVersion} -> {LatestVersion}";
                 return Status switch
                 {
                     GameStatus.NotInstalled => "Not installed",
