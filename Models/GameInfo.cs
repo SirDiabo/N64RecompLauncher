@@ -561,9 +561,13 @@ namespace N64RecompLauncher.Models
             "portable.txt",
             "portable_disabled.txt",
             "saves",
-            "config",
-            "settings",
-            "userdata",
+            "mods",
+            "mod_config",
+            "controls.json",
+            "general.json",
+            "graphics.json",
+            "sound.json",
+            "*.z64",
         };
 
         private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder)
@@ -736,19 +740,35 @@ namespace N64RecompLauncher.Models
         {
             foreach (var preservedItem in PreservedFiles)
             {
-                var sourcePath = Path.Combine(gamePath, preservedItem);
-                var destPath = Path.Combine(backupDir, preservedItem);
-
                 try
                 {
-                    if (File.Exists(sourcePath))
+                    if (preservedItem.Contains('*'))
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                        File.Copy(sourcePath, destPath, true);
+                        var matchingFiles = Directory.GetFiles(gamePath, preservedItem, SearchOption.AllDirectories);
+
+                        foreach (var matchedFile in matchingFiles)
+                        {
+                            var relativePath = Path.GetRelativePath(gamePath, matchedFile);
+                            var destPath = Path.Combine(backupDir, relativePath);
+
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                            File.Copy(matchedFile, destPath, true);
+                        }
                     }
-                    else if (Directory.Exists(sourcePath))
+                    else
                     {
-                        await CopyDirectoryRecursively(sourcePath, destPath);
+                        var sourcePath = Path.Combine(gamePath, preservedItem);
+                        var destPath = Path.Combine(backupDir, preservedItem);
+
+                        if (File.Exists(sourcePath))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                            File.Copy(sourcePath, destPath, true);
+                        }
+                        else if (Directory.Exists(sourcePath))
+                        {
+                            await CopyDirectoryRecursively(sourcePath, destPath);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -762,19 +782,35 @@ namespace N64RecompLauncher.Models
         {
             foreach (var preservedItem in PreservedFiles)
             {
-                var sourcePath = Path.Combine(backupDir, preservedItem);
-                var destPath = Path.Combine(gamePath, preservedItem);
-
                 try
                 {
-                    if (File.Exists(sourcePath))
+                    if (preservedItem.Contains('*'))
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                        File.Copy(sourcePath, destPath, true);
+                        var matchingFiles = Directory.GetFiles(backupDir, preservedItem, SearchOption.AllDirectories);
+
+                        foreach (var matchedFile in matchingFiles)
+                        {
+                            var relativePath = Path.GetRelativePath(backupDir, matchedFile);
+                            var destPath = Path.Combine(gamePath, relativePath);
+
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                            File.Copy(matchedFile, destPath, true);
+                        }
                     }
-                    else if (Directory.Exists(sourcePath))
+                    else
                     {
-                        await CopyDirectoryRecursively(sourcePath, destPath);
+                        var sourcePath = Path.Combine(backupDir, preservedItem);
+                        var destPath = Path.Combine(gamePath, preservedItem);
+
+                        if (File.Exists(sourcePath))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                            File.Copy(sourcePath, destPath, true);
+                        }
+                        else if (Directory.Exists(sourcePath))
+                        {
+                            await CopyDirectoryRecursively(sourcePath, destPath);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -783,6 +819,7 @@ namespace N64RecompLauncher.Models
                 }
             }
         }
+
 
         private async Task CopyDirectoryRecursively(string sourceDir, string destDir)
         {
