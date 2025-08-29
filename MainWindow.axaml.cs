@@ -310,7 +310,7 @@ namespace N64RecompLauncher
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
-            var game = menuItem?.Tag as GameInfo;
+            var game = menuItem?.CommandParameter as GameInfo;
 
             if (game != null && !string.IsNullOrEmpty(game.Repository))
             {
@@ -324,12 +324,13 @@ namespace N64RecompLauncher
                     _ = ShowMessageBoxAsync($"Failed to open GitHub page: {ex.Message}", "Error");
                 }
             }
+            else _ = ShowMessageBoxAsync($"Failed to open GitHub page", "Error");
         }
 
         private async void SetCustomIcon_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
-            var selectedGame = menuItem?.Tag as GameInfo;
+            var selectedGame = menuItem?.CommandParameter as GameInfo;
             if (selectedGame == null)
             {
                 _ = ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
@@ -387,7 +388,7 @@ namespace N64RecompLauncher
         private async void RemoveCustomIcon_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
-            var selectedGame = menuItem?.Tag as GameInfo;
+            var selectedGame = menuItem?.CommandParameter as GameInfo;
             if (selectedGame == null)
             {
                 _ = ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
@@ -417,7 +418,7 @@ namespace N64RecompLauncher
         private async void DeleteGame_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
-            var game = menuItem?.Tag as GameInfo;
+            var game = menuItem?.CommandParameter as GameInfo;
 
             if (game == null) return;
 
@@ -466,7 +467,6 @@ namespace N64RecompLauncher
             }
         }
 
-        // Helper methods for Avalonia-specific functionality
         private void OpenUrl(string url)
         {
             try
