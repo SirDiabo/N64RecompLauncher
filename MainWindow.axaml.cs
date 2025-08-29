@@ -51,21 +51,22 @@ namespace N64RecompLauncher
                 _settings = new AppSettings();
             }
 
-            try
-            {
-                _gameManager = new GameManager();
-                DataContext = _gameManager;
-            }
-            catch (Exception ex)
-            {
-                _ = ShowMessageBoxAsync($"Failed to initialize GameManager: {ex.Message}", "Initialization Error");
-                return;
-            }
+            _gameManager = new GameManager();
+            DataContext = _gameManager;
 
             LoadCurrentVersion();
-
-
             UpdateSettingsUI();
+
+            _gameManager.PropertyChanged += (s, e) => {
+                if (e.PropertyName == nameof(GameManager.Games))
+                {
+                    Debug.WriteLine($"Games collection changed. Count: {_gameManager.Games?.Count ?? 0}");
+                    foreach (var game in _gameManager.Games ?? new())
+                    {
+                        Debug.WriteLine($"Game: {game.Name}, IconUrl: {game.IconUrl}");
+                    }
+                }
+            };
         }
 
         private void LoadCurrentVersion()

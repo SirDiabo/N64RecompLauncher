@@ -107,6 +107,12 @@ namespace N64RecompLauncher.Models
                 {
                     return CustomIconPath;
                 }
+
+                if (string.IsNullOrEmpty(Repository) || string.IsNullOrEmpty(Branch) || string.IsNullOrEmpty(ImageRes))
+                {
+                    return "/Assets/DefaultGame.png";
+                }
+
                 return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
             }
         }
@@ -930,73 +936,68 @@ namespace N64RecompLauncher.Models
                     {
                         executablePath = allFiles.FirstOrDefault(f =>
                             !Path.GetFileName(f).Contains('.') &&
-                            new FileInfo(f).Length > 1024) ?? string.Empty;
+                            new FileInfo(f).Length > 1024);
                     }
+                }
 
-                    if (string.IsNullOrEmpty(executablePath))
+                if (string.IsNullOrEmpty(executablePath))
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        await ShowMessageBoxAsync($"No executable found in {gamePath}", "Error");
+                    });
+                    return;
+                }
+
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    try
+                    {
+                        var chmodProcess = new ProcessStartInfo
                         {
-                            await ShowMessageBoxAsync($"No executable found in {gamePath}", "Error");
-                        });
-                        return;
-                    }
+                            FileName = "chmod",
+                            Arguments = $"+x \"{executablePath}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true
+                        };
 
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = executablePath,
-                        WorkingDirectory = Path.GetDirectoryName(executablePath),
-                        UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                    };
-
-                    if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        startInfo.UseShellExecute = false;
-
-                        try
+                        using var process = Process.Start(chmodProcess);
+                        if (process != null)
                         {
-                            var chmodProcess = new ProcessStartInfo
-                            {
-                                FileName = "chmod",
-                                Arguments = $"+x \"{executablePath}\"",
-                                UseShellExecute = false,
-                                CreateNoWindow = true,
-                                RedirectStandardError = true
-                            };
+                            await process.WaitForExitAsync();
 
-                            using var process = Process.Start(startInfo);
-                            if (process != null)
+                            if (process.ExitCode != 0)
                             {
-                                await process.WaitForExitAsync();
-
-                                if (process.ExitCode != 0)
-                                {
-                                    string errorOutput = process.StandardError.ReadToEnd();
-                                    throw new Exception($"Tar extraction failed: {errorOutput}");
-                                }
-                            }
-                            else
-                            {
-                                throw new InvalidOperationException("Failed to start tar extraction process.");
+                                string errorOutput = await process.StandardError.ReadToEndAsync();
+                                System.Diagnostics.Debug.WriteLine($"chmod failed: {errorOutput}");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Failed to make file executable: {ex.Message}");
-                        }
                     }
-
-                    UpdateLastPlayedTime(Path.GetDirectoryName(executablePath));
-
-                    Process.Start(startInfo);
-
-                    if (GameManager != null)
+                    catch (Exception ex)
                     {
-                        await Dispatcher.UIThread.InvokeAsync(async () =>
-                        {
-                            await GameManager.LoadGamesAsync();
-                        });
+                        System.Diagnostics.Debug.WriteLine($"Failed to make file executable: {ex.Message}");
                     }
+                }
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = executablePath,
+                    WorkingDirectory = Path.GetDirectoryName(executablePath),
+                    UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                };
+
+                UpdateLastPlayedTime(Path.GetDirectoryName(executablePath));
+
+                Process.Start(startInfo);
+
+                if (GameManager != null)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await GameManager.LoadGamesAsync();
+                    });
                 }
             }
             catch (Exception ex)
