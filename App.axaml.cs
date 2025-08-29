@@ -387,10 +387,6 @@ public partial class App : Application
                 {
                     ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
                 }
-                else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-                {
-                    ExtractTarGz(tempDownloadPath, tempUpdateFolder);
-                }
 
                 if (!ValidateUpdateFiles(tempUpdateFolder))
                 {
@@ -433,14 +429,24 @@ public partial class App : Application
     {
         try
         {
-            string mainExe = Path.Combine(updateDirectory, "N64RecompLauncher.exe");
-            if (!File.Exists(mainExe))
+            string mainExecutable;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Trace.WriteLine("Main executable not found in update package");
+                mainExecutable = Path.Combine(updateDirectory, "N64RecompLauncher.exe");
+            }
+            else
+            {
+                mainExecutable = Path.Combine(updateDirectory, "N64RecompLauncher");
+            }
+
+            if (!File.Exists(mainExecutable))
+            {
+                Trace.WriteLine($"Main executable not found in update package: {mainExecutable}");
                 return false;
             }
 
-            FileInfo exeInfo = new FileInfo(mainExe);
+            FileInfo exeInfo = new FileInfo(mainExecutable);
             if (exeInfo.Length < 1024)
             {
                 Trace.WriteLine($"Main executable too small: {exeInfo.Length} bytes");
@@ -458,10 +464,22 @@ public partial class App : Application
 
     private async Task CreateAndRunUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, string versionFilePath)
     {
-        string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
         string applicationExecutable = Process.GetCurrentProcess().MainModule.FileName;
-
         string backupDir = Path.Combine(currentAppDirectory, "backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            await CreateWindowsUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath, applicationExecutable, backupDir);
+        }
+        else
+        {
+            await CreateUnixUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath, applicationExecutable, backupDir);
+        }
+    }
+
+    private async Task CreateWindowsUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, string versionFilePath, string applicationExecutable, string backupDir)
+    {
+        string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
 
         string scriptContent = $@"@echo off
 echo N64RecompLauncher Updater - Version {latestRelease.tag_name}
@@ -533,22 +551,110 @@ del ""%~f0""
         }
     }
 
-    private void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
+    private async Task CreateUnixUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, string versionFilePath, string applicationExecutable, string backupDir)
     {
-        Directory.CreateDirectory(destinationDirectoryPath);
+        string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.sh");
+        string executableName = Path.GetFileName(applicationExecutable);
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        string scriptContent = $@"#!/bin/bash
+echo ""N64RecompLauncher Updater - Version {latestRelease.tag_name}""
+echo
+
+echo ""Waiting for N64RecompLauncher to close...""
+while pgrep -x ""{executableName}"" > /dev/null; do
+    sleep 1
+done
+
+echo ""Creating backup...""
+appDir=""{currentAppDirectory}""
+backupDir=""{backupDir}""
+updateDir=""{tempUpdateFolder}""
+
+mkdir -p ""$backupDir""
+
+echo ""Backing up current version...""
+if [ -d ""$appDir"" ]; then
+    cp -r ""$appDir""/* ""$backupDir""/ 2>/dev/null || true
+fi
+
+echo ""Applying update...""
+if cp -r ""$updateDir""/* ""$appDir""/ 2>/dev/null; then
+    echo ""Update applied successfully""
+else
+    echo ""Update failed! Restoring backup...""
+    cp -r ""$backupDir""/* ""$appDir""/ 2>/dev/null || true
+    echo ""Backup restored. Update failed.""
+    read -p ""Press Enter to continue...""
+    exit 1
+fi
+
+echo ""Updating version file...""
+echo ""{latestRelease.tag_name}"" > ""{versionFilePath}""
+
+# Make the main executable file executable
+if [ -f ""$appDir/N64RecompLauncher"" ]; then
+    chmod +x ""$appDir/N64RecompLauncher""
+fi
+
+echo ""Update completed successfully!""
+echo ""Restarting N64RecompLauncher...""
+sleep 2
+
+# Start the application
+if [ -f ""$appDir/N64RecompLauncher"" ]; then
+    cd ""$appDir""
+    nohup ""./N64RecompLauncher"" > /dev/null 2>&1 &
+fi
+
+echo ""Cleaning up temporary files...""
+rm -f ""{tempDownloadPath}"" 2>/dev/null || true
+rm -rf ""$updateDir"" 2>/dev/null || true
+
+# Self-destruct
+rm -- ""$0""
+";
+
+        await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
+
+        // Make the script executable
+        try
         {
-            ExtractTarGzWindows(sourceFilePath, destinationDirectoryPath);
+            var chmodProcess = new ProcessStartInfo
+            {
+                FileName = "chmod",
+                Arguments = $"+x \"{updaterScriptPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = true
+            };
+
+            using (var process = Process.Start(chmodProcess))
+            {
+                await process.WaitForExitAsync();
+                if (process.ExitCode != 0)
+                {
+                    var error = await process.StandardError.ReadToEndAsync();
+                    Trace.WriteLine($"chmod failed for updater script: {error}");
+                }
+            }
         }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
-                 RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        catch (Exception ex)
         {
-            ExtractTarGzUnix(sourceFilePath, destinationDirectoryPath);
+            Trace.WriteLine($"Failed to make updater script executable: {ex.Message}");
         }
-        else
+
+        // Run the shell script
+        Process.Start(new ProcessStartInfo
         {
-            throw new PlatformNotSupportedException("Unsupported operating system for tar.gz extraction.");
+            FileName = "/bin/bash",
+            Arguments = $"\"{updaterScriptPath}\"",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        });
+
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown();
         }
     }
 
