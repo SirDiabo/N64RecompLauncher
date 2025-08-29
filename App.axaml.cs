@@ -72,7 +72,7 @@ public class App : Application, INotifyPropertyChanged
     private const string VersionFileName = "version.txt";
     private const string UpdateCheckFileName = "update_check.json";
 
-    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
     public override void Initialize()
@@ -425,9 +425,34 @@ public class App : Application, INotifyPropertyChanged
                 }
                 Directory.CreateDirectory(tempUpdateFolder);
 
-                if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
+                    if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
+                    }
+                    else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await ExtractTarGzAsync(tempDownloadPath, tempUpdateFolder);
+                    }
+                    else
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            await ShowMessageBoxAsync($"Unsupported archive format: {asset.name}",
+                                "Update Error");
+                        });
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await ShowMessageBoxAsync($"Failed to extract update archive: {ex.Message}",
+                            "Update Error");
+                    });
+                    return;
                 }
 
                 if (!ValidateUpdateFiles(tempUpdateFolder))
@@ -464,6 +489,48 @@ public class App : Application, INotifyPropertyChanged
                         "Update Error");
                 });
             }
+        }
+    }
+
+    private async Task ExtractTarGzAsync(string tarGzPath, string extractPath)
+    {
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var process = new ProcessStartInfo
+                {
+                    FileName = "tar",
+                    Arguments = $"-xzf \"{tarGzPath}\" -C \"{extractPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true
+                };
+
+                using var proc = Process.Start(process);
+                if (proc != null)
+                {
+                    await proc.WaitForExitAsync();
+                    if (proc.ExitCode != 0)
+                    {
+                        var error = await proc.StandardError.ReadToEndAsync();
+                        throw new InvalidOperationException($"tar extraction failed: {error}");
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Failed to start tar process");
+                }
+            }
+            else
+            {
+                throw new NotSupportedException("tar.gz extraction not supported on this platform");
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to extract tar.gz file: {ex.Message}", ex);
         }
     }
 
