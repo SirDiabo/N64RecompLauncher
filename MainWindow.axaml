@@ -399,24 +399,26 @@
 			<ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
 				<StackPanel Margin="20" x:Name="SettingsContent">
+					
 					<TextBlock Text="Settings"
-                               FontSize="20"
+                               FontSize="24"
+							   HorizontalAlignment="Center"
                                FontWeight="Bold"
                                Foreground="White"
                                Margin="0,0,0,0"/>
 
 					<TextBlock Text="General"
-                               FontSize="16"
+                               FontSize="18"
                                FontWeight="SemiBold"
                                Foreground="#cccccc"
                                Margin="0,0,0,10"/>
 
 					<CheckBox x:Name="PortableCheckBox"
-                              Content="Portable"
-                              Foreground="White"
-                              Margin="0,0,0,0"
-                              Checked="PortableCheckBox_Checked"
-                              Unchecked="PortableCheckBox_Unchecked" />
+                               Content="Portable"
+                               Foreground="White"
+                               Margin="0,0,0,0"
+                               Checked="PortableCheckBox_Checked"
+                               Unchecked="PortableCheckBox_Unchecked" />
 
 					<TextBlock Text="Store data in the game directory."
                                FontSize="12"
@@ -424,30 +426,34 @@
                                Margin="0,0,0,10"/>
 
 					<TextBlock Text="UI"
-                               FontSize="16"
+                               FontSize="18"
                                FontWeight="SemiBold"
                                Foreground="#cccccc"
                                Margin="0,0,0,10"/>
 
 					<TextBlock Text="Slot Scale"
                                FontSize="12"
+							   Margin="0,0,0,0"
                                FontWeight="SemiBold"
                                Foreground="White"/>
+					
 					<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
                                FontSize="12"
+							   Margin="0,0,0,0"
                                FontWeight="SemiBold"
                                Foreground="White"/>
-
+					
 					<Slider x:Name="SlotSizeSlider"
                                Foreground="White"
                                Margin="0,0,0,0"
+							   Padding="0,-15,0,-15"
                                Minimum="120"
                                Maximum="400"
                                Value="120"
                                TickFrequency="16"
                                IsSnapToTickEnabled="True"
                                ValueChanged="SlotSizeSlider_ValueChanged" />
-
+					
 					<TextBlock Text="The scale of each game slot."
                                FontSize="12"
                                Foreground="#999999"
@@ -459,16 +465,17 @@
                                Margin="0,0,0,0"
                                Checked="IconFillCheckBox_Checked"
                                Unchecked="IconFillCheckBox_Unchecked" />
-
+					
 					<TextBlock Text="Images fill the entire slots."
                                FontSize="12"
                                Foreground="#999999"
                                Margin="0,0,0,20"/>
-
+					
 					<TextBlock Text="Image Opacity"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Foreground="White"/>
+					
 					<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
                                FontSize="12"
                                FontWeight="SemiBold"
@@ -477,6 +484,7 @@
 					<Slider x:Name="IconOpacitySlider"
                                Foreground="White"
                                Margin="0,0,0,0"
+							   Padding="0,-15,0,-15"
                                Minimum="0.0"
                                Maximum="1.0"
                                Value="0.2"
@@ -493,6 +501,7 @@
                                FontSize="12"
                                FontWeight="SemiBold"
                                Foreground="White"/>
+					
 					<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
                                FontSize="12"
                                FontWeight="SemiBold"
@@ -501,6 +510,7 @@
 					<Slider x:Name="IconSizeSlider"
                                Foreground="White"
                                Margin="0,0,0,0"
+							   Padding="0,-15,0,-15"
                                Minimum="64"
                                Maximum="512"
                                Value="256"
@@ -517,6 +527,7 @@
                                FontSize="12"
                                FontWeight="SemiBold"
                                Foreground="White"/>
+					
 					<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
                                FontSize="12"
                                FontWeight="SemiBold"
@@ -525,6 +536,7 @@
 					<Slider x:Name="IconMarginSlider"
                                Foreground="White"
                                Margin="0,0,0,0"
+							   Padding="0,-15,0,-15"
                                Minimum="0"
                                Maximum="512"
                                Value="0"
@@ -541,6 +553,7 @@
                                FontSize="12"
                                FontWeight="SemiBold"
                                Foreground="White"/>
+					
 					<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
                                FontSize="12"
                                FontWeight="SemiBold"
@@ -549,6 +562,7 @@
 					<Slider x:Name="TextMarginSlider"
                                Foreground="White"
                                Margin="0,0,0,0"
+							   Padding="0,-15,0,-15"
                                Minimum="0"
                                Maximum="256"
                                Value="0"
