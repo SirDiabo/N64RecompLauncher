@@ -605,12 +605,12 @@
 		</ScrollViewer>
 
 		<TextBlock Text="{Binding currentVersionString}"
-           Grid.Row="1"
-           Grid.Column="2"
-           VerticalAlignment="Bottom"
-           HorizontalAlignment="Left"
-           Margin="0,0,0,0"
-           Foreground="#808080"
-           FontSize="12" />
+			Grid.Row="1"
+			Grid.Column="2"
+			VerticalAlignment="Bottom"
+			HorizontalAlignment="Left"
+			Margin="0,0,0,0"
+			Foreground="#808080"
+			FontSize="12" />
 	</Grid>
 </Window>

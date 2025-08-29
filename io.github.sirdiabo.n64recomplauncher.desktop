@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=N64 Recomp Launcher
+Comment=Download and manage N64 recompiled game ports
+Exec=n64recomplauncher
+Icon=io.github.sirdiabo.n64recomplauncher
+Terminal=false
+Type=Application
+Categories=Emulation;Game;Utility;
+Keywords=n64;recompilation;launcher;recompilation;recomp;games;roms;emulator;

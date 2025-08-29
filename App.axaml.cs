@@ -19,9 +19,6 @@ using System.Threading.Tasks;
 
 namespace N64RecompLauncher;
 
-
-
-
 public class App : Application, INotifyPropertyChanged
 {
 

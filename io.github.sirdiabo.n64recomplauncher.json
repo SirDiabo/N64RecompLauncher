@@ -1,0 +1,64 @@
+{
+  "app-id": "io.github.sirdiabo.n64recomplauncher",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "22.08",
+  "sdk": "org.freedesktop.Sdk",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.dotnet7"
+  ],
+  "command": "n64recomplauncher",
+  "finish-args": [
+    "--share=network",
+    "--socket=x11",
+    "--socket=wayland",
+    "--device=dri",
+    "--filesystem=home"
+  ],
+  "modules": [
+    {
+      "name": "dotnet-runtime",
+      "buildsystem": "simple",
+      "build-commands": [
+        "mkdir -p /app/dotnet",
+        "curl -L https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 7.0 --install-dir /app/dotnet",
+        "ln -s /app/dotnet/dotnet /app/bin/dotnet"
+      ]
+    },
+    {
+      "name": "n64recomplauncher",
+      "buildsystem": "simple",
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".",
+          "skip": [
+            ".vs",
+            "bin",
+            "obj",
+            ".git",
+            ".vscode",
+            "*.user",
+            "*.suo"
+          ]
+        },
+        {
+          "type": "file",
+          "path": "io.github.sirdiabo.n64recomplauncher.desktop"
+        },
+        {
+          "type": "file",
+          "path": "io.github.sirdiabo.n64recomplauncher.png"
+        }
+      ],
+      "build-commands": [
+        "export PATH=$PATH:/app/dotnet",
+        "dotnet restore",
+        "dotnet publish -c Release -f net9.0 -o /app/bin",
+        "chmod +x /app/bin/n64recomplauncher",
+        "install -Dm755 /app/bin/n64recomplauncher /app/bin/n64recomplauncher",
+        "install -Dm644 io.github.sirdiabo.n64recomplauncher.desktop /app/share/applications/io.github.sirdiabo.n64recomplauncher.desktop",
+        "install -Dm644 io.github.sirdiabo.n64recomplauncher.png /app/share/icons/hicolor/128x128/apps/io.github.sirdiabo.n64recomplauncher.png"
+      ]
+    }
+  ]
+}
