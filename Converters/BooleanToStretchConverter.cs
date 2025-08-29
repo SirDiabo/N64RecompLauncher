@@ -1,11 +1,14 @@
-﻿using System.Globalization;
-using System.Windows.Data;
-using System.Windows.Media;
+﻿using System;
+using System.Globalization;
+using Avalonia.Data.Converters;
+using Avalonia.Media;
 
 namespace N64RecompLauncher
 {
     public class BooleanToStretchConverter : IValueConverter
     {
+        public static readonly BooleanToStretchConverter Instance = new();
+
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is bool boolValue)
@@ -17,11 +20,7 @@ namespace N64RecompLauncher
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is Stretch stretch)
-            {
-                return stretch == Stretch.Fill;
-            }
-            return false;
+            throw new NotImplementedException();
         }
     }
 }

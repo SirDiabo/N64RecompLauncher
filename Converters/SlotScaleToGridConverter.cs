@@ -1,24 +1,25 @@
 ﻿using System;
 using System.Globalization;
-using System.Windows;
-using System.Windows.Data;
+using Avalonia.Data.Converters;
 
 namespace N64RecompLauncher
 {
     public class SlotScaleToGridConverter : IValueConverter
     {
+        public static readonly SlotScaleToGridConverter Instance = new();
+
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is double slotScale && parameter is string mode)
+            if (value is double slotSize && parameter is string mode)
             {
-                bool isGridMode = slotScale > 120;
+                bool showGrid = slotSize > 120;
 
                 if (mode == "Grid")
-                    return isGridMode ? Visibility.Visible : Visibility.Collapsed;
-                else
-                    return isGridMode ? Visibility.Collapsed : Visibility.Visible;
+                    return showGrid;
+                else if (mode == "List")
+                    return !showGrid;
             }
-            return Visibility.Collapsed;
+            return parameter?.ToString() == "List";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -1,17 +1,20 @@
-﻿using System.Globalization;
-using System.Windows.Data;
+﻿using System;
+using System.Globalization;
+using Avalonia.Data.Converters;
 
 namespace N64RecompLauncher
 {
     public class GridWidthConverter : IValueConverter
     {
+        public static readonly GridWidthConverter Instance = new();
+
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is double slotScale)
+            if (value is double slotSize)
             {
-                return Math.Max(120, slotScale * 1.33);
+                return slotSize * 1.2;
             }
-            return 120;
+            return 120.0;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

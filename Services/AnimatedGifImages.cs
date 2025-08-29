@@ -1,15 +1,16 @@
-﻿using System.Drawing;
-using System.IO;
-using System.Windows;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
+﻿using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Threading;
+using Avalonia.Platform;
+using SystemBitmap = System.Drawing.Bitmap;
+using AvaloniaBitmap = Avalonia.Media.Imaging.Bitmap;
 
 namespace N64RecompLauncher
 {
-    public class AnimatedGifImage : System.Windows.Controls.Image
+    public class AnimatedGifImage : Image
     {
-        private Bitmap? _bitmap;
-        private BitmapSource[]? _bitmapSources;
+        private SystemBitmap? _bitmap;
+        private AvaloniaBitmap[]? _bitmapSources;
         private int _frameIndex;
         private bool _isAnimationWorking;
         private readonly DispatcherTimer _timer;
@@ -22,13 +23,13 @@ namespace N64RecompLauncher
             Unloaded += AnimatedGifImage_Unloaded;
         }
 
-        private void AnimatedGifImage_Loaded(object sender, RoutedEventArgs e)
+        private void AnimatedGifImage_Loaded(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             if (GifSource != null)
                 SetImageGifSource();
         }
 
-        private void AnimatedGifImage_Unloaded(object sender, RoutedEventArgs e)
+        private void AnimatedGifImage_Unloaded(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             StopAnimation();
             _bitmap?.Dispose();
@@ -37,18 +38,22 @@ namespace N64RecompLauncher
 
         public string? GifSource
         {
-            get => (string?)GetValue(GifSourceProperty);
+            get => GetValue(GifSourceProperty);
             set => SetValue(GifSourceProperty, value);
         }
 
-        public static readonly DependencyProperty GifSourceProperty =
-            DependencyProperty.Register("GifSource", typeof(string), typeof(AnimatedGifImage),
-                new PropertyMetadata(null, GifSourcePropertyChanged));
+        public static readonly StyledProperty<string?> GifSourceProperty =
+            AvaloniaProperty.Register<AnimatedGifImage, string?>(nameof(GifSource),
+                defaultValue: null);
 
-        private static void GifSourcePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        static AnimatedGifImage()
         {
-            var gif = d as AnimatedGifImage;
-            gif?.SetImageGifSource();
+            GifSourceProperty.Changed.AddClassHandler<AnimatedGifImage>((x, e) => x.GifSourcePropertyChanged(e));
+        }
+
+        private void GifSourcePropertyChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            SetImageGifSource();
         }
 
         private void SetImageGifSource()
@@ -59,16 +64,16 @@ namespace N64RecompLauncher
             {
                 _bitmap?.Dispose();
 
-                var uri = new Uri($"pack://application:,,,{GifSource}", UriKind.Absolute);
-                var resourceStream = Application.GetResourceStream(uri);
+                var assetLoader = AssetLoader.Open(new Uri($"avares://N64RecompLauncher{GifSource}"));
 
-                if (resourceStream?.Stream != null)
+                if (assetLoader != null)
                 {
                     var memoryStream = new MemoryStream();
-                    resourceStream.Stream.CopyTo(memoryStream);
+                    assetLoader.CopyTo(memoryStream);
                     memoryStream.Position = 0;
+                    assetLoader.Dispose();
 
-                    _bitmap = new Bitmap(memoryStream);
+                    _bitmap = new SystemBitmap(memoryStream);
 
                     if (System.Drawing.ImageAnimator.CanAnimate(_bitmap))
                     {
@@ -77,12 +82,8 @@ namespace N64RecompLauncher
                     }
                     else
                     {
-                        var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
-                            _bitmap.GetHbitmap(),
-                            IntPtr.Zero,
-                            Int32Rect.Empty,
-                            BitmapSizeOptions.FromEmptyOptions());
-                        Source = bitmapSource;
+                        var avaloniabitmap = ConvertToAvaloniaBitmap(_bitmap);
+                        Source = avaloniabitmap;
                     }
                 }
             }
@@ -92,30 +93,39 @@ namespace N64RecompLauncher
             }
         }
 
+        private AvaloniaBitmap ConvertToAvaloniaBitmap(SystemBitmap systemBitmap)
+        {
+            using var memoryStream = new MemoryStream();
+            systemBitmap.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
+            memoryStream.Position = 0;
+            return new AvaloniaBitmap(memoryStream);
+        }
+
         private void PrepareAnimation()
         {
             if (_bitmap == null) return;
 
             var dimension = new System.Drawing.Imaging.FrameDimension(_bitmap.FrameDimensionsList[0]);
             var frameCount = _bitmap.GetFrameCount(dimension);
-            _bitmapSources = new BitmapSource[frameCount];
+            _bitmapSources = new AvaloniaBitmap[frameCount];
 
             for (int i = 0; i < frameCount; i++)
             {
                 _bitmap.SelectActiveFrame(dimension, i);
-                var bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
-                    _bitmap.GetHbitmap(),
-                    IntPtr.Zero,
-                    Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
-                _bitmapSources[i] = bitmapSource;
+                _bitmapSources[i] = ConvertToAvaloniaBitmap(_bitmap);
             }
 
-            var propItem = _bitmap.GetPropertyItem(0x5100);
-            var frameDelay = BitConverter.ToInt32(propItem.Value, 0) * 10;
-            if (frameDelay == 0) frameDelay = 100; 
-
-            _timer.Interval = TimeSpan.FromMilliseconds(frameDelay);
+            try
+            {
+                var propItem = _bitmap.GetPropertyItem(0x5100);
+                var frameDelay = BitConverter.ToInt32(propItem.Value, 0) * 10;
+                if (frameDelay == 0) frameDelay = 100;
+                _timer.Interval = TimeSpan.FromMilliseconds(frameDelay);
+            }
+            catch
+            {
+                _timer.Interval = TimeSpan.FromMilliseconds(100);
+            }
         }
 
         private void StartAnimation()

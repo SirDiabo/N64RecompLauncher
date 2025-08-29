@@ -3,12 +3,14 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
+using System.Xml.Linq;
 
 namespace N64RecompLauncher.Services
 {
-    public class GameManager : INotifyPropertyChanged
+    public class GameManager : INotifyPropertyChanged, IDisposable
     {
         private readonly HttpClient _httpClient;
+        private bool _disposed = false;
         private readonly string _gamesFolder;
         private readonly string _cacheFolder;
 
@@ -18,16 +20,34 @@ namespace N64RecompLauncher.Services
         public string CacheFolder => _cacheFolder;
 
         private string _currentVersionString;
-        public string currentVersionString
+        public string CurrentVersionString
         {
             get => _currentVersionString;
             set
             {
-                _currentVersionString = value;
-                OnPropertyChanged(nameof(currentVersionString));
+                if (_currentVersionString != value)
+                {
+                    _currentVersionString = value;
+                    OnPropertyChanged(nameof(CurrentVersionString));
+                }
             }
         }
-
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    _httpClient?.Dispose();
+                }
+                _disposed = true;
+            }
+        }
         public GameManager()
         {
             _httpClient = new HttpClient();
@@ -85,16 +105,20 @@ namespace N64RecompLauncher.Services
 
         private void LoadVersionString()
         {
-            string versionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
-            if (File.Exists(versionFilePath))
+            try
             {
-                currentVersionString = File.ReadAllText(versionFilePath).Trim();
+                string versionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
+                CurrentVersionString = File.Exists(versionFilePath)
+                    ? File.ReadAllText(versionFilePath).Trim()
+                    : "Version information not found";
             }
-            else
+            catch (Exception ex)
             {
-                currentVersionString = "Version information not found";
+                System.Diagnostics.Debug.WriteLine($"Error loading version: {ex.Message}");
+                CurrentVersionString = "Version loading failed";
             }
         }
+
 
         private void LoadCustomIcons()
         {
@@ -121,28 +145,43 @@ namespace N64RecompLauncher.Services
 
         public async Task LoadGamesAsync()
         {
-            var sortedGames = Games
+            var gameStatuses = Games
                 .Select(g => new {
                     Game = g,
                     IsInstalled = Directory.Exists(Path.Combine(_gamesFolder, g.FolderName)),
                     LastPlayed = GetLastPlayedTime(g.FolderName)
                 })
-                .OrderBy(x => !x.IsInstalled) 
-                .ThenByDescending(x => x.IsInstalled ? x.LastPlayed : DateTime.MinValue)
-                .ThenBy(x => !x.IsInstalled ? x.Game.Name : "") 
+                .ToList();
+
+            var sortedGames = gameStatuses
+                .OrderBy(x => x.IsInstalled ? 0 : 1)
+                .ThenByDescending(x => x.LastPlayed)
+                .ThenBy(x => x.Game.Name)
                 .Select(x => x.Game)
                 .ToList();
 
-            Games.Clear();
-            foreach (var game in sortedGames)
+            for (int i = 0; i < sortedGames.Count; i++)
             {
-                Games.Add(game);
+                var currentIndex = Games.IndexOf(sortedGames[i]);
+                if (currentIndex != i && currentIndex != -1)
+                {
+                    Games.Move(currentIndex, i);
+                }
             }
 
-            foreach (var game in Games)
+            var statusTasks = Games.Select(async game =>
             {
-                await game.CheckStatusAsync(_httpClient, _gamesFolder);
-            }
+                try
+                {
+                    await game.CheckStatusAsync(_httpClient, _gamesFolder);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error checking status for {game.Name}: {ex.Message}");
+                }
+            });
+
+            await Task.WhenAll(statusTasks);
         }
 
         private DateTime GetLastPlayedTime(string folderName)

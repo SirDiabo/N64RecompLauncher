@@ -1,8 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFramework>net9.0-windows</TargetFramework>
-		<UseWPF>true</UseWPF>
+		<TargetFramework>net9.0</TargetFramework>
 		<ApplicationIcon>icon.ico</ApplicationIcon>
 		<AssemblyTitle>N64Recomp Launcher</AssemblyTitle>
 		<AssemblyDescription>Download and manage N64 recompiled game ports</AssemblyDescription>
@@ -12,14 +11,19 @@
 		<Platforms>AnyCPU;x64</Platforms>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-x64</RuntimeIdentifiers>
 	</PropertyGroup>
+
 	<ItemGroup>
+		<PackageReference Include="Avalonia" Version="11.3.0" />
+		<PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
 		<PackageReference Include="System.Text.Json" Version="9.0.8" />
 		<PackageReference Include="System.Drawing.Common" Version="9.0.8" />
 	</ItemGroup>
+
 	<ItemGroup>
-		<Resource Include="Assets\**\*">
-			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
-		</Resource>
+		<AvaloniaResource Include="Assets\**\*" />
 	</ItemGroup>
 </Project>

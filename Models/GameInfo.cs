@@ -1,16 +1,18 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
 using N64RecompLauncher.Services;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Compression;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Windows;
-using System.Windows.Media;
 
 public enum GameStatus
 {
@@ -114,7 +116,7 @@ namespace N64RecompLauncher.Models
                 {
                     return CustomIconPath;
                 }
-                return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+                return "https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
             }
         }
 
@@ -190,7 +192,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        public Brush ButtonColor
+        public IBrush ButtonColor
         {
             get
             {
@@ -225,21 +227,46 @@ namespace N64RecompLauncher.Models
 
         private void DispatchPropertyChanged([CallerMemberName] string propertyName = null)
         {
-            if (Application.Current?.Dispatcher != null)
-            {
-                if (Application.Current.Dispatcher.CheckAccess())
-                {
-                    OnPropertyChanged(propertyName);
-                }
-                else
-                {
-                    Application.Current.Dispatcher.Invoke(() => OnPropertyChanged(propertyName));
-                }
-            }
-            else
+            if (Dispatcher.UIThread.CheckAccess())
             {
                 OnPropertyChanged(propertyName);
             }
+            else
+            {
+                Dispatcher.UIThread.InvokeAsync(() => OnPropertyChanged(propertyName));
+            }
+        }
+
+        static async Task ShowMessageBoxAsync(string message, string title)
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var messageBox = new Window
+                    {
+                        Title = title,
+                        Width = 400,
+                        Height = 150,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Content = new StackPanel
+                        {
+                            Margin = new Thickness(20),
+                            Children =
+                    {
+                        new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 20) },
+                        new Button { Content = "OK", HorizontalAlignment = HorizontalAlignment.Center }
+                    }
+                        }
+                    };
+
+                    var okButton = ((StackPanel)messageBox.Content).Children[1] as Button;
+                    okButton.Click += (s, e) => messageBox.Close();
+
+                    await messageBox.ShowDialog(desktop.MainWindow);
+                }
+            });
         }
 
         public async Task CheckStatusAsync(HttpClient httpClient, string gamesFolder)
@@ -292,11 +319,7 @@ namespace N64RecompLauncher.Models
             }
             catch (Exception ex)
             {
-                Application.Current?.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show($"Error checking status for {Name}: {ex.Message}",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                });
+                await ShowMessageBoxAsync($"Error checking status for {Name}: {ex.Message}", "Error");
                 Status = GameStatus.NotInstalled;
             }
             finally
@@ -420,10 +443,7 @@ namespace N64RecompLauncher.Models
             var tempPath = CustomIconPath;
             CustomIconPath = null;
 
-            if (Application.Current != null)
-            {
-                Application.Current.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
-            }
+            Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
 
             System.Threading.Thread.Sleep(100);
         }
@@ -556,20 +576,6 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private readonly string[] PreservedFiles = {
-            "LastPlayed.txt",
-            "portable.txt",
-            "portable_disabled.txt",
-            "saves",
-            "mods",
-            "mod_config",
-            "controls.json",
-            "general.json",
-            "graphics.json",
-            "sound.json",
-            "*.z64",
-        };
-
         private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder)
         {
             try
@@ -606,7 +612,7 @@ namespace N64RecompLauncher.Models
 
                         if (GameManager != null)
                         {
-                            await Application.Current.Dispatcher.InvokeAsync(async () =>
+                            await Dispatcher.UIThread.InvokeAsync(async () =>
                             {
                                 await GameManager.LoadGamesAsync();
                             });
@@ -620,10 +626,9 @@ namespace N64RecompLauncher.Models
 
                 if (asset == null)
                 {
-                    Application.Current?.Dispatcher.Invoke(() =>
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        MessageBox.Show($"No downloadable release found for {Name} on {platformIdentifier}",
-                            "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        await ShowMessageBoxAsync($"No compatible asset found for platform {platformIdentifier}", "Error");
                     });
                     Status = GameStatus.NotInstalled;
                     return;
@@ -651,7 +656,7 @@ namespace N64RecompLauncher.Models
 
                 if (GameManager != null)
                 {
-                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
                         await GameManager.LoadGamesAsync();
                     });
@@ -659,18 +664,17 @@ namespace N64RecompLauncher.Models
             }
             catch (HttpRequestException ex)
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    MessageBox.Show($"Network error installing {Name}: {ex.Message}",
-                        "Network Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await ShowMessageBoxAsync($"Network error installing {Name}: {ex.Message}", "Network Error");
                 });
                 Status = GameStatus.NotInstalled;
             }
             catch (Exception ex)
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    MessageBox.Show($"Error installing {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowMessageBoxAsync($"Error installing {Name}: {ex.Message}", "Error");
                 });
                 Status = GameStatus.NotInstalled;
             }
@@ -682,7 +686,39 @@ namespace N64RecompLauncher.Models
 
             if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             {
-                ZipFile.ExtractToDirectory(downloadPath, gamePath, overwriteFiles: true);
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    ZipFile.ExtractToDirectory(downloadPath, gamePath, overwriteFiles: true);
+                }
+                else
+                {
+                    var tempExtractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+                    Directory.CreateDirectory(tempExtractPath);
+
+                    try
+                    {
+                        ZipFile.ExtractToDirectory(downloadPath, tempExtractPath, overwriteFiles: true);
+
+                        var tarGzFile = Directory.GetFiles(tempExtractPath, "*.tar.gz", SearchOption.AllDirectories)
+                            .FirstOrDefault();
+
+                        if (!string.IsNullOrEmpty(tarGzFile))
+                        {
+                            ExtractTarGz(tarGzFile, gamePath);
+                        }
+                        else
+                        {
+                            CopyDirectory(tempExtractPath, gamePath);
+                        }
+                    }
+                    finally
+                    {
+                        if (Directory.Exists(tempExtractPath))
+                        {
+                            Directory.Delete(tempExtractPath, true);
+                        }
+                    }
+                }
             }
             else if (assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
             {
@@ -699,6 +735,22 @@ namespace N64RecompLauncher.Models
             }
         }
 
+        private void CopyDirectory(string sourceDir, string destDir)
+        {
+            Directory.CreateDirectory(destDir);
+
+            foreach (var file in Directory.GetFiles(sourceDir))
+            {
+                var destFile = Path.Combine(destDir, Path.GetFileName(file));
+                File.Copy(file, destFile, true);
+            }
+
+            foreach (var dir in Directory.GetDirectories(sourceDir))
+            {
+                var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
+                CopyDirectory(dir, destSubDir);
+            }
+        }
 
         private void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
         {
@@ -719,7 +771,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
+        private async void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -731,10 +783,9 @@ namespace N64RecompLauncher.Models
             }
             catch (Exception ex)
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
-                        "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowMessageBoxAsync($"Error extracting tar.gz: {ex.Message}", "Extraction Error");
                 });
                 throw;
             }
@@ -787,7 +838,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
+        private async void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -814,10 +865,9 @@ namespace N64RecompLauncher.Models
             }
             catch (Exception ex)
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    MessageBox.Show($"Error extracting tar.gz: {ex.Message}",
-                        "Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowMessageBoxAsync($"Error extracting tar.gz: {ex.Message}", "Extraction Error");
                 });
                 throw;
             }
@@ -854,34 +904,51 @@ namespace N64RecompLauncher.Models
             try
             {
                 var gamePath = Path.Combine(gamesFolder, FolderName);
+                string executablePath = null;
 
-                var executablePath = Directory.GetFiles(gamePath, "*.exe")
-                    .FirstOrDefault();
-
-                if (string.IsNullOrEmpty(executablePath))
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    executablePath = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories)
+                        .FirstOrDefault();
+                }
+                else
+                {
+                    var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories);
+
+                    foreach (var file in allFiles)
                     {
-                        executablePath = Directory.GetFiles(gamePath)
-                            .FirstOrDefault(f =>
-                                !f.EndsWith(".dll") &&
-                                !f.EndsWith(".so") &&
-                                File.GetAttributes(f).HasFlag(FileAttributes.Normal));
+                        var fileName = Path.GetFileName(file);
+
+                        if (fileName.Contains('.') &&
+                            (fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
+                             fileName.EndsWith(".so") || fileName.EndsWith(".dylib") ||
+                             fileName.EndsWith(".json") || fileName.EndsWith(".cfg") ||
+                             fileName.EndsWith(".ini") || fileName.EndsWith(".log")))
+                        {
+                            continue;
+                        }
+
+                        if (fileName.Contains("Recompiled", StringComparison.OrdinalIgnoreCase) ||
+                            fileName.Contains(Name.Replace(" ", ""), StringComparison.OrdinalIgnoreCase))
+                        {
+                            executablePath = file;
+                            break;
+                        }
                     }
-                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+
+                    if (string.IsNullOrEmpty(executablePath))
                     {
-                        executablePath = Directory.GetFiles(gamePath, "*")
-                            .FirstOrDefault(f =>
-                                !f.EndsWith(".dll") &&
-                                !f.EndsWith(".so"));
+                        executablePath = allFiles.FirstOrDefault(f =>
+                            !Path.GetFileName(f).Contains('.') &&
+                            new FileInfo(f).Length > 1024);
                     }
                 }
 
                 if (string.IsNullOrEmpty(executablePath))
                 {
-                    Application.Current?.Dispatcher.Invoke(() =>
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        MessageBox.Show($"No executable found in {gamePath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        await ShowMessageBoxAsync($"No executable found in {gamePath}", "Error");
                     });
                     return;
                 }
@@ -889,7 +956,7 @@ namespace N64RecompLauncher.Models
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = executablePath,
-                    WorkingDirectory = gamePath,
+                    WorkingDirectory = Path.GetDirectoryName(executablePath),
                     UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 };
 
@@ -897,27 +964,40 @@ namespace N64RecompLauncher.Models
                 {
                     startInfo.UseShellExecute = false;
 
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
-                        RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    try
                     {
                         var chmodProcess = new ProcessStartInfo
                         {
                             FileName = "chmod",
                             Arguments = $"+x \"{executablePath}\"",
                             UseShellExecute = false,
-                            CreateNoWindow = true
+                            CreateNoWindow = true,
+                            RedirectStandardError = true
                         };
-                        Process.Start(chmodProcess).WaitForExit();
+
+                        using (var process = Process.Start(chmodProcess))
+                        {
+                            await process.WaitForExitAsync();
+                            if (process.ExitCode != 0)
+                            {
+                                var error = await process.StandardError.ReadToEndAsync();
+                                System.Diagnostics.Debug.WriteLine($"chmod failed: {error}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to make file executable: {ex.Message}");
                     }
                 }
 
-                UpdateLastPlayedTime(gamePath);
+                UpdateLastPlayedTime(Path.GetDirectoryName(executablePath));
 
                 Process.Start(startInfo);
 
                 if (GameManager != null)
                 {
-                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
                         await GameManager.LoadGamesAsync();
                     });
@@ -925,9 +1005,9 @@ namespace N64RecompLauncher.Models
             }
             catch (Exception ex)
             {
-                Application.Current?.Dispatcher.Invoke(() =>
+                await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    MessageBox.Show($"Error launching {Name}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowMessageBoxAsync($"Error launching {Name}: {ex.Message}", "Error");
                 });
             }
         }
