@@ -14,15 +14,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
-public enum GameStatus
-{
-    NotInstalled,
-    Installed,
-    UpdateAvailable,
-    Downloading,
-    Installing
-}
-
 namespace N64RecompLauncher.Models
 {
     public class GameVersionCache
@@ -30,7 +21,7 @@ namespace N64RecompLauncher.Models
         public string Version { get; set; } = string.Empty;
         public DateTime LastChecked { get; set; }
         public string ETag { get; set; } = string.Empty;
-        public GitHubRelease CachedRelease { get; set; }
+        public GitHubRelease? CachedRelease { get; set; }
     }
 
     public static class GitHubApiCache
@@ -52,7 +43,7 @@ namespace N64RecompLauncher.Models
             return false;
         }
 
-        public static void SetCache(string repository, string version, string etag, GitHubRelease release = null)
+        public static void SetCache(string repository, string version, string etag, GitHubRelease? release = null)
         {
             _cache.AddOrUpdate(repository,
                 new GameVersionCache
@@ -79,20 +70,19 @@ namespace N64RecompLauncher.Models
 
     public class GameInfo : INotifyPropertyChanged
     {
-        private string _latestVersion;
-        private string _installedVersion;
+        private string? _latestVersion;
+        private string? _installedVersion;
         private GameStatus _status = GameStatus.NotInstalled;
         private bool _isLoading;
-        private GitHubRelease _cachedRelease;
-        public GameManager GameManager { get; set; }
+        private GitHubRelease? _cachedRelease;
+        public GameManager? GameManager { get; set; }
 
-        public string Name { get; set; }
-        public string Repository { get; set; }
-        public string Branch { get; set; }
-        public string ImageRes { get; set; }
-        public string FolderName { get; set; }
-
-        private string _customIconPath;
+        public string? Name { get; set; }
+        public string? Repository { get; set; }
+        public string? Branch { get; set; }
+        public string? ImageRes { get; set; }
+        public string? FolderName { get; set; }
+        private string? _customIconPath { get; set; }
         public string CustomIconPath
         {
             get => _customIconPath;
@@ -454,7 +444,7 @@ namespace N64RecompLauncher.Models
             System.Threading.Thread.Sleep(100);
         }
 
-        private void TryDeleteFileWithRetry(string filePath, int maxRetries = 5, int delayMs = 200)
+        static void TryDeleteFileWithRetry(string filePath, int maxRetries = 5, int delayMs = 200)
         {
             for (int i = 0; i < maxRetries; i++)
             {
@@ -482,7 +472,7 @@ namespace N64RecompLauncher.Models
         {
             try
             {
-                if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache))
+                if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
                 {
                     LatestVersion = cache.Version;
                     _cachedRelease = cache.CachedRelease;
@@ -506,7 +496,7 @@ namespace N64RecompLauncher.Models
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
                 {
-                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var existingCache))
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var existingCache) && existingCache != null)
                     {
                         LatestVersion = existingCache.Version;
                         _cachedRelease = existingCache.CachedRelease;
@@ -526,8 +516,8 @@ namespace N64RecompLauncher.Models
                     LatestVersion = release.tag_name;
                     _cachedRelease = release;
 
-                    string newETag = response.Headers.ETag?.Tag;
-                    GitHubApiCache.SetCache(Repository, release.tag_name, newETag, release);
+                    string? newETag = response.Headers.ETag?.Tag;
+                    GitHubApiCache.SetCache(Repository, release.tag_name, newETag ?? string.Empty, release);
 
                     if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
                     {
@@ -551,7 +541,7 @@ namespace N64RecompLauncher.Models
             {
                 case GameStatus.NotInstalled:
                 case GameStatus.UpdateAvailable:
-                    await DownloadAndInstallAsync(httpClient, gamesFolder);
+                    await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease());
 
                     if (File.Exists(portableFilePath))
                     {
@@ -582,7 +572,12 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder)
+        private GitHubRelease? GetLatestRelease()
+        {
+            return _cachedRelease;
+        }
+
+        private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease)
         {
             try
             {
@@ -591,18 +586,17 @@ namespace N64RecompLauncher.Models
                 string platformIdentifier = GetPlatformIdentifier();
                 var gamePath = Path.Combine(gamesFolder, FolderName);
                 var versionFile = Path.Combine(gamePath, "version.txt");
-
-                GitHubRelease latestRelease = _cachedRelease;
                 if (latestRelease == null)
                 {
-                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache.CachedRelease != null)
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null && cache.CachedRelease != null)
                     {
                         latestRelease = cache.CachedRelease;
                     }
                     else
                     {
                         var releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
-                        latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
+                        var deserializedRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse) ?? throw new InvalidOperationException("Failed to deserialize GitHub release information.");
+                        latestRelease = deserializedRelease;
                         GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
                     }
                 }
@@ -644,10 +638,8 @@ namespace N64RecompLauncher.Models
                 using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
                 {
                     downloadResponse.EnsureSuccessStatusCode();
-                    using (var fs = new FileStream(downloadPath, FileMode.Create))
-                    {
-                        await downloadResponse.Content.CopyToAsync(fs);
-                    }
+                    using var fs = new FileStream(downloadPath, FileMode.Create);
+                    await downloadResponse.Content.CopyToAsync(fs);
                 }
 
                 Status = GameStatus.Installing;
@@ -686,7 +678,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
+        static async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
         {
             Directory.CreateDirectory(gamePath);
 
@@ -741,7 +733,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private void CopyDirectory(string sourceDir, string destDir)
+        static void CopyDirectory(string sourceDir, string destDir)
         {
             Directory.CreateDirectory(destDir);
 
@@ -758,7 +750,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
+        static void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
         {
             Directory.CreateDirectory(destinationDirectoryPath);
 
@@ -777,15 +769,13 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private async void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
+        static async void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
-                using (var inputStream = File.OpenRead(sourceFilePath))
-                using (var gzipStream = new System.IO.Compression.GZipStream(inputStream, System.IO.Compression.CompressionMode.Decompress))
-                {
-                    ExtractTarFromStream(gzipStream, destinationDirectoryPath);
-                }
+                using var inputStream = File.OpenRead(sourceFilePath);
+                using var gzipStream = new System.IO.Compression.GZipStream(inputStream, System.IO.Compression.CompressionMode.Decompress);
+                ExtractTarFromStream(gzipStream, destinationDirectoryPath);
             }
             catch (Exception ex)
             {
@@ -797,54 +787,50 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
+        static void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
         {
-            using (var reader = new BinaryReader(tarStream))
+            using var reader = new BinaryReader(tarStream);
+            while (true)
             {
-                while (true)
+                var headerBytes = reader.ReadBytes(512);
+                if (headerBytes.Length < 512) break;
+
+                var fileName = Encoding.ASCII.GetString(headerBytes, 0, 100).TrimEnd('\0');
+                if (string.IsNullOrWhiteSpace(fileName)) break;
+
+                var fileSizeStr = Encoding.ASCII.GetString(headerBytes, 124, 12).TrimEnd('\0');
+                var fileSize = Convert.ToInt64(fileSizeStr, 8);
+
+                var fileType = headerBytes[156];
+
+                var destPath = Path.Combine(destinationDirectoryPath, fileName);
+
+                if (fileType == '5')
                 {
-                    var headerBytes = reader.ReadBytes(512);
-                    if (headerBytes.Length < 512) break;
+                    Directory.CreateDirectory(destPath);
+                }
+                else
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(destPath));
 
-                    var fileName = Encoding.ASCII.GetString(headerBytes, 0, 100).TrimEnd('\0');
-                    if (string.IsNullOrWhiteSpace(fileName)) break;
+                    using var fileStream = File.Create(destPath);
+                    int blocksToRead = (int)Math.Ceiling((double)fileSize / 512);
 
-                    var fileSizeStr = Encoding.ASCII.GetString(headerBytes, 124, 12).TrimEnd('\0');
-                    var fileSize = Convert.ToInt64(fileSizeStr, 8);
+                    byte[] fileBytes = new byte[blocksToRead * 512];
+                    reader.Read(fileBytes, 0, fileBytes.Length);
 
-                    var fileType = headerBytes[156];
+                    fileStream.Write(fileBytes, 0, (int)fileSize);
+                }
 
-                    var destPath = Path.Combine(destinationDirectoryPath, fileName);
-
-                    if (fileType == '5')
-                    {
-                        Directory.CreateDirectory(destPath);
-                    }
-                    else
-                    {
-                        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-
-                        using (var fileStream = File.Create(destPath))
-                        {
-                            int blocksToRead = (int)Math.Ceiling((double)fileSize / 512);
-
-                            byte[] fileBytes = new byte[blocksToRead * 512];
-                            reader.Read(fileBytes, 0, fileBytes.Length);
-
-                            fileStream.Write(fileBytes, 0, (int)fileSize);
-                        }
-                    }
-
-                    int paddingBytes = 512 - (int)(fileSize % 512);
-                    if (paddingBytes < 512)
-                    {
-                        reader.ReadBytes(paddingBytes);
-                    }
+                int paddingBytes = 512 - (int)(fileSize % 512);
+                if (paddingBytes < 512)
+                {
+                    reader.ReadBytes(paddingBytes);
                 }
             }
         }
 
-        private async void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
+        static async void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -858,15 +844,13 @@ namespace N64RecompLauncher.Models
                     CreateNoWindow = true
                 };
 
-                using (var process = Process.Start(startInfo))
-                {
-                    process.WaitForExit();
+                using var process = Process.Start(startInfo);
+                process?.WaitForExit();
 
-                    if (process.ExitCode != 0)
-                    {
-                        string errorOutput = process.StandardError.ReadToEnd();
-                        throw new Exception($"Tar extraction failed: {errorOutput}");
-                    }
+                if (process?.ExitCode != 0)
+                {
+                    string errorOutput = process.StandardError.ReadToEnd();
+                    throw new Exception($"Tar extraction failed: {errorOutput}");
                 }
             }
             catch (Exception ex)
@@ -879,7 +863,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private string GetPlatformIdentifier()
+        static string GetPlatformIdentifier()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -909,8 +893,8 @@ namespace N64RecompLauncher.Models
         {
             try
             {
-                var gamePath = Path.Combine(gamesFolder, FolderName);
-                string executablePath = null;
+                string gamePath = Path.Combine(gamesFolder, FolderName);
+                string? executablePath = null;
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
@@ -980,22 +964,20 @@ namespace N64RecompLauncher.Models
                                 RedirectStandardError = true
                             };
 
-                            using (var process = Process.Start(startInfo))
+                            using var process = Process.Start(startInfo);
+                            if (process != null)
                             {
-                                if (process != null)
-                                {
-                                    await process.WaitForExitAsync();
+                                await process.WaitForExitAsync();
 
-                                    if (process.ExitCode != 0)
-                                    {
-                                        string errorOutput = process.StandardError.ReadToEnd();
-                                        throw new Exception($"Tar extraction failed: {errorOutput}");
-                                    }
-                                }
-                                else
+                                if (process.ExitCode != 0)
                                 {
-                                    throw new InvalidOperationException("Failed to start tar extraction process.");
+                                    string errorOutput = process.StandardError.ReadToEnd();
+                                    throw new Exception($"Tar extraction failed: {errorOutput}");
                                 }
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("Failed to start tar extraction process.");
                             }
                         }
                         catch (Exception ex)

@@ -14,21 +14,21 @@ namespace N64RecompLauncher.Services
         private readonly string _gamesFolder;
         private readonly string _cacheFolder;
 
-        public ObservableCollection<GameInfo> Games { get; set; } = new ObservableCollection<GameInfo>();
+        public ObservableCollection<GameInfo> Games { get; set; } = [];
         public HttpClient HttpClient => _httpClient;
-        public string GamesFolder => _gamesFolder;
-        public string CacheFolder => _cacheFolder;
+        public string? GamesFolder => _gamesFolder;
+        public string? CacheFolder => _cacheFolder;
 
-        private string _currentVersionString;
-        public string currentVersionString
+        private string _CurrentVersionString;
+        public string CurrentVersionString
         {
-            get => _currentVersionString;
+            get => _CurrentVersionString;
             set
             {
-                if (_currentVersionString != value)
+                if (_CurrentVersionString != value)
                 {
-                    _currentVersionString = value;
-                    OnPropertyChanged(nameof(currentVersionString));
+                    _CurrentVersionString = value;
+                    OnPropertyChanged(nameof(CurrentVersionString));
                 }
             }
         }
@@ -60,10 +60,9 @@ namespace N64RecompLauncher.Services
 
             LoadVersionString();
 
-            Games = new ObservableCollection<GameInfo>
-            {
-                new GameInfo
-                {
+            Games =
+            [
+                new() {
                     Name = "Zelda 64 Recomp",
                     Repository = "Zelda64Recomp/Zelda64Recomp",
                     Branch = "dev",
@@ -71,8 +70,7 @@ namespace N64RecompLauncher.Services
                     FolderName = "Zelda64Recomp",
                     GameManager = this,
                 },
-                new GameInfo
-                {
+                new() {
                     Name = "Goemon 64 Recomp",
                     Repository = "klorfmorf/Goemon64Recomp",
                     Branch = "dev",
@@ -80,8 +78,7 @@ namespace N64RecompLauncher.Services
                     FolderName = "Goemon64Recomp",
                     GameManager = this,
                 },
-                new GameInfo
-                {
+                new() {
                     Name = "Mario Kart 64 Recomp",
                     Repository = "sonicdcer/MarioKart64Recomp",
                     Branch = "main",
@@ -89,8 +86,7 @@ namespace N64RecompLauncher.Services
                     FolderName = "MarioKart64Recomp",
                     GameManager = this,
                 },
-                new GameInfo
-                {
+                new() {
                     Name = "Dinosaur Planet Recomp",
                     Repository = "Francessco121/dino-recomp",
                     Branch = "main",
@@ -98,7 +94,7 @@ namespace N64RecompLauncher.Services
                     FolderName = "DinosaurPlanetRecomp",
                     GameManager = this,
                 },
-            };
+            ];
 
             LoadCustomIcons();
         }
@@ -108,14 +104,14 @@ namespace N64RecompLauncher.Services
             try
             {
                 string versionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
-                currentVersionString = File.Exists(versionFilePath)
+                CurrentVersionString = File.Exists(versionFilePath)
                     ? File.ReadAllText(versionFilePath).Trim()
                     : "Version information not found";
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading version: {ex.Message}");
-                currentVersionString = "Version loading failed";
+                CurrentVersionString = "Version loading failed";
             }
         }
 
@@ -135,7 +131,7 @@ namespace N64RecompLauncher.Services
 
         public GameInfo? FindGameByFolderName(string folderName)
         {
-            return Games.FirstOrDefault(g => g.FolderName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
+            return Games.FirstOrDefault(predicate: g => g.FolderName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
         }
 
         protected void OnPropertyChanged(string propertyName)
