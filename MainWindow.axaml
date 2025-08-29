@@ -30,7 +30,7 @@
 							<ColumnDefinition Width="Auto"/>
 						</Grid.ColumnDefinitions>
 
-						<StackPanel Grid.Column="0" Margin="{Binding ElementName=TextMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}">
+						<StackPanel Grid.Column="0" Margin="{Binding ElementName=TextMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}" VerticalAlignment="Center">
 							<TextBlock Text="{Binding Name}"
 									   FontSize="20"
 									   FontWeight="SemiBold"
@@ -49,7 +49,7 @@
 							</StackPanel>
 						</StackPanel>
 
-						<StackPanel Grid.Column="1" Orientation="Vertical">
+						<StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" >
 							<Button Classes="modern"
 									Content="{Binding ButtonText}"
 									FontSize="16"
@@ -441,7 +441,7 @@
 					<Slider x:Name="SlotSizeSlider"
                                Foreground="White"
                                Margin="0,0,0,0"
-                               Minimum="72"
+                               Minimum="120"
                                Maximum="400"
                                Value="120"
                                TickFrequency="16"

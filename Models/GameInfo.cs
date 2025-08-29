@@ -116,7 +116,7 @@ namespace N64RecompLauncher.Models
                 {
                     return CustomIconPath;
                 }
-                return "https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+                return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
             }
         }
 

@@ -23,6 +23,19 @@ namespace N64RecompLauncher
         private AppSettings _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
+        private string _currentVersionString;
+        public string currentVersionString
+        {
+            get => _currentVersionString;
+            set
+            {
+                if (_currentVersionString != value)
+                {
+                    _currentVersionString = value;
+                    OnPropertyChanged(nameof(currentVersionString));
+                }
+            }
+        }
 
         public MainWindow()
         {
@@ -49,7 +62,33 @@ namespace N64RecompLauncher
                 return;
             }
 
+            LoadCurrentVersion();
+
+
             UpdateSettingsUI();
+        }
+
+        private void LoadCurrentVersion()
+        {
+            try
+            {
+                string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string versionFilePath = Path.Combine(currentAppDirectory, "version.txt");
+
+                if (File.Exists(versionFilePath))
+                {
+                    currentVersionString = File.ReadAllText(versionFilePath).Trim();
+                }
+                else
+                {
+                    currentVersionString = "v0.0";
+                }
+            }
+            catch (Exception ex)
+            {
+                currentVersionString = "Unknown";
+                Debug.WriteLine($"Failed to load version: {ex.Message}");
+            }
         }
 
         protected override void OnOpened(EventArgs e)
@@ -560,7 +599,7 @@ namespace N64RecompLauncher
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void OnPropertyChanged(string propertyName)
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

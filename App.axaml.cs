@@ -6,10 +6,12 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -17,8 +19,34 @@ using System.Threading.Tasks;
 
 namespace N64RecompLauncher;
 
-public partial class App : Application
+
+
+
+public class App : Application, INotifyPropertyChanged
 {
+
+    private string _currentVersionString;
+
+    public string currentVersionString
+    {
+        get => _currentVersionString;
+        set
+        {
+            if (_currentVersionString != value)
+            {
+                _currentVersionString = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
     private class GitHubAsset
     {
         public string name { get; set; }
@@ -616,7 +644,6 @@ rm -- ""$0""
 
         await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
 
-        // Make the script executable
         try
         {
             var chmodProcess = new ProcessStartInfo
@@ -643,7 +670,6 @@ rm -- ""$0""
             Trace.WriteLine($"Failed to make updater script executable: {ex.Message}");
         }
 
-        // Run the shell script
         Process.Start(new ProcessStartInfo
         {
             FileName = "/bin/bash",
@@ -658,29 +684,6 @@ rm -- ""$0""
         }
     }
 
-    private void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
-    {
-        try
-        {
-            using (var inputStream = File.OpenRead(sourceFilePath))
-            using (var gzipStream = new System.IO.Compression.GZipStream(inputStream, System.IO.Compression.CompressionMode.Decompress))
-            {
-                ExtractTarFromStream(gzipStream, destinationDirectoryPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            Task.Run(async () =>
-            {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await ShowMessageBoxAsync($"Error extracting tar.gz on Windows: {ex.Message}",
-                        "Extraction Error");
-                });
-            });
-            throw;
-        }
-    }
 
     private bool IsSafePath(string fileName)
     {
@@ -808,44 +811,6 @@ rm -- ""$0""
         }
     }
 
-    private void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "tar",
-                Arguments = $"-xzf \"{sourceFilePath}\" -C \"{destinationDirectoryPath}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(startInfo))
-            {
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
-                {
-                    string errorOutput = process.StandardError.ReadToEnd();
-                    throw new Exception($"Tar extraction failed with exit code {process.ExitCode}: {errorOutput}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Task.Run(async () =>
-            {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await ShowMessageBoxAsync($"Error extracting tar.gz on Unix: {ex.Message}",
-                        "Extraction Error");
-                });
-            });
-            throw;
-        }
-    }
 
     private string GetPlatformIdentifier()
     {
