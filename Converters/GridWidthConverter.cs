@@ -8,7 +8,7 @@ namespace N64RecompLauncher
     {
         public static readonly GridWidthConverter Instance = new();
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is double slotSize)
             {
@@ -17,7 +17,7 @@ namespace N64RecompLauncher
             return 120.0;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
         }

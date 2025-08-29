@@ -9,7 +9,7 @@ namespace N64RecompLauncher
     {
         public static readonly BooleanToStretchConverter Instance = new();
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is bool boolValue)
             {
@@ -18,7 +18,7 @@ namespace N64RecompLauncher
             return Stretch.Uniform;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
         }

@@ -40,9 +40,9 @@ public class App : Application, INotifyPropertyChanged
         }
     }
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public new event PropertyChangedEventHandler? PropertyChanged;
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = "")
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
@@ -171,7 +171,7 @@ public class App : Application, INotifyPropertyChanged
                 }
 
                 string releaseResponse = await response.Content.ReadAsStringAsync();
-                GitHubRelease latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
+                GitHubRelease? latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
 
                 if (latestRelease == null || string.IsNullOrWhiteSpace(latestRelease.tag_name))
                 {
@@ -377,7 +377,21 @@ public class App : Application, INotifyPropertyChanged
             return;
         }
 
-        DriveInfo drive = new DriveInfo(Path.GetPathRoot(currentAppDirectory));
+        DriveInfo? drive = null;
+        string? rootPath = Path.GetPathRoot(currentAppDirectory);
+        if (!string.IsNullOrEmpty(rootPath))
+        {
+            drive = new DriveInfo(rootPath);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                await ShowMessageBoxAsync("Could not determine the root drive for update. Update aborted.", "Update Error");
+            });
+            return;
+        }
+
         if (drive.AvailableFreeSpace < 500 * 1024 * 1024)
         {
             await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -683,134 +697,6 @@ rm -- ""$0""
             desktop.Shutdown();
         }
     }
-
-
-    private bool IsSafePath(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-            return false;
-
-        if (fileName.Contains("..") || fileName.Contains("./") || fileName.Contains(".\\"))
-            return false;
-
-        if (Path.IsPathRooted(fileName))
-            return false;
-
-        if (fileName.IndexOfAny(Path.GetInvalidPathChars()) != -1)
-            return false;
-
-        string[] reservedNames = { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
-        string nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
-        if (reservedNames.Contains(nameWithoutExtension))
-            return false;
-
-        return true;
-    }
-
-    private void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
-    {
-        using (var reader = new BinaryReader(tarStream, Encoding.ASCII, true))
-        {
-            while (true)
-            {
-                byte[] headerBytes = reader.ReadBytes(512);
-                if (headerBytes.Length < 512 || headerBytes.All(b => b == 0))
-                {
-                    break;
-                }
-
-                string fileName = Encoding.ASCII.GetString(headerBytes, 0, 100).TrimEnd('\0');
-                if (string.IsNullOrWhiteSpace(fileName))
-                {
-                    break;
-                }
-
-                string fileSizeStr = Encoding.ASCII.GetString(headerBytes, 124, 12).TrimEnd('\0');
-                long fileSize;
-
-                if (!IsSafePath(fileName))
-                {
-                    Trace.WriteLine($"Skipping potentially unsafe path in tar: {fileName}");
-                    try
-                    {
-                        fileSize = Convert.ToInt64(fileSizeStr, 8);
-                        long paddingBytes = (512 - (fileSize % 512)) % 512;
-                        tarStream.Seek(fileSize + paddingBytes, SeekOrigin.Current);
-                    }
-                    catch
-                    {
-                        tarStream.Seek(512 - (tarStream.Position % 512), SeekOrigin.Current);
-                    }
-                    continue;
-                }
-                try
-                {
-                    fileSize = Convert.ToInt64(fileSizeStr, 8);
-                }
-                catch (FormatException)
-                {
-                    Trace.WriteLine($"Invalid file size format in tar header for '{fileName}': '{fileSizeStr}'. Skipping entry.");
-                    tarStream.Seek(512 - (tarStream.Position % 512), SeekOrigin.Current);
-                    continue;
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    Trace.WriteLine($"File size out of range in tar header for '{fileName}': '{fileSizeStr}'. Skipping entry.");
-                    tarStream.Seek(512 - (tarStream.Position % 512), SeekOrigin.Current);
-                    continue;
-                }
-
-                byte fileType = headerBytes[156];
-
-                string destPath = Path.Combine(destinationDirectoryPath, fileName);
-
-                string dirName = Path.GetDirectoryName(destPath);
-                if (!string.IsNullOrEmpty(dirName) && !Directory.Exists(dirName))
-                {
-                    Directory.CreateDirectory(dirName);
-                }
-
-                if (fileType == '5')
-                {
-                    Directory.CreateDirectory(destPath);
-                    long paddingBytesDir = (512 - (fileSize % 512)) % 512;
-                    if (fileSize > 0 || paddingBytesDir > 0)
-                    {
-                        tarStream.Seek(fileSize + paddingBytesDir, SeekOrigin.Current);
-                    }
-                }
-                else if (fileType == '0' || fileType == '\0')
-                {
-                    using (var fileStream = File.Create(destPath))
-                    {
-                        int bytesRead = 0;
-                        const int bufferSize = 4096;
-                        byte[] buffer = new byte[bufferSize];
-
-                        while (bytesRead < fileSize)
-                        {
-                            int bytesToRead = (int)Math.Min(bufferSize, fileSize - bytesRead);
-                            int read = tarStream.Read(buffer, 0, bytesToRead);
-                            if (read == 0)
-                            {
-                                Trace.WriteLine($"Premature end of tar stream while reading {fileName}. Expected {fileSize} bytes, got {bytesRead}.");
-                                break;
-                            }
-                            fileStream.Write(buffer, 0, read);
-                            bytesRead += read;
-                        }
-                    }
-
-                    long paddingBytes = (512 - (fileSize % 512)) % 512;
-                    if (paddingBytes > 0)
-                    {
-                        tarStream.Seek(paddingBytes, SeekOrigin.Current);
-                    }
-                }
-            }
-        }
-    }
-
 
     private string GetPlatformIdentifier()
     {

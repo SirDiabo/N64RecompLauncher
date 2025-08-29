@@ -8,7 +8,7 @@ namespace N64RecompLauncher
     {
         public static readonly SlotScaleToGridConverter Instance = new();
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is double slotSize && parameter is string mode)
             {
@@ -22,7 +22,7 @@ namespace N64RecompLauncher
             return parameter?.ToString() == "List";
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
         }

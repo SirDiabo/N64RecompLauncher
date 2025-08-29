@@ -27,9 +27,9 @@ namespace N64RecompLauncher.Models
 {
     public class GameVersionCache
     {
-        public string Version { get; set; }
+        public string Version { get; set; } = string.Empty;
         public DateTime LastChecked { get; set; }
-        public string ETag { get; set; }
+        public string ETag { get; set; } = string.Empty;
         public GitHubRelease CachedRelease { get; set; }
     }
 
@@ -38,12 +38,13 @@ namespace N64RecompLauncher.Models
         private static readonly ConcurrentDictionary<string, GameVersionCache> _cache = new();
         private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(20);
 
-        public static bool TryGetCachedVersion(string repository, out GameVersionCache cache)
+        public static bool TryGetCachedVersion(string repository, out GameVersionCache? cache)
         {
-            if (_cache.TryGetValue(repository, out cache))
+            if (_cache.TryGetValue(repository, out var foundCache))
             {
-                if (DateTime.UtcNow - cache.LastChecked < CacheExpiry)
+                if (DateTime.UtcNow - foundCache.LastChecked < CacheExpiry)
                 {
+                    cache = foundCache;
                     return true;
                 }
             }
@@ -72,7 +73,7 @@ namespace N64RecompLauncher.Models
 
         public static string GetETag(string repository)
         {
-            return _cache.TryGetValue(repository, out var cache) ? cache.ETag : null;
+            return _cache.TryGetValue(repository, out var cache) ? cache.ETag : "";
         }
     }
 
@@ -225,7 +226,12 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private void DispatchPropertyChanged([CallerMemberName] string propertyName = null)
+        public void SetGameManager(GameManager gameManager)
+        {
+            GameManager = gameManager;
+        }
+
+        private void DispatchPropertyChanged([CallerMemberName] string propertyName = "")
         {
             if (Dispatcher.UIThread.CheckAccess())
             {
@@ -305,7 +311,7 @@ namespace N64RecompLauncher.Models
                 else
                 {
                     Status = GameStatus.NotInstalled;
-                    InstalledVersion = null;
+                    InstalledVersion = "";
                 }
 
                 await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
@@ -388,7 +394,7 @@ namespace N64RecompLauncher.Models
             }
             finally
             {
-                CustomIconPath = null;
+                CustomIconPath = "";
 
                 OnPropertyChanged(nameof(CustomIconPath));
             }
@@ -441,7 +447,7 @@ namespace N64RecompLauncher.Models
         private void ClearImageFromMemory()
         {
             var tempPath = CustomIconPath;
-            CustomIconPath = null;
+            CustomIconPath = "";
 
             Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
 
@@ -597,7 +603,7 @@ namespace N64RecompLauncher.Models
                     {
                         var releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
                         latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
-                        GitHubApiCache.SetCache(Repository, latestRelease.tag_name, null, latestRelease);
+                        GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
                     }
                 }
 
@@ -908,8 +914,8 @@ namespace N64RecompLauncher.Models
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    executablePath = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories)
-                        .FirstOrDefault();
+                    var exeFiles = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories);
+                    executablePath = exeFiles.FirstOrDefault();
                 }
                 else
                 {
@@ -940,67 +946,75 @@ namespace N64RecompLauncher.Models
                     {
                         executablePath = allFiles.FirstOrDefault(f =>
                             !Path.GetFileName(f).Contains('.') &&
-                            new FileInfo(f).Length > 1024);
+                            new FileInfo(f).Length > 1024) ?? string.Empty;
                     }
-                }
 
-                if (string.IsNullOrEmpty(executablePath))
-                {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    if (string.IsNullOrEmpty(executablePath))
                     {
-                        await ShowMessageBoxAsync($"No executable found in {gamePath}", "Error");
-                    });
-                    return;
-                }
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            await ShowMessageBoxAsync($"No executable found in {gamePath}", "Error");
+                        });
+                        return;
+                    }
 
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = executablePath,
-                    WorkingDirectory = Path.GetDirectoryName(executablePath),
-                    UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                };
-
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    startInfo.UseShellExecute = false;
-
-                    try
+                    var startInfo = new ProcessStartInfo
                     {
-                        var chmodProcess = new ProcessStartInfo
-                        {
-                            FileName = "chmod",
-                            Arguments = $"+x \"{executablePath}\"",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            RedirectStandardError = true
-                        };
+                        FileName = executablePath,
+                        WorkingDirectory = Path.GetDirectoryName(executablePath),
+                        UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                    };
 
-                        using (var process = Process.Start(chmodProcess))
+                    if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        startInfo.UseShellExecute = false;
+
+                        try
                         {
-                            await process.WaitForExitAsync();
-                            if (process.ExitCode != 0)
+                            var chmodProcess = new ProcessStartInfo
                             {
-                                var error = await process.StandardError.ReadToEndAsync();
-                                System.Diagnostics.Debug.WriteLine($"chmod failed: {error}");
+                                FileName = "chmod",
+                                Arguments = $"+x \"{executablePath}\"",
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardError = true
+                            };
+
+                            using (var process = Process.Start(startInfo))
+                            {
+                                if (process != null)
+                                {
+                                    await process.WaitForExitAsync();
+
+                                    if (process.ExitCode != 0)
+                                    {
+                                        string errorOutput = process.StandardError.ReadToEnd();
+                                        throw new Exception($"Tar extraction failed: {errorOutput}");
+                                    }
+                                }
+                                else
+                                {
+                                    throw new InvalidOperationException("Failed to start tar extraction process.");
+                                }
                             }
                         }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to make file executable: {ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
+
+                    UpdateLastPlayedTime(Path.GetDirectoryName(executablePath));
+
+                    Process.Start(startInfo);
+
+                    if (GameManager != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Failed to make file executable: {ex.Message}");
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            await GameManager.LoadGamesAsync();
+                        });
                     }
-                }
-
-                UpdateLastPlayedTime(Path.GetDirectoryName(executablePath));
-
-                Process.Start(startInfo);
-
-                if (GameManager != null)
-                {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        await GameManager.LoadGamesAsync();
-                    });
                 }
             }
             catch (Exception ex)
@@ -1026,9 +1040,9 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

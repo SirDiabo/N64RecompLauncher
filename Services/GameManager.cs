@@ -14,13 +14,13 @@ namespace N64RecompLauncher.Services
         private readonly string _gamesFolder;
         private readonly string _cacheFolder;
 
-        public ObservableCollection<GameInfo> Games { get; }
+        public ObservableCollection<GameInfo> Games { get; set; } = new ObservableCollection<GameInfo>();
         public HttpClient HttpClient => _httpClient;
         public string GamesFolder => _gamesFolder;
         public string CacheFolder => _cacheFolder;
 
         private string _currentVersionString;
-        public string CurrentVersionString
+        public string currentVersionString
         {
             get => _currentVersionString;
             set
@@ -28,7 +28,7 @@ namespace N64RecompLauncher.Services
                 if (_currentVersionString != value)
                 {
                     _currentVersionString = value;
-                    OnPropertyChanged(nameof(CurrentVersionString));
+                    OnPropertyChanged(nameof(currentVersionString));
                 }
             }
         }
@@ -108,14 +108,14 @@ namespace N64RecompLauncher.Services
             try
             {
                 string versionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
-                CurrentVersionString = File.Exists(versionFilePath)
+                currentVersionString = File.Exists(versionFilePath)
                     ? File.ReadAllText(versionFilePath).Trim()
                     : "Version information not found";
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading version: {ex.Message}");
-                CurrentVersionString = "Version loading failed";
+                currentVersionString = "Version loading failed";
             }
         }
 
@@ -128,12 +128,12 @@ namespace N64RecompLauncher.Services
             }
         }
 
-        public GameInfo FindGameByName(string name)
+        public GameInfo? FindGameByName(string name)
         {
             return Games.FirstOrDefault(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
-        public GameInfo FindGameByFolderName(string folderName)
+        public GameInfo? FindGameByFolderName(string folderName)
         {
             return Games.FirstOrDefault(g => g.FolderName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
         }
@@ -208,6 +208,6 @@ namespace N64RecompLauncher.Services
             return DateTime.MinValue;
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

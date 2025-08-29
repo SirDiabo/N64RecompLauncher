@@ -131,7 +131,7 @@ namespace N64RecompLauncher
             if (button?.ContextMenu != null)
             {
                 button.ContextMenu.PlacementTarget = button;
-                button.ContextMenu.PlacementMode = PlacementMode.Bottom;
+                button.ContextMenu.Placement = PlacementMode.Bottom;
                 button.ContextMenu.Open();
             }
         }
@@ -597,9 +597,9 @@ namespace N64RecompLauncher
             });
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public new event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
