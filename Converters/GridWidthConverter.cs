@@ -12,7 +12,7 @@ namespace N64RecompLauncher
         {
             if (value is double slotSize)
             {
-                return slotSize * 1.33;
+                return slotSize * 1.44;
             }
             return 120.0;
         }
