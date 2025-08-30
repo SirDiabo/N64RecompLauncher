@@ -17,8 +17,9 @@
 		<!-- list view -->
 		<DataTemplate x:Key="ListViewTemplate">
 			<Border Classes="gamecard" Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
-				<Grid>
+				<Grid ClipToBounds="True">
 					<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
+						ClipToBounds="True"
 						Height="{Binding ElementName=IconSizeSlider, Path=Value}"
 						VerticalAlignment="Center"
 						HorizontalAlignment="Left"
@@ -100,16 +101,17 @@
 			<Border Classes="gamecardgrid"
 					Width="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource GridWidthConverter}}"
 					Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
-				<Grid>
-					<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
-						Width="{Binding ElementName=IconSizeSlider, Path=Value}"
-						Height="{Binding ElementName=IconSizeSlider, Path=Value}"
-						VerticalAlignment="Top"
-						HorizontalAlignment="Center"
-						Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
+				<Grid ClipToBounds="True">
+					<Panel ClipToBounds="True"
 						Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
-						Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
-
+						VerticalAlignment="Top"
+						HorizontalAlignment="Center">
+						<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
+							ClipToBounds="True"
+							Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
+							Height="{Binding ElementName=IconSizeSlider, Path=Value}"
+							Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
+					</Panel>
 					<Grid Margin="10">
 						<Grid.RowDefinitions>
 							<RowDefinition Height="*"/>

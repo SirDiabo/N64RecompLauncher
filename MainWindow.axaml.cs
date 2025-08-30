@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -20,6 +21,7 @@ namespace N64RecompLauncher
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private readonly GameManager _gameManager;
+        public ObservableCollection<GameInfo> Games => _gameManager?.Games ?? new ObservableCollection<GameInfo>();
         private AppSettings _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
@@ -52,7 +54,7 @@ namespace N64RecompLauncher
             }
 
             _gameManager = new GameManager();
-            DataContext = _gameManager;
+            DataContext = this;
 
             LoadCurrentVersion();
             UpdateSettingsUI();
@@ -60,6 +62,7 @@ namespace N64RecompLauncher
             _gameManager.PropertyChanged += (s, e) => {
                 if (e.PropertyName == nameof(GameManager.Games))
                 {
+                    OnPropertyChanged(nameof(Games));
                     Debug.WriteLine($"Games collection changed. Count: {_gameManager.Games?.Count ?? 0}");
                     foreach (var game in _gameManager.Games ?? new())
                     {
