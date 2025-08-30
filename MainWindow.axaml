@@ -36,18 +36,45 @@
 							<TextBlock Text="{Binding Name}"
 									   FontSize="20"
 									   FontWeight="SemiBold"
-									   Foreground="White"/>
+									   Foreground="White">
+								<TextBlock.Effect>
+									<DropShadowDirectionEffect
+										Color="Black"
+										BlurRadius="10"
+										ShadowDepth="-2"
+										Opacity="1"/>
+								</TextBlock.Effect>
+							</TextBlock>
+							
 							<TextBlock Text="{Binding StatusText}"
 									   FontSize="14"
-									   Foreground="#cccccc"
+									   Foreground="White"
 									   Margin="0,5,0,0"/>
 							<StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+								
 								<TextBlock Text="Latest: "
 										   FontSize="12"
-										   Foreground="#999999"/>
+										   Foreground="White">
+									<TextBlock.Effect>
+										<DropShadowDirectionEffect
+											Color="Black"
+											BlurRadius="10"
+											ShadowDepth="-2"
+											Opacity="1"/>
+									</TextBlock.Effect>
+								</TextBlock>
+								
 								<TextBlock Text="{Binding LatestVersion}"
 										   FontSize="12"
-										   Foreground="#cccccc"/>
+										   Foreground="White">
+									<TextBlock.Effect>
+										<DropShadowDirectionEffect
+											Color="Black"
+											BlurRadius="10"
+											ShadowDepth="-2"
+											Opacity="1"/>
+									</TextBlock.Effect>
+								</TextBlock>
 							</StackPanel>
 						</StackPanel>
 
@@ -73,6 +100,7 @@
 									Click="OptionsButton_Click"
 									Tag="{Binding}">
 								<Button.ContextMenu>
+									
 									<ContextMenu>
 										<MenuItem Header="Open GitHub Page"
 												  Click="OpenGitHubPage_Click"
@@ -106,11 +134,13 @@
 						Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
 						VerticalAlignment="Top"
 						HorizontalAlignment="Center">
+						<Border CornerRadius="8" ClipToBounds="True">
 						<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
 							ClipToBounds="True"
 							Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
 							Height="{Binding ElementName=IconSizeSlider, Path=Value}"
 							Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
+						</Border>
 					</Panel>
 					<Grid Margin="10">
 						<Grid.RowDefinitions>
@@ -124,19 +154,54 @@
 									   FontWeight="SemiBold"
 									   Foreground="White"
 									   TextAlignment="Center"
-									   TextWrapping="Wrap"/>
+									   TextWrapping="Wrap">
+								<TextBlock.Effect>
+									<DropShadowDirectionEffect
+										Color="Black"
+										BlurRadius="10"
+										ShadowDepth="-2"
+										Opacity="1"/>
+								</TextBlock.Effect>
+							</TextBlock>
+							
 							<TextBlock Text="{Binding StatusText}"
 									   FontSize="11"
-									   Foreground="#cccccc"
+									   Foreground="White"
 									   TextAlignment="Center"
-									   Margin="0,2,0,0"/>
+									   Margin="0,2,0,0">
+								<TextBlock.Effect>
+									<DropShadowDirectionEffect
+										Color="Black"
+										BlurRadius="10"
+										ShadowDepth="-2"
+										Opacity="1"/>
+								</TextBlock.Effect>
+							</TextBlock>
+							
 							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,5">
 								<TextBlock Text="Latest: "
 										   FontSize="11"
-										   Foreground="#999999"/>
+										   Foreground="White">
+									<TextBlock.Effect>
+										<DropShadowDirectionEffect
+											Color="Black"
+											BlurRadius="10"
+											ShadowDepth="-2"
+											Opacity="1"/>
+									</TextBlock.Effect>
+								</TextBlock>
+								
 								<TextBlock Text="{Binding LatestVersion}"
 										   FontSize="11"
-										   Foreground="#cccccc"/>
+										   Foreground="White">
+									<TextBlock.Effect>
+										<DropShadowDirectionEffect
+											Color="Black"
+											BlurRadius="10"
+											ShadowDepth="-2"
+											Opacity="1"/>
+									</TextBlock.Effect>
+								</TextBlock>
 							</StackPanel>
 
 							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -160,6 +225,7 @@
 										Tag="{Binding}">
 									<TextBlock Text="..." Foreground="White" TextAlignment="Center"/>
 									<Button.ContextMenu>
+										
 										<ContextMenu>
 											<MenuItem Header="Open GitHub Page"
 													  Click="OpenGitHubPage_Click"
