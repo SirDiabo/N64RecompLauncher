@@ -720,7 +720,9 @@ rm -rf ""$updateDir"" 2>/dev/null || true
 rm -- ""$0""
 ";
 
-        await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
+        scriptContent = scriptContent.Replace("\r\n", "\n").Replace("\r", "\n");
+
+        await File.WriteAllTextAsync(updaterScriptPath, scriptContent, new UTF8Encoding(false));
 
         try
         {
