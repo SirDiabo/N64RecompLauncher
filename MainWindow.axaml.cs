@@ -22,7 +22,8 @@ namespace N64RecompLauncher
     {
         private readonly GameManager _gameManager;
         public ObservableCollection<GameInfo> Games => _gameManager?.Games ?? new ObservableCollection<GameInfo>();
-        private AppSettings _settings;
+        public AppSettings _settings;
+        public AppSettings Settings => _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
         private string _currentVersionString;
@@ -189,6 +190,9 @@ namespace N64RecompLauncher
 
                 if (SlotSizeSlider != null)
                     SlotSizeSlider.Value = _settings.SlotSize;
+
+                if (PortraitCheckBox != null)
+                    PortraitCheckBox.IsChecked = _settings.PortraitFrame;
             }
         }
 
@@ -201,6 +205,24 @@ namespace N64RecompLauncher
             catch (Exception ex)
             {
                 _ = ShowMessageBoxAsync($"Failed to save settings: {ex.Message}", "Save Error");
+            }
+        }
+
+        private void PortraitCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.PortraitFrame = true;
+                OnSettingChanged();
+            }
+        }
+
+        private void PortraitCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.PortraitFrame = false;
+                OnSettingChanged();
             }
         }
 

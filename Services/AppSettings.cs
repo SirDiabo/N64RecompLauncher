@@ -8,6 +8,7 @@ namespace N64RecompLauncher
     {
         public bool IsPortable { get; set; } = false;
         public bool IconFill { get; set; } = false;
+        public bool PortraitFrame { get; set; } = false;
         public float IconOpacity { get; set; } = 1.0f;
         public int IconSize { get; set; } = 112;
         public int IconMargin { get; set; } = 8;

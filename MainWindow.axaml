@@ -12,24 +12,27 @@
 		<local:BooleanToStretchConverter x:Key="BooleanToStretchConverter"/>
 		<local:ThicknessConverter x:Key="ThicknessConverter"/>
 		<local:SlotScaleToGridConverter x:Key="SlotScaleToGridConverter"/>
-		<local:GridWidthConverter x:Key="GridWidthConverter"/>
+		<local:GridWidthMultiConverter x:Key="GridWidthMultiConverter"/>
 
 		<!-- list view -->
 		<DataTemplate x:Key="ListViewTemplate">
-			<Border Classes="gamecard" Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
+			<Border Classes="gamecard" Height="{Binding ElementName=SlotSizeSlider, Path=Value}" Margin="0,0,50,15">
 				<Grid ClipToBounds="True">
-					<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
-						ClipToBounds="True"
-						Height="{Binding ElementName=IconSizeSlider, Path=Value}"
-						VerticalAlignment="Center"
-						HorizontalAlignment="Left"
-						Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
-						Margin="{Binding ElementName=IconMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}"
-						Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
-					<Grid Margin="20">
+					<Panel ClipToBounds="True">
+						<Border CornerRadius="8" ClipToBounds="True">
+							<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
+								ClipToBounds="True"
+								Height="{Binding ElementName=IconSizeSlider, Path=Value}"
+								VerticalAlignment="Center"
+								HorizontalAlignment="Left"
+								Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
+								Margin="{Binding ElementName=IconMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}"
+								Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
+						</Border>
+					</Panel>
+							<Grid Margin="20">
 						<Grid.ColumnDefinitions>
 							<ColumnDefinition Width="*"/>
-							<ColumnDefinition Width="Auto"/>
 						</Grid.ColumnDefinitions>
 
 						<StackPanel Grid.Column="0" Margin="{Binding ElementName=TextMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}" VerticalAlignment="Center">
@@ -126,17 +129,22 @@
 
 		<!-- grid view -->
 		<DataTemplate x:Key="GridViewTemplate">
-			<Border Classes="gamecardgrid"
-					Width="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource GridWidthConverter}}"
-					Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
+			<Border Classes="gamecardgrid" Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
+				<Border.Width>
+					<MultiBinding Converter="{StaticResource GridWidthMultiConverter}">
+						<Binding ElementName="SlotSizeSlider" Path="Value"/>
+						<Binding ElementName="PortraitCheckBox" Path="IsChecked"/>
+					</MultiBinding>
+				</Border.Width>
 				<Grid ClipToBounds="True">
 					<Panel ClipToBounds="True"
 						Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
 						VerticalAlignment="Top"
 						HorizontalAlignment="Center">
 						<Border CornerRadius="8" ClipToBounds="True">
-						<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
+							<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
 							ClipToBounds="True"
+							VerticalAlignment="Center"
 							Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
 							Height="{Binding ElementName=IconSizeSlider, Path=Value}"
 							Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
@@ -163,7 +171,7 @@
 										Opacity="1"/>
 								</TextBlock.Effect>
 							</TextBlock>
-							
+
 							<TextBlock Text="{Binding StatusText}"
 									   FontSize="11"
 									   Foreground="White"
@@ -177,7 +185,7 @@
 										Opacity="1"/>
 								</TextBlock.Effect>
 							</TextBlock>
-							
+
 							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,5">
 								<TextBlock Text="Latest: "
 										   FontSize="11"
@@ -190,7 +198,7 @@
 											Opacity="1"/>
 									</TextBlock.Effect>
 								</TextBlock>
-								
+
 								<TextBlock Text="{Binding LatestVersion}"
 										   FontSize="11"
 										   Foreground="White">
@@ -207,9 +215,9 @@
 							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
 								<Button Classes="modern"
 										Content="{Binding ButtonText}"
-										FontSize="16"
+										FontSize="12"
 										Height="40"
-										Width="130"
+										Width="100"
 										Margin="0,0,5,0"
 										IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 										Click="GameButton_Click"
@@ -219,13 +227,13 @@
 										Padding="4"
 										Width="40"
 										Height="40"
-										FontSize="16"
+										FontSize="12"
 										IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 										Click="OptionsButton_Click"
 										Tag="{Binding}">
 									<TextBlock Text="..." Foreground="White" TextAlignment="Center"/>
 									<Button.ContextMenu>
-										
+
 										<ContextMenu>
 											<MenuItem Header="Open GitHub Page"
 													  Click="OpenGitHubPage_Click"
@@ -493,7 +501,7 @@
 					<TextBlock Text="Store data in the game directory."
                                FontSize="12"
                                Foreground="#999999"
-                               Margin="0,0,0,10"/>
+                               Margin="0,0,0,20"/>
 
 					<TextBlock Text="UI"
                                FontSize="18"
@@ -501,6 +509,18 @@
                                Foreground="#cccccc"
                                Margin="0,0,0,10"/>
 
+					<CheckBox x:Name="PortraitCheckBox"
+                               Content="Portrait Grid Slot"
+                               Foreground="White"
+                               Margin="0,0,0,0"
+                               Checked="PortraitCheckBox_Checked"
+                               Unchecked="PortraitCheckBox_Unchecked" />
+
+					<TextBlock Text="Wheater to display slots in Portrait Ratio."
+                               FontSize="12"
+                               Foreground="#999999"
+                               Margin="0,0,0,15"/>
+					
 					<TextBlock Text="Slot Scale"
                                FontSize="12"
 							   Margin="0,0,0,0"
