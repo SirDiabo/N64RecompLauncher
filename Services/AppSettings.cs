@@ -14,6 +14,7 @@ namespace N64RecompLauncher
         public int IconMargin { get; set; } = 8;
         public int SlotTextMargin { get; set; } = 112;
         public int SlotSize { get; set; } = 120;
+        public List<string> HiddenGames { get; set; } = new List<string>();
 
         private static readonly string SettingsPath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,

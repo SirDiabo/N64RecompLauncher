@@ -115,6 +115,9 @@
 												  Click="RemoveCustomIcon_Click"
 												  CommandParameter="{Binding}"
 												  IsVisible="{Binding HasCustomIcon}"/>
+										<MenuItem Header="Hide Game"
+													  Click="HideGame_Click"
+													  CommandParameter="{Binding}"/>
 										<MenuItem Header="Delete"
 												  Click="DeleteGame_Click"
 												  CommandParameter="{Binding}"/>
@@ -245,6 +248,9 @@
 													  Click="RemoveCustomIcon_Click"
 													  CommandParameter="{Binding}"
 													  IsVisible="{Binding HasCustomIcon}"/>
+											<MenuItem Header="Hide Game"
+													  Click="HideGame_Click"
+													  CommandParameter="{Binding}"/>
 											<MenuItem Header="Delete"
 													  Click="DeleteGame_Click"
 													  CommandParameter="{Binding}"/>
@@ -479,14 +485,14 @@
 				<StackPanel Margin="20" x:Name="SettingsContent">
 					
 					<TextBlock Text="Settings"
-                               FontSize="24"
+                               FontSize="32"
 							   HorizontalAlignment="Center"
                                FontWeight="Bold"
                                Foreground="White"
                                Margin="0,0,0,0"/>
 
 					<TextBlock Text="General"
-                               FontSize="18"
+                               FontSize="24"
                                FontWeight="SemiBold"
                                Foreground="#cccccc"
                                Margin="0,0,0,10"/>
@@ -503,8 +509,20 @@
                                Foreground="#999999"
                                Margin="0,0,0,20"/>
 
+					<Button x:Name="UnhideAllGamesButton"
+							Content="Show All Games"
+							Classes="options"
+							Margin="0,-5,0,5"
+							Click="UnhideAllGamesButton_Click"/>
+
+					<Button x:Name="HideNonInstalledButton"
+							Content="Hide Non-Installed Games"
+							Classes="options"
+							Margin="0,0,0,20"
+							Click="HideNonInstalledButton_Click"/>
+					
 					<TextBlock Text="UI"
-                               FontSize="18"
+                               FontSize="24"
                                FontWeight="SemiBold"
                                Foreground="#cccccc"
                                Margin="0,0,0,10"/>
@@ -516,7 +534,7 @@
                                Checked="PortraitCheckBox_Checked"
                                Unchecked="PortraitCheckBox_Unchecked" />
 
-					<TextBlock Text="Wheater to display slots in Portrait Ratio."
+					<TextBlock Text="Whether to display slots in Portrait Ratio."
                                FontSize="12"
                                Foreground="#999999"
                                Margin="0,0,0,15"/>

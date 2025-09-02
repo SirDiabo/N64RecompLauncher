@@ -60,8 +60,29 @@ namespace N64RecompLauncher.Services
 
             LoadVersionString();
 
-            Games =
-            [
+            Games = new ObservableCollection<GameInfo>();
+        }
+
+        private void LoadVersionString()
+        {
+            try
+            {
+                string versionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
+                CurrentVersionString = File.Exists(versionFilePath)
+                    ? File.ReadAllText(versionFilePath).Trim()
+                    : "Version information not found";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading version: {ex.Message}");
+                CurrentVersionString = "Version loading failed";
+            }
+        }
+
+        private List<GameInfo> GetBaseGames()
+        {
+            return new List<GameInfo>
+            {
                 new() {
                     Name = "Zelda 64 Recomp",
                     Repository = "Zelda64Recomp/Zelda64Recomp",
@@ -94,27 +115,8 @@ namespace N64RecompLauncher.Services
                     FolderName = "DinosaurPlanetRecomp",
                     GameManager = this,
                 },
-            ];
-
-            LoadCustomIcons();
+            };
         }
-
-        private void LoadVersionString()
-        {
-            try
-            {
-                string versionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
-                CurrentVersionString = File.Exists(versionFilePath)
-                    ? File.ReadAllText(versionFilePath).Trim()
-                    : "Version information not found";
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error loading version: {ex.Message}");
-                CurrentVersionString = "Version loading failed";
-            }
-        }
-
 
         private void LoadCustomIcons()
         {
@@ -141,6 +143,22 @@ namespace N64RecompLauncher.Services
 
         public async Task LoadGamesAsync()
         {
+            var settings = AppSettings.Load();
+
+            Games.Clear();
+
+            var allGames = GetBaseGames();
+
+            foreach (var game in allGames)
+            {
+                if (!settings.HiddenGames.Contains(game.Name))
+                {
+                    Games.Add(game);
+                }
+            }
+
+            LoadCustomIcons();
+
             var gameStatuses = Games
                 .Select(g => new {
                     Game = g,
@@ -202,6 +220,67 @@ namespace N64RecompLauncher.Services
             }
 
             return DateTime.MinValue;
+        }
+
+        public void HideGame(string gameName)
+        {
+            var settings = AppSettings.Load();
+            if (!settings.HiddenGames.Contains(gameName))
+            {
+                settings.HiddenGames.Add(gameName);
+                AppSettings.Save(settings);
+                FilterGames(settings);
+            }
+        }
+
+        public void UnhideAllGames()
+        {
+            var settings = AppSettings.Load();
+            settings.HiddenGames.Clear();
+            AppSettings.Save(settings);
+            FilterGames(settings);
+        }
+
+        public void HideAllNonInstalledGames()
+        {
+            var settings = AppSettings.Load();
+            foreach (var game in Games)
+            {
+                if (game.Status == GameStatus.NotInstalled && !settings.HiddenGames.Contains(game.Name))
+                {
+                    settings.HiddenGames.Add(game.Name);
+                }
+            }
+            AppSettings.Save(settings);
+            FilterGames(settings);
+        }
+
+        private void FilterGames(AppSettings settings)
+        {
+            for (int i = Games.Count - 1; i >= 0; i--)
+            {
+                if (settings.HiddenGames.Contains(Games[i].Name))
+                {
+                    Games.RemoveAt(i);
+                }
+            }
+        }
+
+        public void RefreshGamesWithFilter(AppSettings settings)
+        {
+            var allGames = GetBaseGames();
+
+            Games.Clear();
+
+            foreach (var game in allGames)
+            {
+                if (!settings.HiddenGames.Contains(game.Name))
+                {
+                    Games.Add(game);
+                }
+            }
+
+            LoadCustomIcons();
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

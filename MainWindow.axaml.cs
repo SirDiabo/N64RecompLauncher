@@ -55,7 +55,6 @@ namespace N64RecompLauncher
             }
 
             _gameManager = new GameManager();
-            DataContext = this;
 
             LoadCurrentVersion();
             UpdateSettingsUI();
@@ -104,6 +103,11 @@ namespace N64RecompLauncher
                 try
                 {
                     await _gameManager.LoadGamesAsync();
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        DataContext = this;
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -544,6 +548,58 @@ namespace N64RecompLauncher
                     await messageBox.ShowDialog(desktop.MainWindow);
                 }
             });
+        }
+
+        private async void UnhideAllGamesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _gameManager.UnhideAllGames();
+                await _gameManager.LoadGamesAsync();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to unhide games: {ex.Message}", "Error");
+            }
+        }
+
+        private async void HideNonInstalledButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _gameManager.HideAllNonInstalledGames();
+                await _gameManager.LoadGamesAsync();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to hide non-installed games: {ex.Message}", "Error");
+            }
+        }
+
+        private async void HideGame_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null)
+            {
+                _ = ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            var result = await ShowMessageBoxAsync($"Hide {game.Name} from the game list?", "Confirm Hide", true);
+            if (result)
+            {
+                try
+                {
+                    _gameManager.HideGame(game.Name);
+                    await _gameManager.LoadGamesAsync();
+                }
+                catch (Exception ex)
+                {
+                    _ = ShowMessageBoxAsync($"Failed to hide game: {ex.Message}", "Error");
+                }
+            }
         }
 
         private async Task<bool> ShowMessageBoxAsync(string message, string title, bool isQuestion = false)
