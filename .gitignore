@@ -119,7 +119,8 @@ ipch/
 *.VC.db
 *.VC.VC.opendb
 
-#Blender Backup files
+#Blender Backup files and Renders
+Icon/frames/
 *.blend1
 
 # Visual Studio profiler
