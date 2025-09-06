@@ -743,6 +743,43 @@ namespace N64RecompLauncher.Models
                 {
                     ZipFile.ExtractToDirectory(downloadPath, gamePath, overwriteFiles: true);
                 }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    var tempExtractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+                    Directory.CreateDirectory(tempExtractPath);
+
+                    try
+                    {
+                        ZipFile.ExtractToDirectory(downloadPath, tempExtractPath, overwriteFiles: true);
+
+                        var appBundle = Directory.GetDirectories(tempExtractPath, "*.app", SearchOption.AllDirectories)
+                            .FirstOrDefault();
+
+                        if (!string.IsNullOrEmpty(appBundle))
+                        {
+                            var appName = Path.GetFileName(appBundle);
+                            var destAppPath = Path.Combine(gamePath, appName);
+
+                            if (Directory.Exists(destAppPath))
+                            {
+                                Directory.Delete(destAppPath, true);
+                            }
+
+                            CopyDirectory(appBundle, destAppPath);
+                        }
+                        else
+                        {
+                            CopyDirectory(tempExtractPath, gamePath);
+                        }
+                    }
+                    finally
+                    {
+                        if (Directory.Exists(tempExtractPath))
+                        {
+                            Directory.Delete(tempExtractPath, true);
+                        }
+                    }
+                }
                 else
                 {
                     var tempExtractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -971,6 +1008,46 @@ namespace N64RecompLauncher.Models
                     var exeFiles = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories);
                     executablePath = exeFiles.FirstOrDefault();
                 }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    var appBundles = Directory.GetDirectories(gamePath, "*.app", SearchOption.AllDirectories);
+                    if (appBundles.Length > 0)
+                    {
+                        executablePath = appBundles[0];
+                    }
+                    else
+                    {
+                        var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories);
+
+                        foreach (var file in allFiles)
+                        {
+                            var fileName = Path.GetFileName(file);
+
+                            if (fileName.Contains('.') &&
+                                (fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
+                                 fileName.EndsWith(".so") || fileName.EndsWith(".dylib") ||
+                                 fileName.EndsWith(".json") || fileName.EndsWith(".cfg") ||
+                                 fileName.EndsWith(".ini") || fileName.EndsWith(".log")))
+                            {
+                                continue;
+                            }
+
+                            if (fileName.Contains("Recompiled", StringComparison.OrdinalIgnoreCase) ||
+                                fileName.Contains(Name.Replace(" ", ""), StringComparison.OrdinalIgnoreCase))
+                            {
+                                executablePath = file;
+                                break;
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(executablePath))
+                        {
+                            executablePath = allFiles.FirstOrDefault(f =>
+                                !Path.GetFileName(f).Contains('.') &&
+                                new FileInfo(f).Length > 1024);
+                        }
+                    }
+                }
                 else
                 {
                     var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories);
@@ -1013,7 +1090,8 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                    !executablePath.EndsWith(".app"))
                 {
                     try
                     {
@@ -1045,14 +1123,25 @@ namespace N64RecompLauncher.Models
                     }
                 }
 
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = executablePath,
-                    WorkingDirectory = Path.GetDirectoryName(executablePath),
-                    UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                };
+                var startInfo = new ProcessStartInfo();
 
-                UpdateLastPlayedTime(Path.GetDirectoryName(executablePath));
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && executablePath.EndsWith(".app"))
+                {
+                    startInfo.FileName = "open";
+                    startInfo.Arguments = $"\"{executablePath}\"";
+                    startInfo.UseShellExecute = false;
+                    startInfo.WorkingDirectory = gamePath;
+                }
+                else
+                {
+                    startInfo.FileName = executablePath;
+                    startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath);
+                    startInfo.UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+                }
+
+                UpdateLastPlayedTime(RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && executablePath.EndsWith(".app")
+                    ? gamePath
+                    : Path.GetDirectoryName(executablePath));
 
                 Process.Start(startInfo);
 

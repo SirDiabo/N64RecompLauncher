@@ -427,6 +427,22 @@ public class App : Application, INotifyPropertyChanged
                     if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                     {
                         ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
+
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        {
+                            var appBundle = Directory.GetDirectories(tempUpdateFolder, "*.app", SearchOption.AllDirectories)
+                                .FirstOrDefault();
+
+                            if (!string.IsNullOrEmpty(appBundle))
+                            {
+                                var appName = Path.GetFileName(appBundle);
+                                var newAppPath = Path.Combine(tempUpdateFolder, appName);
+                                if (appBundle != newAppPath)
+                                {
+                                    Directory.Move(appBundle, newAppPath);
+                                }
+                            }
+                        }
                     }
                     else if (asset.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
                     {
@@ -541,24 +557,40 @@ public class App : Application, INotifyPropertyChanged
             {
                 mainExecutable = Path.Combine(updateDirectory, "N64RecompLauncher.exe");
             }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var appBundle = Directory.GetDirectories(updateDirectory, "*.app", SearchOption.TopDirectoryOnly)
+                    .FirstOrDefault();
+
+                if (!string.IsNullOrEmpty(appBundle))
+                {
+                    mainExecutable = appBundle;
+                }
+                else
+                {
+                    mainExecutable = Path.Combine(updateDirectory, "N64RecompLauncher");
+                }
+            }
             else
             {
                 mainExecutable = Path.Combine(updateDirectory, "N64RecompLauncher");
             }
 
-            if (!File.Exists(mainExecutable))
+            if (!File.Exists(mainExecutable) && !Directory.Exists(mainExecutable))
             {
                 Trace.WriteLine($"Main executable not found in update package: {mainExecutable}");
                 return false;
             }
 
-            FileInfo exeInfo = new FileInfo(mainExecutable);
-            if (exeInfo.Length < 1024)
+            if (File.Exists(mainExecutable))
             {
-                Trace.WriteLine($"Main executable too small: {exeInfo.Length} bytes");
-                return false;
+                FileInfo exeInfo = new FileInfo(mainExecutable);
+                if (exeInfo.Length < 1024)
+                {
+                    Trace.WriteLine($"Main executable too small: {exeInfo.Length} bytes");
+                    return false;
+                }
             }
-
             return true;
         }
         catch (Exception ex)
@@ -662,6 +694,9 @@ del ""%~f0""
         string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.sh");
         string executableName = Path.GetFileName(applicationExecutable);
 
+        bool isMacAppBundle = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
+                             Directory.GetDirectories(tempUpdateFolder, "*.app", SearchOption.TopDirectoryOnly).Any();
+
         string scriptContent = $@"#!/bin/bash
 echo ""N64RecompLauncher Updater - Version {latestRelease.tag_name}""
 echo
@@ -697,26 +732,43 @@ fi
 echo ""Updating version file...""
 echo ""{latestRelease.tag_name}"" > ""{versionFilePath}""
 
-# Make the main executable file executable
-if [ -f ""$appDir/N64RecompLauncher"" ]; then
-    chmod +x ""$appDir/N64RecompLauncher""
+if [ ""{RuntimeInformation.IsOSPlatform(OSPlatform.OSX).ToString().ToLower()}"" = ""true"" ]; then
+    appBundle=$(find ""$appDir"" -maxdepth 1 -name ""*.app"" -type d | head -n 1)
+    if [ -n ""$appBundle"" ]; then
+        echo ""Found .app bundle: $appBundle""
+    elif [ -f ""$appDir/N64RecompLauncher"" ]; then
+        chmod +x ""$appDir/N64RecompLauncher""
+    fi
+else
+    if [ -f ""$appDir/N64RecompLauncher"" ]; then
+        chmod +x ""$appDir/N64RecompLauncher""
+    fi
 fi
 
 echo ""Update completed successfully!""
 echo ""Restarting N64RecompLauncher...""
 sleep 2
 
-# Start the application
-if [ -f ""$appDir/N64RecompLauncher"" ]; then
-    cd ""$appDir""
-    nohup ""./N64RecompLauncher"" > /dev/null 2>&1 &
+if [ ""{RuntimeInformation.IsOSPlatform(OSPlatform.OSX).ToString().ToLower()}"" = ""true"" ]; then
+    appBundle=$(find ""$appDir"" -maxdepth 1 -name ""*.app"" -type d | head -n 1)
+    if [ -n ""$appBundle"" ]; then
+        echo ""Starting .app bundle: $appBundle""
+        nohup open ""$appBundle"" > /dev/null 2>&1 &
+    elif [ -f ""$appDir/N64RecompLauncher"" ]; then
+        cd ""$appDir""
+        nohup ""./N64RecompLauncher"" > /dev/null 2>&1 &
+    fi
+else
+    if [ -f ""$appDir/N64RecompLauncher"" ]; then
+        cd ""$appDir""
+        nohup ""./N64RecompLauncher"" > /dev/null 2>&1 &
+    fi
 fi
 
 echo ""Cleaning up temporary files...""
 rm -f ""{tempDownloadPath}"" 2>/dev/null || true
 rm -rf ""$updateDir"" 2>/dev/null || true
 
-# Self-destruct
 rm -- ""$0""
 ";
 
