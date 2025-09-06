@@ -118,8 +118,13 @@
 										<MenuItem Header="Hide Game"
 													  Click="HideGame_Click"
 													  CommandParameter="{Binding}"/>
+										<MenuItem Header="Open Folder"
+													  Click="OpenFolder_Click"
+													  IsVisible="{Binding IsInstalled}"
+													  CommandParameter="{Binding}"/>
 										<MenuItem Header="Delete"
 												  Click="DeleteGame_Click"
+												  IsVisible="{Binding IsInstalled}"
 												  CommandParameter="{Binding}"/>
 									</ContextMenu>
 								</Button.ContextMenu>
@@ -251,8 +256,13 @@
 											<MenuItem Header="Hide Game"
 													  Click="HideGame_Click"
 													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Open Folder"
+													  Click="OpenFolder_Click"
+													  IsVisible="{Binding IsInstalled}"
+													  CommandParameter="{Binding}"/>
 											<MenuItem Header="Delete"
 													  Click="DeleteGame_Click"
+													  IsVisible="{Binding IsInstalled}"
 													  CommandParameter="{Binding}"/>
 										</ContextMenu>
 									</Button.ContextMenu>

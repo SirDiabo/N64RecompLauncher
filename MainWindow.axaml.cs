@@ -427,6 +427,24 @@ namespace N64RecompLauncher
             }
         }
 
+        private void OpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+            if (game != null)
+            {
+                try
+                {
+                    string folderPath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                    OpenUrl(folderPath);
+                }
+                catch (Exception ex)
+                {
+                    _ = ShowMessageBoxAsync($"Failed to open folder: {ex.Message}", "Action Error");
+                }
+            }
+        }
+
         private void GithubButton_Click(object sender, RoutedEventArgs e)
         {
             try

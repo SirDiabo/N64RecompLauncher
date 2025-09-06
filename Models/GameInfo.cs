@@ -116,7 +116,14 @@ namespace N64RecompLauncher.Models
                 return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
             }
         }
-
+        public bool IsInstalled
+        {
+            get
+            {
+                return Status == GameStatus.Installed ||
+                       Status == GameStatus.UpdateAvailable;
+            }
+        }
         public string? LatestVersion
         {
             get => _latestVersion;
@@ -156,6 +163,7 @@ namespace N64RecompLauncher.Models
                     DispatchPropertyChanged(nameof(ButtonText));
                     DispatchPropertyChanged(nameof(ButtonColor));
                     DispatchPropertyChanged(nameof(StatusText));
+                    DispatchPropertyChanged(nameof(IsInstalled));
                 }
             }
         }
