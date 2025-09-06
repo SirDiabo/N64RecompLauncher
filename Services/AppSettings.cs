@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net.NetworkInformation;
 using System.Text.Json;
 
 namespace N64RecompLauncher
@@ -14,6 +15,7 @@ namespace N64RecompLauncher
         public int IconMargin { get; set; } = 8;
         public int SlotTextMargin { get; set; } = 112;
         public int SlotSize { get; set; } = 120;
+        public TargetOS Platform { get; set; } = TargetOS.Auto;
         public List<string> HiddenGames { get; set; } = new List<string>();
 
         private static readonly string SettingsPath = Path.Combine(

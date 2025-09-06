@@ -14,6 +14,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 
 namespace N64RecompLauncher
@@ -23,6 +24,7 @@ namespace N64RecompLauncher
         private readonly GameManager _gameManager;
         public ObservableCollection<GameInfo> Games => _gameManager?.Games ?? new ObservableCollection<GameInfo>();
         public AppSettings _settings;
+        public App _app;
         public AppSettings Settings => _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
@@ -36,6 +38,19 @@ namespace N64RecompLauncher
                 {
                     _currentVersionString = value;
                     OnPropertyChanged(nameof(currentVersionString));
+                }
+            }
+        }
+        private string _platformstring;
+        public string PlatformString
+        {             
+            get => _platformstring;
+            set
+            {
+                if (_platformstring != value)
+                {
+                    _platformstring = value;
+                    OnPropertyChanged(nameof(PlatformString));
                 }
             }
         }
@@ -57,6 +72,7 @@ namespace N64RecompLauncher
             _gameManager = new GameManager();
 
             LoadCurrentVersion();
+            LoadCurrentPlatform();
             UpdateSettingsUI();
 
             _gameManager.PropertyChanged += (s, e) => {
@@ -70,6 +86,27 @@ namespace N64RecompLauncher
                     }
                 }
             };
+        }
+
+        private void LoadCurrentPlatform()
+        {
+            if (_settings != null)
+            {
+                PlatformString = _settings.Platform switch
+                {
+                    TargetOS.Auto => "Automatic",
+                    TargetOS.Windows => "Windows",
+                    TargetOS.MacOS => "macOS",
+                    TargetOS.LinuxX64 => "Linux x64",
+                    TargetOS.LinuxARM64 => "Linux ARM64",
+                    TargetOS.Flatpak => "Flatpak",
+                    _ => "Unknown"
+                };
+            }
+            else
+            {
+                PlatformString = "Unknown";
+            }
         }
 
         private void LoadCurrentVersion()
@@ -125,7 +162,7 @@ namespace N64RecompLauncher
             {
                 try
                 {
-                    await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable);
+                    await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
                 }
                 catch (Exception ex)
                 {
@@ -146,7 +183,7 @@ namespace N64RecompLauncher
         }
 
 
-        private async void SettingsButton_Click(object sender, RoutedEventArgs e)
+        private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
             if (isSettingsPanelOpen)
             {
@@ -197,6 +234,17 @@ namespace N64RecompLauncher
 
                 if (PortraitCheckBox != null)
                     PortraitCheckBox.IsChecked = _settings.PortraitFrame;
+
+                PlatformString = _settings.Platform switch
+                {
+                    TargetOS.Auto => "Automatic",
+                    TargetOS.Windows => "Windows",
+                    TargetOS.MacOS => "macOS",
+                    TargetOS.LinuxX64 => "Linux x64",
+                    TargetOS.LinuxARM64 => "Linux ARM64",
+                    TargetOS.Flatpak => "Flatpak",
+                    _ => "Unknown"
+                };
             }
         }
 
@@ -308,6 +356,74 @@ namespace N64RecompLauncher
             {
                 _settings.IconFill = false;
                 OnSettingChanged();
+            }
+        }
+
+        private void PlatformAuto_Click(object sender, RoutedEventArgs e)
+        {             
+            if (_settings != null)
+            {
+                _settings.Platform = TargetOS.Auto;
+                PlatformString = "Automatic";
+                OnSettingChanged();
+            }
+        }
+
+        private void PlatformWindows_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.Platform = TargetOS.Windows;
+                PlatformString = "Windows";
+                OnSettingChanged();
+            }
+        }
+
+        private void PlatformMacOS_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.Platform = TargetOS.MacOS;
+                PlatformString = "macOS";
+                OnSettingChanged();
+            }
+        }
+
+        private void PlatformLinuxX64_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.Platform = TargetOS.LinuxX64;
+                PlatformString = "Linux x64";
+                OnSettingChanged();
+            }
+        }
+
+        private void PlatformLinuxARM64_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.Platform = TargetOS.LinuxARM64;
+                PlatformString = "Linux ARM64";
+                OnSettingChanged();
+            }
+        }
+
+        private void PlatformFlatpak_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.Platform = TargetOS.Flatpak;
+                PlatformString = "Flatpak";
+                OnSettingChanged();
+            }
+        }
+
+        private void CheckforUpdates_Click(object sender, RoutedEventArgs e)
+        {
+            if (_app != null)
+            {
+                _app.OnFrameworkInitializationCompleted();
             }
         }
 

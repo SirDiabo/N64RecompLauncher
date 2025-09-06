@@ -520,6 +520,40 @@
 							Classes="options"
 							Margin="0,0,0,20"
 							Click="HideNonInstalledButton_Click"/>
+
+					<TextBlock Text="{Binding PlatformString}"
+                               FontSize="14"
+                               Foreground="White"
+                               Margin="0,0,0,0"/>
+					
+					<Button Classes="options"
+							Content="Target Platform"
+							Margin="0,0,0,20"
+							Click="OptionsButton_Click"
+							Tag="{Binding}">
+							<Button.ContextMenu>
+								<ContextMenu>
+									<MenuItem Header="Automatic"
+											  Click="PlatformAuto_Click"/>
+									<MenuItem Header="Windows"
+											  Click="PlatformWindows_Click"/>
+									<MenuItem Header="MacOS"											  
+											  Click="PlatformMacOS_Click"/>
+									<MenuItem Header="Linux X64"
+											  Click="PlatformLinuxX64_Click"/>
+									<MenuItem Header="Linux ARM64"
+											  Click="PlatformLinuxARM64_Click"/>
+									<MenuItem Header="Linux Flatpak"
+											  Click="PlatformFlatpak_Click"/>								
+								</ContextMenu>
+							</Button.ContextMenu>
+					</Button>
+
+					<Button x:Name="CheckforUpdates"
+							Content="Check for Updates"
+							Classes="options"
+							Margin="0,0,0,20"
+							Click="CheckforUpdates_Click"/>
 					
 					<TextBlock Text="UI"
                                FontSize="24"

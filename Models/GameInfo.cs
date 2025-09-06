@@ -83,7 +83,7 @@ namespace N64RecompLauncher.Models
         public string? ImageRes { get; set; }
         public string? FolderName { get; set; }
         private string? _customIconPath { get; set; }
-        public string CustomIconPath
+        public string? CustomIconPath
         {
             get => _customIconPath;
             set
@@ -117,7 +117,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        public string LatestVersion
+        public string? LatestVersion
         {
             get => _latestVersion;
             set
@@ -130,7 +130,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        public string InstalledVersion
+        public string? InstalledVersion
         {
             get => _installedVersion;
             set
@@ -578,7 +578,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        public async Task PerformActionAsync(HttpClient httpClient, string gamesFolder, bool isPortable)
+        public async Task PerformActionAsync(HttpClient httpClient, string gamesFolder, bool isPortable, AppSettings settings)
         {
             string gamePath = Path.Combine(gamesFolder, FolderName);
             string portableFilePath = Path.Combine(gamePath, "portable.txt");
@@ -588,7 +588,7 @@ namespace N64RecompLauncher.Models
             {
                 case GameStatus.NotInstalled:
                 case GameStatus.UpdateAvailable:
-                    await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease());
+                    await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease(), settings);
 
                     if (File.Exists(portableFilePath))
                     {
@@ -624,13 +624,13 @@ namespace N64RecompLauncher.Models
             return _cachedRelease;
         }
 
-        private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease)
+        private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease, AppSettings settings)
         {
             try
             {
                 Status = GameStatus.Downloading;
 
-                string platformIdentifier = GetPlatformIdentifier();
+                string platformIdentifier = GetPlatformIdentifier(settings);
                 var gamePath = Path.Combine(gamesFolder, FolderName);
                 var versionFile = Path.Combine(gamePath, "version.txt");
                 if (latestRelease == null)
@@ -646,7 +646,7 @@ namespace N64RecompLauncher.Models
                         latestRelease = deserializedRelease;
                         GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
                     }
-                }
+            }
 
                 if (File.Exists(versionFile))
                 {
@@ -910,30 +910,45 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static string GetPlatformIdentifier()
+        static string GetPlatformIdentifier(AppSettings settings)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (settings.Platform == TargetOS.Auto)
             {
-                return "Windows";
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                return "macOS";
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                var arch = RuntimeInformation.OSArchitecture;
-                return arch switch
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Architecture.Arm64 => "ARM64",
-                    Architecture.X64 => Environment.GetEnvironmentVariable("FLATPAK_ID") != null
-                        ? "X64-Flatpak"
-                        : "Linux-X64",
-                    _ => "Linux-X64"
+                    return "Windows";
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    return "macOS";
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    var arch = RuntimeInformation.OSArchitecture;
+                    return arch switch
+                    {
+                        Architecture.Arm64 => "Linux-ARM64",
+                        Architecture.X64 => Environment.GetEnvironmentVariable("FLATPAK_ID") != null
+                            ? "Linux-Flatpak-X64"
+                            : "Linux-X64",
+                        _ => "Linux-X64"
+                    };
+                }
+
+                throw new PlatformNotSupportedException("Unsupported operating system");
+            }
+            else
+            {
+                return settings.Platform switch
+                {
+                    TargetOS.Windows => "Windows",
+                    TargetOS.MacOS => "macOS",
+                    TargetOS.LinuxX64 => "Linux-X64",
+                    TargetOS.LinuxARM64 => "Linux-ARM64",
+                    TargetOS.Flatpak => "Linux-Flatpak-X64",
+                    _ => throw new PlatformNotSupportedException("Unsupported target OS in settings")
                 };
             }
-
-            throw new PlatformNotSupportedException("Unsupported operating system");
         }
 
         private async void Launch(string gamesFolder)
