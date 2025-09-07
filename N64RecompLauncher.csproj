@@ -12,10 +12,6 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-x64</RuntimeIdentifiers>
-
-		<MacOSBundleIdentifier>com.sirdiabo.n64recomplauncher</MacOSBundleIdentifier>
-		<MacOSBundleName>N64RecompLauncher</MacOSBundleName>
-		<MacOSMinimumVersion>10.15</MacOSMinimumVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -31,72 +27,4 @@
 	<ItemGroup>
 		<AvaloniaResource Include="Assets\**\*" />
 	</ItemGroup>
-
-	<Target Name="CreateMacOSAppBundle" AfterTargets="Publish" Condition="$(RuntimeIdentifier.StartsWith('osx'))">
-		<PropertyGroup>
-			<AppBundlePath>$(PublishDir)../$(MacOSBundleName).app</AppBundlePath>
-			<AppContentsPath>$(AppBundlePath)/Contents</AppContentsPath>
-			<AppMacOSPath>$(AppContentsPath)/MacOS</AppMacOSPath>
-			<AppResourcesPath>$(AppContentsPath)/Resources</AppResourcesPath>
-			<InfoPlistPath>$(AppContentsPath)/Info.plist</InfoPlistPath>
-		</PropertyGroup>
-
-		<MakeDir Directories="$(AppBundlePath)" />
-		<MakeDir Directories="$(AppContentsPath)" />
-		<MakeDir Directories="$(AppMacOSPath)" />
-		<MakeDir Directories="$(AppResourcesPath)" />
-
-		<ItemGroup>
-			<PublishedFiles Include="$(PublishDir)**/*" />
-		</ItemGroup>
-		<Copy SourceFiles="@(PublishedFiles)"
-			  DestinationFiles="@(PublishedFiles->'$(AppMacOSPath)/%(RecursiveDir)%(Filename)%(Extension)')"
-			  SkipUnchangedFiles="true" />
-
-		<PropertyGroup>
-			<InfoPlistContent>
-				<![CDATA[<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>CFBundleExecutable</key>
-	<string>$(MacOSBundleName)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(MacOSBundleIdentifier)</string>
-	<key>CFBundleName</key>
-	<string>$(MacOSBundleName)</string>
-	<key>CFBundleDisplayName</key>
-	<string>$(AssemblyTitle)</string>
-	<key>CFBundleVersion</key>
-	<string>$(AssemblyVersion)</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FileVersion)</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>$(MacOSMinimumVersion)</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSSupportsAutomaticGraphicsSwitching</key>
-	<true/>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.games</string>
-</dict>
-</plist>]]>
-			</InfoPlistContent>
-		</PropertyGroup>
-
-		<WriteLinesToFile File="$(InfoPlistPath)"
-						  Lines="$(InfoPlistContent)"
-						  Overwrite="true" />
-
-		<Copy SourceFiles="icon.ico"
-			  DestinationFiles="$(AppResourcesPath)/icon.ico"
-			  Condition="Exists('icon.ico')"
-			  ContinueOnError="true" />
-
-		<Message Text="Created macOS app bundle at: $(AppBundlePath)" Importance="high" />
-	</Target>
 </Project>
