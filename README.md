@@ -22,7 +22,7 @@ A modern, user-friendly launcher application for managing and running N64 recomp
 
 ### Prerequisites
 
-- .NET 9 Runtime
+- .NET 9 Runtime (get it [here](https://dotnet.microsoft.com/en-us/))
 - Internet connection for updates and downloads
 
 ### Installation
