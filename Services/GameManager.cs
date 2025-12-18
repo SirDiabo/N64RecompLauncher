@@ -116,7 +116,7 @@ namespace N64RecompLauncher.Services
                     GameManager = this,
                 },
                 new() {
-                    Name = "Dr. Mario 64",
+                    Name = "Dr. Mario 64 Recomp",
                     Repository = "theboy181/drmario64_recomp_plus",
                     Branch = "main",
                     ImageRes = "512",
