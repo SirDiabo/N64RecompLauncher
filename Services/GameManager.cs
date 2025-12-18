@@ -115,6 +115,14 @@ namespace N64RecompLauncher.Services
                     FolderName = "DinosaurPlanetRecomp",
                     GameManager = this,
                 },
+                new() {
+                    Name = "Dr. Mario 64",
+                    Repository = "theboy181/drmario64_recomp_plus",
+                    Branch = "main",
+                    ImageRes = "512",
+                    FolderName = "DrMario64RecompPlus",
+                    GameManager = this,
+                },
             };
         }
 
