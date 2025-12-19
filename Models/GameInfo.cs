@@ -13,6 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Linq;
 
 namespace N64RecompLauncher.Models
 {
@@ -815,6 +816,15 @@ namespace N64RecompLauncher.Models
                 ExtractTarGz(downloadPath, gamePath);
             }
 
+            try
+            {
+                TryEnsureExecutableAtRoot(gamePath);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Warning: EnsureExecutableAtRoot failed: {ex.Message}");
+            }
+
             var versionFile = Path.Combine(gamePath, "version.txt");
             await File.WriteAllTextAsync(versionFile, version).ConfigureAwait(false);
 
@@ -839,6 +849,209 @@ namespace N64RecompLauncher.Models
             {
                 var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
                 CopyDirectory(dir, destSubDir);
+            }
+        }
+
+        static void CopyDirectoryContentsInto(string sourceDir, string destDir)
+        {
+            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(sourceDir, file);
+                var destFile = Path.Combine(destDir, relative);
+                var destParent = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(destParent))
+                    Directory.CreateDirectory(destParent);
+                File.Copy(file, destFile, true);
+            }
+        }
+
+        static bool HasTopLevelExecutable(string path)
+        {
+            if (!Directory.Exists(path))
+                return false;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return Directory.GetFiles(path, "*.exe", SearchOption.TopDirectoryOnly).Any();
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                if (Directory.GetDirectories(path, "*.app", SearchOption.TopDirectoryOnly).Any())
+                    return true;
+                return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
+                    .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
+            }
+            else
+            {
+                return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
+                    .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
+            }
+        }
+
+        static void TryEnsureExecutableAtRoot(string gamePath)
+        {
+            if (!Directory.Exists(gamePath))
+                return;
+
+            if (HasTopLevelExecutable(gamePath))
+                return;
+
+            string? candidateAppBundle = null;
+            string? candidateFile = null;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                candidateAppBundle = Directory.GetDirectories(gamePath, "*.app", SearchOption.AllDirectories).FirstOrDefault();
+            }
+
+            if (candidateAppBundle == null)
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    candidateFile = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories).FirstOrDefault();
+                }
+                else
+                {
+                    candidateFile = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories)
+                        .Where(f =>
+                        {
+                            var name = Path.GetFileName(f);
+                            if (string.IsNullOrEmpty(name)) return false;
+                            if (name.Contains("recomp", StringComparison.OrdinalIgnoreCase) ||
+                                name.Contains("recompiled", StringComparison.OrdinalIgnoreCase) ||
+                                name.Contains("drmario", StringComparison.OrdinalIgnoreCase) ||
+                                name.Contains("drmario64", StringComparison.OrdinalIgnoreCase))
+                                return true;
+                            if (!Path.HasExtension(name))
+                            {
+                                try
+                                {
+                                    return new FileInfo(f).Length > 1024;
+                                }
+                                catch { return false; }
+                            }
+                            return false;
+                        })
+                        .OrderByDescending(f => {
+                            try { return new FileInfo(f).Length; } catch { return 0L; }
+                        })
+                        .FirstOrDefault();
+                }
+            }
+
+            string? candidateDir = null;
+            if (!string.IsNullOrEmpty(candidateAppBundle))
+            {
+                candidateDir = Path.GetDirectoryName(candidateAppBundle);
+                if (candidateDir != null && !candidateDir.Equals(gamePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    var destAppPath = Path.Combine(gamePath, Path.GetFileName(candidateAppBundle));
+                    if (!Directory.Exists(destAppPath))
+                    {
+                        Directory.Move(candidateAppBundle, destAppPath);
+                    }
+                    else
+                    {
+                        CopyDirectoryContentsInto(candidateAppBundle, destAppPath);
+                        try
+                        {
+                            Directory.Delete(candidateAppBundle, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Warning deleting original .app bundle: {ex.Message}");
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(candidateFile))
+            {
+                candidateDir = Path.GetDirectoryName(candidateFile);
+            }
+
+            if (string.IsNullOrEmpty(candidateDir))
+            {
+                var childDirs = Directory.GetDirectories(gamePath, "*", SearchOption.TopDirectoryOnly);
+                if (childDirs.Length == 1)
+                {
+                    candidateDir = childDirs[0];
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            if (string.IsNullOrEmpty(candidateDir))
+                return;
+
+            if (Path.GetFullPath(candidateDir).TrimEnd(Path.DirectorySeparatorChar) == Path.GetFullPath(gamePath).TrimEnd(Path.DirectorySeparatorChar))
+                return;
+
+            try
+            {
+                CopyDirectoryContentsInto(candidateDir, gamePath);
+
+                if (HasTopLevelExecutable(gamePath))
+                {
+                    try
+                    {
+                        Directory.Delete(candidateDir, true);
+
+                        var parent = Path.GetDirectoryName(candidateDir);
+                        while (!string.IsNullOrEmpty(parent) &&
+                               !Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.GetFullPath(gamePath).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
+                            {
+                                var nextParent = Path.GetDirectoryName(parent);
+                                Directory.Delete(parent, false);
+                                parent = nextParent;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to delete original extracted folder '{candidateDir}': {ex.Message}");
+                    }
+                }
+                else
+                {
+                    TryDeleteDirectoryIfEmpty(candidateDir, stopAt: gamePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to move subfolder contents to game root: {ex.Message}");
+            }
+        }
+
+        static void TryDeleteDirectoryIfEmpty(string dir, string stopAt)
+        {
+            try
+            {
+                if (!Directory.Exists(dir))
+                    return;
+
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                {
+                    Directory.Delete(dir, false);
+                    var parent = Path.GetDirectoryName(dir);
+                    if (!string.IsNullOrEmpty(parent) && !Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.GetFullPath(stopAt).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                    {
+                        TryDeleteDirectoryIfEmpty(parent, stopAt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed while cleaning up directory '{dir}': {ex.Message}");
             }
         }
 
@@ -878,7 +1091,7 @@ namespace N64RecompLauncher.Models
                 throw;
             }
         }
-
+        
         static void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
         {
             using var reader = new BinaryReader(tarStream);
