@@ -123,6 +123,14 @@ namespace N64RecompLauncher.Services
                     FolderName = "DrMario64RecompPlus",
                     GameManager = this,
                 },
+                new() {
+                    Name = "Duke Nukem: Zero Hour Recomp",
+                    Repository = "sonicdcer/DNZHRecomp",
+                    Branch = "main",
+                    ImageRes = "512",
+                    FolderName = "DNZHRecomp",
+                    GameManager = this,
+                },
             };
         }
 
