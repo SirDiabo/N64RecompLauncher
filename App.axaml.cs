@@ -659,6 +659,9 @@ echo Updating version file...
 echo {latestRelease.tag_name} > ""{versionFilePath}""
 
 echo Update completed successfully!
+echo Deleting backup...
+rmdir /S /Q ""%backupDir%"" >nul 2>&1
+
 echo Restarting N64RecompLauncher...
 timeout /T 2 >nul
 start """" ""{applicationExecutable}""
@@ -701,36 +704,40 @@ del ""%~f0""
 echo ""N64RecompLauncher Updater - Version {latestRelease.tag_name}""
 echo
 
-echo ""Waiting for N64RecompLauncher to close...""
+echo ""Waiting for N64RecompLauncher to close..."":
 while pgrep -x ""{executableName}"" > /dev/null; do
     sleep 1
 done
 
-echo ""Creating backup...""
+echo ""Creating backup..."":
 appDir=""{currentAppDirectory}""
 backupDir=""{backupDir}""
 updateDir=""{tempUpdateFolder}""
 
 mkdir -p ""$backupDir""
 
-echo ""Backing up current version...""
+echo ""Backing up current version..."":
 if [ -d ""$appDir"" ]; then
     cp -r ""$appDir""/* ""$backupDir""/ 2>/dev/null || true
 fi
 
-echo ""Applying update...""
+echo ""Applying update..."":
 if cp -r ""$updateDir""/* ""$appDir""/ 2>/dev/null; then
     echo ""Update applied successfully""
 else
-    echo ""Update failed! Restoring backup...""
+    echo ""Update failed! Restoring backup..."":
     cp -r ""$backupDir""/* ""$appDir""/ 2>/dev/null || true
-    echo ""Backup restored. Update failed.""
+    echo ""Backup restored. Update failed."":
     read -p ""Press Enter to continue...""
     exit 1
 fi
 
-echo ""Updating version file...""
+echo ""Updating version file..."":
 echo ""{latestRelease.tag_name}"" > ""{versionFilePath}""
+
+echo ""Update completed successfully!""
+echo ""Deleting backup..."":
+rm -rf ""$backupDir"" 2>/dev/null || true
 
 if [ ""{RuntimeInformation.IsOSPlatform(OSPlatform.OSX).ToString().ToLower()}"" = ""true"" ]; then
     appBundle=$(find ""$appDir"" -maxdepth 1 -name ""*.app"" -type d | head -n 1)
@@ -745,8 +752,7 @@ else
     fi
 fi
 
-echo ""Update completed successfully!""
-echo ""Restarting N64RecompLauncher...""
+echo ""Restarting N64RecompLauncher..."":
 sleep 2
 
 if [ ""{RuntimeInformation.IsOSPlatform(OSPlatform.OSX).ToString().ToLower()}"" = ""true"" ]; then
@@ -765,7 +771,7 @@ else
     fi
 fi
 
-echo ""Cleaning up temporary files...""
+echo ""Cleaning up temporary files..."":
 rm -f ""{tempDownloadPath}"" 2>/dev/null || true
 rm -rf ""$updateDir"" 2>/dev/null || true
 
