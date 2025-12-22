@@ -68,22 +68,23 @@ namespace N64RecompLauncher
 
                 if (assetLoader != null)
                 {
-                    var memoryStream = new MemoryStream();
-                    assetLoader.CopyTo(memoryStream);
-                    memoryStream.Position = 0;
-                    assetLoader.Dispose();
-
-                    _bitmap = new SystemBitmap(memoryStream);
-
-                    if (System.Drawing.ImageAnimator.CanAnimate(_bitmap))
+                    using (var memoryStream = new MemoryStream())
                     {
-                        PrepareAnimation();
-                        StartAnimation();
-                    }
-                    else
-                    {
-                        var avaloniabitmap = ConvertToAvaloniaBitmap(_bitmap);
-                        Source = avaloniabitmap;
+                        assetLoader.CopyTo(memoryStream);
+                        memoryStream.Position = 0;
+
+                        _bitmap = new SystemBitmap(memoryStream);
+
+                        if (System.Drawing.ImageAnimator.CanAnimate(_bitmap))
+                        {
+                            PrepareAnimation();
+                            StartAnimation();
+                        }
+                        else
+                        {
+                            var avaloniaBitmap = ConvertToAvaloniaBitmap(_bitmap);
+                            Source = avaloniaBitmap;
+                        }
                     }
                 }
             }
