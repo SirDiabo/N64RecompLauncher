@@ -22,9 +22,10 @@
 		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
 		<PackageReference Include="System.Text.Json" Version="9.0.8" />
 		<PackageReference Include="System.Drawing.Common" Version="9.0.8" />
+		<PackageReference Include="Avalonia.Gif" Version="1.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<AvaloniaResource Include="Assets\**\*" />
+		<AvaloniaResource Include="Assets/**" />
 	</ItemGroup>
 </Project>
