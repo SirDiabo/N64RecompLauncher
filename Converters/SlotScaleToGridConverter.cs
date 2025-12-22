@@ -12,7 +12,7 @@ namespace N64RecompLauncher
         {
             if (value is double slotSize && parameter is string mode)
             {
-                bool showGrid = slotSize > 216;
+                bool showGrid = slotSize >= 200;
 
                 if (mode == "Grid")
                     return showGrid;

@@ -185,26 +185,8 @@ namespace N64RecompLauncher
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            if (isSettingsPanelOpen)
-            {
-                SettingsPanel.IsVisible = false;
-                var grid = this.FindControl<Grid>("MainGrid");
-                if (grid != null && grid.ColumnDefinitions.Count > 1)
-                {
-                    grid.ColumnDefinitions[1].Width = new GridLength(0);
-                }
-            }
-            else
-            {
-                SettingsPanel.IsVisible = true;
-                var grid = this.FindControl<Grid>("MainGrid");
-                if (grid != null && grid.ColumnDefinitions.Count > 1)
-                {
-                    grid.ColumnDefinitions[1].Width = new GridLength(300);
-                }
-            }
-
             isSettingsPanelOpen = !isSettingsPanelOpen;
+            SettingsPanel.IsVisible = isSettingsPanelOpen;
         }
 
         private void UpdateSettingsUI()

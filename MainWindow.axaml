@@ -1,11 +1,11 @@
-<Window x:Class="N64RecompLauncher.MainWindow"
+﻿<Window x:Class="N64RecompLauncher.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:N64RecompLauncher"
 		xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
         Title="N64Recomp Launcher"
         Height="720" Width="1280"
-        Background="#1e1e1e"
+        Background="#0e0e10"
         WindowStartupLocation="CenterScreen">
 
 	<Window.Resources>
@@ -16,10 +16,10 @@
 
 		<!-- list view -->
 		<DataTemplate x:Key="ListViewTemplate">
-			<Border Classes="gamecard" Height="{Binding ElementName=SlotSizeSlider, Path=Value}" Margin="0,0,50,15">
+			<Border Classes="gamecard" Height="{Binding ElementName=SlotSizeSlider, Path=Value}" Margin="0,0,0,12">
 				<Grid ClipToBounds="True">
 					<Panel ClipToBounds="True">
-						<Border CornerRadius="8" ClipToBounds="True">
+						<Border CornerRadius="12" ClipToBounds="True">
 							<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
 								ClipToBounds="True"
 								Height="{Binding ElementName=IconSizeSlider, Path=Value}"
@@ -30,34 +30,35 @@
 								Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
 						</Border>
 					</Panel>
-							<Grid Margin="20">
+					<Grid Margin="24">
 						<Grid.ColumnDefinitions>
 							<ColumnDefinition Width="*"/>
+							<ColumnDefinition Width="Auto"/>
 						</Grid.ColumnDefinitions>
 
 						<StackPanel Grid.Column="0" Margin="{Binding ElementName=TextMarginSlider, Path=Value, Converter={StaticResource ThicknessConverter}}" VerticalAlignment="Center">
 							<TextBlock Text="{Binding Name}"
-									   FontSize="20"
-									   FontWeight="SemiBold"
-									   Foreground="White">
+									   FontSize="22"
+									   FontWeight="Bold"
+									   Foreground="#FFFFFF">
 								<TextBlock.Effect>
 									<DropShadowDirectionEffect
 										Color="Black"
-										BlurRadius="10"
+										BlurRadius="12"
 										ShadowDepth="-2"
-										Opacity="1"/>
+										Opacity="0.9"/>
 								</TextBlock.Effect>
 							</TextBlock>
 							
 							<TextBlock Text="{Binding StatusText}"
-									   FontSize="14"
-									   Foreground="White"
-									   Margin="0,5,0,0"/>
-							<StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+									   FontSize="13"
+									   Foreground="#B8B8B8"
+									   Margin="0,6,0,0"/>
+							<StackPanel Orientation="Horizontal" Margin="0,4,0,0">
 								
 								<TextBlock Text="Latest: "
 										   FontSize="12"
-										   Foreground="White">
+										   Foreground="#8B8B8B">
 									<TextBlock.Effect>
 										<DropShadowDirectionEffect
 											Color="Black"
@@ -69,7 +70,7 @@
 								
 								<TextBlock Text="{Binding LatestVersion}"
 										   FontSize="12"
-										   Foreground="White">
+										   Foreground="#B8B8B8">
 									<TextBlock.Effect>
 										<DropShadowDirectionEffect
 											Color="Black"
@@ -84,21 +85,22 @@
 						<StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" >
 							<Button Classes="modern"
 									Content="{Binding ButtonText}"
-									FontSize="16"
+									FontSize="15"
 									HorizontalAlignment="Right"
 									VerticalAlignment="Center"
-									MinWidth="120"
+									MinWidth="140"
+									Height="44"
 									Margin="0,0,0,10"
 									IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 									Click="GameButton_Click"
 									Tag="{Binding}"/>
 
 							<Button Classes="options"
-									Content="Options"
+									Content="⋯"
 									HorizontalAlignment="Right"
-									FontSize="16"
-									Height="40"
-									MinWidth="120"
+									FontSize="20"
+									Height="44"
+									MinWidth="140"
 									IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 									Click="OptionsButton_Click"
 									Tag="{Binding}">
@@ -149,7 +151,7 @@
 						Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
 						VerticalAlignment="Top"
 						HorizontalAlignment="Center">
-						<Border CornerRadius="8" ClipToBounds="True">
+						<Border CornerRadius="12" ClipToBounds="True">
 							<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
 							ClipToBounds="True"
 							VerticalAlignment="Center"
@@ -158,7 +160,7 @@
 							Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
 						</Border>
 					</Panel>
-					<Grid Margin="10">
+					<Grid Margin="14">
 						<Grid.RowDefinitions>
 							<RowDefinition Height="*"/>
 							<RowDefinition Height="Auto"/>
@@ -166,25 +168,25 @@
 
 						<StackPanel Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center">
 							<TextBlock Text="{Binding Name}"
-									   FontSize="12"
-									   FontWeight="SemiBold"
-									   Foreground="White"
+									   FontSize="13"
+									   FontWeight="Bold"
+									   Foreground="#FFFFFF"
 									   TextAlignment="Center"
 									   TextWrapping="Wrap">
 								<TextBlock.Effect>
 									<DropShadowDirectionEffect
 										Color="Black"
-										BlurRadius="10"
+										BlurRadius="12"
 										ShadowDepth="-2"
-										Opacity="1"/>
+										Opacity="0.9"/>
 								</TextBlock.Effect>
 							</TextBlock>
 
 							<TextBlock Text="{Binding StatusText}"
 									   FontSize="11"
-									   Foreground="White"
+									   Foreground="#B8B8B8"
 									   TextAlignment="Center"
-									   Margin="0,2,0,0">
+									   Margin="0,4,0,0">
 								<TextBlock.Effect>
 									<DropShadowDirectionEffect
 										Color="Black"
@@ -194,10 +196,10 @@
 								</TextBlock.Effect>
 							</TextBlock>
 
-							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,5">
+							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,3,0,8">
 								<TextBlock Text="Latest: "
-										   FontSize="11"
-										   Foreground="White">
+										   FontSize="10"
+										   Foreground="#8B8B8B">
 									<TextBlock.Effect>
 										<DropShadowDirectionEffect
 											Color="Black"
@@ -208,8 +210,8 @@
 								</TextBlock>
 
 								<TextBlock Text="{Binding LatestVersion}"
-										   FontSize="11"
-										   Foreground="White">
+										   FontSize="10"
+										   Foreground="#B8B8B8">
 									<TextBlock.Effect>
 										<DropShadowDirectionEffect
 											Color="Black"
@@ -224,22 +226,22 @@
 								<Button Classes="modern"
 										Content="{Binding ButtonText}"
 										FontSize="12"
-										Height="40"
+										Height="38"
 										Width="100"
-										Margin="0,0,5,0"
+										Margin="0,0,6,0"
 										IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 										Click="GameButton_Click"
 										Tag="{Binding}"/>
 
 								<Button Classes="options"
-										Padding="4"
-										Width="40"
-										Height="40"
-										FontSize="12"
+										Padding="0"
+										Width="38"
+										Height="38"
+										FontSize="18"
 										IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 										Click="OptionsButton_Click"
 										Tag="{Binding}">
-									<TextBlock Text="..." Foreground="White" TextAlignment="Center"/>
+									<TextBlock Text="⋯" Foreground="White" TextAlignment="Center" VerticalAlignment="Center"/>
 									<Button.ContextMenu>
 
 										<ContextMenu>
@@ -284,12 +286,12 @@
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Padding" Value="20,10"/>
 			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="FontWeight" Value="Bold"/>
 			<Setter Property="Cursor" Value="Hand"/>
 			<Setter Property="Template">
 				<ControlTemplate TargetType="Button">
 					<Border Background="{TemplateBinding Background}"
-							CornerRadius="6"
+							CornerRadius="4"
 							Padding="{TemplateBinding Padding}">
 						<ContentPresenter
 							Name="PART_ContentPresenter"
@@ -306,21 +308,22 @@
 		</Style>
 
 		<Style Selector="Button.modern:pointerover">
-			<Setter Property="Opacity" Value="0.8"/>
+			<Setter Property="Opacity" Value="0.85"/>
 			<Setter Property="Foreground" Value="White"/>
 		</Style>
 
 		<Style Selector="Button.modern:pressed">
-			<Setter Property="Opacity" Value="0.6"/>
+			<Setter Property="Opacity" Value="0.7"/>
 			<Setter Property="Foreground" Value="White"/>
 		</Style>
 
 		<Style Selector="Button.options">
-			<Setter Property="Background" Value="#3a3a3a"/>
+			<Setter Property="Background" Value="#1a1a1c"/>
 			<Setter Property="Foreground" Value="White"/>
 			<Setter Property="HorizontalContentAlignment" Value="Center"/>
 			<Setter Property="VerticalContentAlignment" Value="Center"/>
-			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="BorderBrush" Value="#2d2d30"/>
 			<Setter Property="Padding" Value="10"/>
 			<Setter Property="FontSize" Value="14"/>
 			<Setter Property="FontWeight" Value="SemiBold"/>
@@ -328,7 +331,9 @@
 			<Setter Property="Template">
 				<ControlTemplate TargetType="Button">
 					<Border Background="{TemplateBinding Background}"
-							CornerRadius="6"
+							BorderBrush="{TemplateBinding BorderBrush}"
+							BorderThickness="{TemplateBinding BorderThickness}"
+							CornerRadius="4"
 							Padding="{TemplateBinding Padding}">
 						<ContentPresenter
 							Name="PART_ContentPresenter"
@@ -345,422 +350,503 @@
 		</Style>
 
 		<Style Selector="Button.options:pointerover">
-			<Setter Property="Background" Value="#4a4a4a"/>
+			<Setter Property="Background" Value="#252527"/>
+			<Setter Property="BorderBrush" Value="#3d3d40"/>
 			<Setter Property="Foreground" Value="White"/>
 		</Style>
 
 		<Style Selector="Button.options:pressed">
-			<Setter Property="Background" Value="#2a2a2a"/>
+			<Setter Property="Background" Value="#1a1a1c"/>
+			<Setter Property="BorderBrush" Value="#2d2d30"/>
 			<Setter Property="Foreground" Value="White"/>
 		</Style>
 
 		<Style Selector="Button.settings">
 			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="BorderThickness" Value="8"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="FontSize" Value="16"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="Foreground" Value="#8B8B8B"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="12,10"/>
+			<Setter Property="HorizontalContentAlignment" Value="Left"/>
+			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="FontWeight" Value="Medium"/>
 			<Setter Property="Cursor" Value="Hand"/>
-			<Setter Property="Template">
-				<ControlTemplate TargetType="Button">
-					<ContentPresenter Name="PART_ContentPresenter"
-									  Background="{TemplateBinding Background}"
-									  BorderBrush="{TemplateBinding BorderBrush}"
-									  BorderThickness="{TemplateBinding BorderThickness}"
-									  CornerRadius="8"
-									  ContentTemplate="{TemplateBinding ContentTemplate}"
-									  Content="{TemplateBinding Content}"
-									  Padding="{TemplateBinding Padding}"
-									  TextElement.Foreground="{TemplateBinding Foreground}"
-									  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-									  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-				</ControlTemplate>
-			</Setter>
 		</Style>
 
 		<Style Selector="Button.settings:pointerover">
-			<Setter Property="Opacity" Value="0.8"/>
-			<Setter Property="Foreground" Value="White"/>
+			<Setter Property="Background" Value="#1a1a1c"/>
+			<Setter Property="Foreground" Value="#FFFFFF"/>
 		</Style>
 
 		<Style Selector="Button.settings:pressed">
-			<Setter Property="Opacity" Value="0.6"/>
-			<Setter Property="Foreground" Value="White"/>
+			<Setter Property="Background" Value="#252527"/>
+			<Setter Property="Foreground" Value="#FFFFFF"/>
+		</Style>
+		
+		<Style Selector="Button.iconbutton">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Cursor" Value="Hand"/>
+		</Style>
+
+		<Style Selector="Button.iconbutton:pointerover">
+			<Setter Property="Opacity" Value="0.7"/>
+		</Style>
+
+		<Style Selector="Button.iconbutton:pressed">
+			<Setter Property="Opacity" Value="0.5"/>
 		</Style>
 
 		<Style Selector="Border.gamecard">
-			<Setter Property="Background" Value="#2d2d30"/>
-			<Setter Property="CornerRadius" Value="8"/>
-			<Setter Property="Margin" Value="0,0,0,15"/>
+			<Setter Property="Background" Value="#18181b"/>
+			<Setter Property="CornerRadius" Value="12"/>
+			<Setter Property="Margin" Value="0,0,0,12"/>
 		</Style>
 
 		<Style Selector="Border.gamecardgrid">
-			<Setter Property="Background" Value="#2d2d30"/>
-			<Setter Property="CornerRadius" Value="8"/>
-			<Setter Property="Margin" Value="8"/>
+			<Setter Property="Background" Value="#18181b"/>
+			<Setter Property="CornerRadius" Value="12"/>
+			<Setter Property="Margin" Value="10"/>
 		</Style>
 
 		<Style Selector="ContextMenu">
-			<Setter Property="Background" Value="#2d2d30"/>
-			<Setter Property="BorderBrush" Value="#4a4a4a"/>
+			<Setter Property="Background" Value="#1a1a1c"/>
+			<Setter Property="BorderBrush" Value="#2d2d30"/>
 			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="Padding" Value="2"/>
+			<Setter Property="Padding" Value="4"/>
+			<Setter Property="CornerRadius" Value="8"/>
 		</Style>
 
 		<Style Selector="MenuItem">
 			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="Padding" Value="8"/>
+			<Setter Property="Foreground" Value="#E0E0E0"/>
+			<Setter Property="Padding" Value="10,8"/>
+			<Setter Property="CornerRadius" Value="4"/>
 		</Style>
 
 		<Style Selector="MenuItem:selected">
-			<Setter Property="Background" Value="#4a4a4a"/>
+			<Setter Property="Background" Value="#252527"/>
 		</Style>
 	</Window.Styles>
 
-	<Grid Margin="30" x:Name="MainGrid">
+	<Grid x:Name="MainGrid">
 		<Grid.ColumnDefinitions>
-			<ColumnDefinition Width="80"/>
-			<ColumnDefinition Width="0"/>
+			<ColumnDefinition Width="240"/>
 			<ColumnDefinition Width="*"/>
 		</Grid.ColumnDefinitions>
-		<Grid.RowDefinitions>
-			<RowDefinition Height="Auto"/>
-			<RowDefinition Height="*"/>
-		</Grid.RowDefinitions>
 
-		<local:AnimatedGifImage GifSource="/Assets/icon.gif"
-                                Opacity="0.2"
-                                Width="512"
-                                Height="512"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Bottom"
-                                Grid.RowSpan="2"
-                                Grid.ColumnSpan="3"
-                                ZIndex="-1"/>
+		<!-- Left Sidebar Navigation -->
+		<Border Grid.Column="0" Background="#14141a" BorderBrush="#1a1a1c" BorderThickness="0,0,1,0">
+			<Grid Margin="0">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>
+				</Grid.RowDefinitions>
 
-		<StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,20">
-			<TextBlock Text="N64Recomp Launcher"
-                       FontSize="32"
-                       FontWeight="Bold"
-                       Foreground="White"
-                       HorizontalAlignment="Center"/>
-		</StackPanel>
-
-		<StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0" VerticalAlignment="Top">
-			<Button Classes="settings" Margin="5"
-                    Background="Transparent"
-                    Width="60"
-                    Height="60"
-                    Click="SettingsButton_Click"
-                    ToolTip.Tip="Settings">
-					<Image Width="60" Height="60" Margin="0"
-						Source="avares://N64RecompLauncher/Assets/Settings.png"/>
-			</Button>
-		</StackPanel>
-
-		<StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,0" VerticalAlignment="Bottom">
-			<Button Classes="settings" Margin="5"
-					Background="Transparent"
-					Width="60"
-					Height="60"
-					Click="GithubButton_Click"
-					ToolTip.Tip="Open N64RecompLauncher Github Page">
-					<Image Width="60" Height="60" Margin="0"
-						Source="avares://N64RecompLauncher/Assets/Github.png"/>
-			</Button>
-			<Button Classes="settings" Margin="5"
-					Background="Transparent"
-					Width="60"
-					Height="60"
-					Click="DiscordButton_Click"
-					ToolTip.Tip="Join N64 Recomp Discord Server">
-					<Image Width="60" Height="60" Margin="0"
-						Source="avares://N64RecompLauncher/Assets/Discord.png"/>
-			</Button>
-		</StackPanel>
-
-		<Border x:Name="SettingsPanel"
-            Grid.Row="1"
-            Grid.Column="1"
-			Width="320"
-            HorizontalAlignment="Left"
-            Background="#2a2a2a"
-            CornerRadius="8"
-            Margin="0,0,50,0"
-            IsVisible="False">
-			<ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-				<StackPanel Margin="20" x:Name="SettingsContent">
-					
-					<TextBlock Text="Settings"
-                               FontSize="32"
+				<!-- Logo/Header -->
+				<StackPanel Grid.Row="0" Margin="20,30,20,30">
+					<local:AnimatedGifImage GifSource="/Assets/icon.gif"
+											Width="80"
+											Height="80"
+											HorizontalAlignment="Center"
+											Margin="0,0,0,15"/>
+					<TextBlock Text="N64RECOMP"
+							   FontSize="18"
+							   FontWeight="Bold"
+							   Foreground="#FFFFFF"
 							   HorizontalAlignment="Center"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               Margin="0,0,0,0"/>
+							   LetterSpacing="2"/>
+					<TextBlock Text="LAUNCHER"
+							   FontSize="11"
+							   FontWeight="Medium"
+							   Foreground="#6B6B6B"
+							   HorizontalAlignment="Center"
+							   LetterSpacing="3"
+							   Margin="0,2,0,0"/>
+				</StackPanel>
 
-					<TextBlock Text="General"
-                               FontSize="24"
-                               FontWeight="SemiBold"
-                               Foreground="#cccccc"
-                               Margin="0,0,0,10"/>
+				<!-- Navigation Buttons -->
+				<StackPanel Grid.Row="1" Margin="12,0" VerticalAlignment="Top">
+					<Button Classes="settings"
+							Margin="0,0,0,4"
+							Width="216"
+							HorizontalAlignment="Left"
+							Click="SettingsButton_Click">
+						<StackPanel Orientation="Horizontal">
+							<Image Width="32" Height="32" 
+								   Source="avares://N64RecompLauncher/Assets/Settings.png"
+								   Margin="0,0,12,0"/>
+							<TextBlock Text="Settings" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
+				</StackPanel>
 
-					<CheckBox x:Name="PortableCheckBox"
-                               Content="Portable"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-                               Checked="PortableCheckBox_Checked"
-                               Unchecked="PortableCheckBox_Unchecked" />
-
-					<TextBlock Text="Store data in the game directory."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,20"/>
-
+				<!-- Quick Actions -->
+				<StackPanel Grid.Row="2" Margin="12,0,12,20">
+					<TextBlock Text="QUICK ACTIONS"
+							   FontSize="10"
+							   FontWeight="Bold"
+							   Foreground="#4a4a4a"
+							   LetterSpacing="1"
+							   Margin="12,0,0,12"/>
+					
 					<Button x:Name="UnhideAllGamesButton"
-							Content="Show All Games"
-							Classes="options"
-							Margin="0,-5,0,5"
-							Click="UnhideAllGamesButton_Click"/>
+							Classes="settings"
+							Width="216"
+							HorizontalAlignment="Left"
+							Margin="0,0,0,4"
+							Click="UnhideAllGamesButton_Click">
+						<TextBlock Text="Show All Games"/>
+					</Button>
 
 					<Button x:Name="HideNonInstalledButton"
-							Content="Hide Non-Installed Games"
-							Classes="options"
-							Margin="0,0,0,20"
-							Click="HideNonInstalledButton_Click"/>
-
-					<TextBlock Text="{Binding PlatformString}"
-                               FontSize="14"
-                               Foreground="White"
-                               Margin="0,0,0,0"/>
-					
-					<Button Classes="options"
-							Content="Target Platform"
-							Margin="0,0,0,20"
-							Click="OptionsButton_Click"
-							Tag="{Binding}">
-							<Button.ContextMenu>
-								<ContextMenu>
-									<MenuItem Header="Automatic"
-											  Click="PlatformAuto_Click"/>
-									<MenuItem Header="Windows"
-											  Click="PlatformWindows_Click"/>
-									<MenuItem Header="MacOS"											  
-											  Click="PlatformMacOS_Click"/>
-									<MenuItem Header="Linux X64"
-											  Click="PlatformLinuxX64_Click"/>
-									<MenuItem Header="Linux ARM64"
-											  Click="PlatformLinuxARM64_Click"/>
-									<MenuItem Header="Linux Flatpak"
-											  Click="PlatformFlatpak_Click"/>								
-								</ContextMenu>
-							</Button.ContextMenu>
+							Classes="settings"
+							Width="216"
+							HorizontalAlignment="Left"
+							Margin="0,0,0,4"
+							Click="HideNonInstalledButton_Click">
+						<TextBlock Text="Hide Non-Installed"/>
 					</Button>
 
 					<Button x:Name="CheckforUpdates"
-							Content="Check for Updates"
-							Classes="options"
-							Margin="0,0,0,20"
-							Click="CheckforUpdates_Click"/>
-					
-					<TextBlock Text="UI"
-                               FontSize="24"
-                               FontWeight="SemiBold"
-                               Foreground="#cccccc"
-                               Margin="0,0,0,10"/>
-
-					<CheckBox x:Name="PortraitCheckBox"
-                               Content="Portrait Grid Slot"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-                               Checked="PortraitCheckBox_Checked"
-                               Unchecked="PortraitCheckBox_Unchecked" />
-
-					<TextBlock Text="Whether to display slots in Portrait Ratio."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,15"/>
-					
-					<TextBlock Text="Slot Scale"
-                               FontSize="12"
-							   Margin="0,0,0,0"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-					
-					<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
-                               FontSize="12"
-							   Margin="0,0,0,0"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-					
-					<Slider x:Name="SlotSizeSlider"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-							   Padding="0,-15,0,-15"
-                               Minimum="120"
-                               Maximum="400"
-                               Value="120"
-                               TickFrequency="16"
-                               IsSnapToTickEnabled="True"
-                               ValueChanged="SlotSizeSlider_ValueChanged" />
-					
-					<TextBlock Text="The scale of each game slot."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,20"/>
-
-					<CheckBox x:Name="IconFillCheckBox"
-                               Content="Image Fill"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-                               Checked="IconFillCheckBox_Checked"
-                               Unchecked="IconFillCheckBox_Unchecked" />
-					
-					<TextBlock Text="Images fill the entire slots."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,20"/>
-					
-					<TextBlock Text="Image Opacity"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-					
-					<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-
-					<Slider x:Name="IconOpacitySlider"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-							   Padding="0,-15,0,-15"
-                               Minimum="0.0"
-                               Maximum="1.0"
-                               Value="0.2"
-                               TickFrequency="0.1"
-                               IsSnapToTickEnabled="True"
-                               ValueChanged="IconOpacitySlider_ValueChanged" />
-
-					<TextBlock Text="Opacity of the game images."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,20"/>
-
-					<TextBlock Text="Image Size"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-					
-					<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-
-					<Slider x:Name="IconSizeSlider"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-							   Padding="0,-15,0,-15"
-                               Minimum="64"
-                               Maximum="512"
-                               Value="256"
-                               TickFrequency="8"
-                               IsSnapToTickEnabled="True"
-                               ValueChanged="IconSizeSlider_ValueChanged" />
-
-					<TextBlock Text="Size of the game images."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,20"/>
-
-					<TextBlock Text="Image Margin"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-					
-					<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-
-					<Slider x:Name="IconMarginSlider"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-							   Padding="0,-15,0,-15"
-                               Minimum="0"
-                               Maximum="512"
-                               Value="0"
-                               TickFrequency="8"
-                               IsSnapToTickEnabled="True"
-                               ValueChanged="IconMarginSlider_ValueChanged" />
-
-					<TextBlock Text="The image's left margin."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,20"/>
-
-					<TextBlock Text="Game Text Margin"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-					
-					<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="White"/>
-
-					<Slider x:Name="TextMarginSlider"
-                               Foreground="White"
-                               Margin="0,0,0,0"
-							   Padding="0,-15,0,-15"
-                               Minimum="0"
-                               Maximum="256"
-                               Value="0"
-                               TickFrequency="8"
-                               IsSnapToTickEnabled="True"
-                               ValueChanged="TextMarginSlider_ValueChanged" />
-
-					<TextBlock Text="Left spacing of game slot texts."
-                               FontSize="12"
-                               Foreground="#999999"
-                               Margin="0,0,0,20"/>
-
+							Classes="settings"
+							Width="216"
+							HorizontalAlignment="Left"
+							Click="CheckforUpdates_Click">
+						<TextBlock Text="Check for Updates"/>
+					</Button>
 				</StackPanel>
-			</ScrollViewer>
+
+				<!-- Footer Links -->
+				<StackPanel Grid.Row="3" Margin="12,0,12,20">
+					<Border Height="1" Background="#1a1a1c" Margin="0,0,0,15"/>
+					<Button Classes="iconbutton"
+							Width="216"
+							Height="44"
+							HorizontalAlignment="Left"
+							Margin="0,0,0,8"
+							Click="GithubButton_Click">
+						<StackPanel Orientation="Horizontal" Margin="12,0">
+							<Image Width="32" Height="32" 
+								   Source="avares://N64RecompLauncher/Assets/Github.png"
+								   Margin="0,0,12,0"/>
+							<TextBlock Text="GitHub" 
+									   Foreground="#8B8B8B"
+									   FontSize="14"
+									   FontWeight="Medium"
+									   VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
+					<Button Classes="iconbutton"
+							Width="216"
+							Height="44"
+							HorizontalAlignment="Left"
+							Click="DiscordButton_Click">
+						<StackPanel Orientation="Horizontal" Margin="12,0">
+							<Image Width="32" Height="32" 
+								   Source="avares://N64RecompLauncher/Assets/Discord.png"
+								   Margin="0,0,12,0"/>
+							<TextBlock Text="Discord" 
+									   Foreground="#8B8B8B"
+									   FontSize="14"
+									   FontWeight="Medium"
+									   VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
+				</StackPanel>
+			</Grid>
 		</Border>
 
-		<ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto" x:Name="GameScrollViewer">
-			<Grid>
-				<ItemsControl ItemsSource="{Binding Games}" x:Name="ListViewControl"
-                              IsVisible="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=List}">
-					<ItemsControl.ItemTemplate>
-						<StaticResource ResourceKey="ListViewTemplate"/>
-					</ItemsControl.ItemTemplate>
-				</ItemsControl>
+		<!-- Main Content Area -->
+		<Grid Grid.Column="1">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+			</Grid.RowDefinitions>
 
-				<ItemsControl ItemsSource="{Binding Games}" x:Name="GridViewControl"
-                              IsVisible="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=Grid}">
-					<ItemsControl.ItemsPanel>
-						<ItemsPanelTemplate>
-							<WrapPanel Orientation="Horizontal" />
-						</ItemsPanelTemplate>
-					</ItemsControl.ItemsPanel>
-					<ItemsControl.ItemTemplate>
-						<StaticResource ResourceKey="GridViewTemplate"/>
-					</ItemsControl.ItemTemplate>
-				</ItemsControl>
+			<!-- Top Bar -->
+			<Border Grid.Row="0" 
+					Background="#0e0e10" 
+					BorderBrush="#1a1a1c" 
+					BorderThickness="0,0,0,1" 
+					Padding="30,20"
+					ZIndex="1">
+				<Grid VerticalAlignment="Top">
+					<TextBlock Text="Library"
+							   FontSize="28"
+							   FontWeight="Bold"
+							   Foreground="#FFFFFF"
+							   VerticalAlignment="Center"/>
+					<TextBlock Text="{Binding currentVersionString}"
+							   VerticalAlignment="Center"
+							   HorizontalAlignment="Right"
+							   Foreground="#4a4a4a"
+							   FontSize="12"/>
+				</Grid>
+			</Border>
+
+			<!-- Games Content with Settings Panel Overlay -->
+			<Grid Grid.Row="1">
+				<!-- Main Game List -->
+				<ScrollViewer VerticalScrollBarVisibility="Auto" x:Name="GameScrollViewer" Margin="30,20,30,30">
+					<Grid>
+						<ItemsControl ItemsSource="{Binding Games}" x:Name="ListViewControl"
+									  IsVisible="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=List}">
+							<ItemsControl.ItemTemplate>
+								<StaticResource ResourceKey="ListViewTemplate"/>
+							</ItemsControl.ItemTemplate>
+						</ItemsControl>
+
+						<ItemsControl ItemsSource="{Binding Games}" x:Name="GridViewControl"
+									  IsVisible="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=Grid}">
+							<ItemsControl.ItemsPanel>
+								<ItemsPanelTemplate>
+									<WrapPanel Orientation="Horizontal" />
+								</ItemsPanelTemplate>
+							</ItemsControl.ItemsPanel>
+							<ItemsControl.ItemTemplate>
+								<StaticResource ResourceKey="GridViewTemplate"/>
+							</ItemsControl.ItemTemplate>
+						</ItemsControl>
+					</Grid>
+				</ScrollViewer>
+
+				<!-- Settings Panel Overlay -->
+				<Border x:Name="SettingsPanel"
+						HorizontalAlignment="Right"
+						VerticalAlignment="Stretch"
+						Width="400"
+						Background="#14141a"
+						BorderBrush="#1a1a1c"
+						BorderThickness="1,0,0,0"
+						IsVisible="False"
+						ZIndex="10">
+					<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+						<StackPanel Margin="30,30,30,30" x:Name="SettingsContent">
+							
+							<TextBlock Text="Settings"
+									   FontSize="28"
+									   FontWeight="Bold"
+									   Foreground="#FFFFFF"
+									   Margin="0,0,0,30"/>
+
+							<!-- General Section -->
+							<TextBlock Text="GENERAL"
+									   FontSize="11"
+									   FontWeight="Bold"
+									   Foreground="#4a4a4a"
+									   LetterSpacing="1"
+									   Margin="0,0,0,15"/>
+
+							<CheckBox x:Name="PortableCheckBox"
+									   Content="Portable Mode"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"
+									   Checked="PortableCheckBox_Checked"
+									   Unchecked="PortableCheckBox_Unchecked" />
+
+							<TextBlock Text="Store data in the game directory"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,25"/>
+
+							<TextBlock Text="Target Platform"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+
+							<TextBlock Text="{Binding PlatformString}"
+									   FontSize="12"
+									   Foreground="#B8B8B8"
+									   Margin="0,0,0,8"/>
+							
+							<Button Classes="options"
+									Content="Change Platform"
+									HorizontalAlignment="Stretch"
+									Margin="0,0,0,30"
+									Click="OptionsButton_Click"
+									Tag="{Binding}">
+									<Button.ContextMenu>
+										<ContextMenu>
+											<MenuItem Header="Automatic" Click="PlatformAuto_Click"/>
+											<MenuItem Header="Windows" Click="PlatformWindows_Click"/>
+											<MenuItem Header="MacOS" Click="PlatformMacOS_Click"/>
+											<MenuItem Header="Linux X64" Click="PlatformLinuxX64_Click"/>
+											<MenuItem Header="Linux ARM64" Click="PlatformLinuxARM64_Click"/>
+											<MenuItem Header="Linux Flatpak" Click="PlatformFlatpak_Click"/>								
+										</ContextMenu>
+									</Button.ContextMenu>
+							</Button>
+
+							<!-- UI Customization Section -->
+							<TextBlock Text="UI CUSTOMIZATION"
+									   FontSize="11"
+									   FontWeight="Bold"
+									   Foreground="#4a4a4a"
+									   LetterSpacing="1"
+									   Margin="0,0,0,15"/>
+
+							<CheckBox x:Name="PortraitCheckBox"
+									   Content="Portrait Grid Slots"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"
+									   Checked="PortraitCheckBox_Checked"
+									   Unchecked="PortraitCheckBox_Unchecked" />
+
+							<TextBlock Text="Display grid items in portrait aspect ratio"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,20"/>
+							
+							<TextBlock Text="Slot Scale"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+							
+							<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
+									   FontSize="12"
+									   Foreground="#B8B8B8"
+									   Margin="0,0,0,8"/>
+							
+							<Slider x:Name="SlotSizeSlider"
+									   Foreground="#5865F2"
+									   Margin="0,0,0,8"
+									   Minimum="120"
+									   Maximum="400"
+									   Value="120"
+									   TickFrequency="4"
+									   IsSnapToTickEnabled="True"
+									   ValueChanged="SlotSizeSlider_ValueChanged" />
+							
+							<TextBlock Text="Adjust the size of game cards"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,20"/>
+
+							<CheckBox x:Name="IconFillCheckBox"
+									   Content="Fill Images"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"
+									   Checked="IconFillCheckBox_Checked"
+									   Unchecked="IconFillCheckBox_Unchecked" />
+							
+							<TextBlock Text="Stretch images to fill entire card slots"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,20"/>
+							
+							<TextBlock Text="Image Opacity"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+							
+							<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
+									   FontSize="12"
+									   Foreground="#B8B8B8"
+									   Margin="0,0,0,8"/>
+
+							<Slider x:Name="IconOpacitySlider"
+									   Foreground="#5865F2"
+									   Margin="0,0,0,8"
+									   Minimum="0.0"
+									   Maximum="1.0"
+									   Value="0.2"
+									   TickFrequency="0.1"
+									   IsSnapToTickEnabled="True"
+									   ValueChanged="IconOpacitySlider_ValueChanged" />
+
+							<TextBlock Text="Control transparency of game images"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,20"/>
+
+							<TextBlock Text="Image Size"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+							
+							<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
+									   FontSize="12"
+									   Foreground="#B8B8B8"
+									   Margin="0,0,0,8"/>
+
+							<Slider x:Name="IconSizeSlider"
+									   Foreground="#5865F2"
+									   Margin="0,0,0,8"
+									   Minimum="64"
+									   Maximum="512"
+									   Value="256"
+									   TickFrequency="4"
+									   IsSnapToTickEnabled="True"
+									   ValueChanged="IconSizeSlider_ValueChanged" />
+
+							<TextBlock Text="Adjust game image dimensions"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,20"/>
+
+							<TextBlock Text="Image Margin"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+							
+							<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
+									   FontSize="12"
+									   Foreground="#B8B8B8"
+									   Margin="0,0,0,8"/>
+
+							<Slider x:Name="IconMarginSlider"
+									   Foreground="#5865F2"
+									   Margin="0,0,0,8"
+									   Minimum="0"
+									   Maximum="512"
+									   Value="0"
+									   TickFrequency="8"
+									   IsSnapToTickEnabled="True"
+									   ValueChanged="IconMarginSlider_ValueChanged" />
+
+							<TextBlock Text="Set left padding for images"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,20"/>
+
+							<TextBlock Text="Text Margin"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+							
+							<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
+									   FontSize="12"
+									   Foreground="#B8B8B8"
+									   Margin="0,0,0,8"/>
+
+							<Slider x:Name="TextMarginSlider"
+									   Foreground="#5865F2"
+									   Margin="0,0,0,8"
+									   Minimum="0"
+									   Maximum="256"
+									   Value="0"
+									   TickFrequency="8"
+									   IsSnapToTickEnabled="True"
+									   ValueChanged="TextMarginSlider_ValueChanged" />
+
+							<TextBlock Text="Adjust left spacing of text labels"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,30"/>
+
+						</StackPanel>
+					</ScrollViewer>
+				</Border>
 			</Grid>
-		</ScrollViewer>
-
-		<TextBlock Text="{Binding currentVersionString}"
-			Grid.Row="1"
-			Grid.Column="2"
-			VerticalAlignment="Bottom"
-			HorizontalAlignment="Left"
-			Margin="0,0,0,0"
-			Foreground="#808080"
-			FontSize="12" />
+		</Grid>
 	</Grid>
 </Window>
