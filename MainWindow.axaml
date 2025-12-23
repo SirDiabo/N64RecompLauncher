@@ -53,9 +53,17 @@
 							<TextBlock Text="{Binding StatusText}"
 									   FontSize="13"
 									   Foreground="#B8B8B8"
-									   Margin="0,6,0,0"/>
-							<StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-								
+									   Margin="0,6,0,0">
+								<TextBlock.Effect>
+									<DropShadowDirectionEffect
+										Color="Black"
+										BlurRadius="12"
+										ShadowDepth="-2"
+										Opacity="1"/>
+								</TextBlock.Effect>
+							</TextBlock>
+							
+							<StackPanel Orientation="Horizontal">
 								<TextBlock Text="Latest: "
 										   FontSize="12"
 										   Foreground="#8B8B8B">
@@ -82,30 +90,29 @@
 							</StackPanel>
 						</StackPanel>
 
-						<StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" >
+						<!-- Gamecard: Options -->
+						<StackPanel Grid.Column="1" 
+									Orientation="Horizontal" 
+									VerticalAlignment="Center"
+									Spacing="12">
 							<Button Classes="modern"
 									Content="{Binding ButtonText}"
 									FontSize="15"
-									HorizontalAlignment="Right"
-									VerticalAlignment="Center"
-									MinWidth="140"
-									Height="44"
-									Margin="0,0,0,10"
+									MinWidth="160"
+									Height="48"
 									IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 									Click="GameButton_Click"
 									Tag="{Binding}"/>
 
-							<Button Classes="options"
+							<Button Classes="options options-listview"
 									Content="⋯"
-									HorizontalAlignment="Right"
 									FontSize="20"
-									Height="44"
-									MinWidth="140"
+									Height="48"
+									Width="48"
 									IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 									Click="OptionsButton_Click"
 									Tag="{Binding}">
 								<Button.ContextMenu>
-									
 									<ContextMenu>
 										<MenuItem Header="Open GitHub Page"
 												  Click="OpenGitHubPage_Click"
@@ -139,141 +146,119 @@
 
 		<!-- grid view -->
 		<DataTemplate x:Key="GridViewTemplate">
-			<Border Classes="gamecardgrid" Height="{Binding ElementName=SlotSizeSlider, Path=Value}">
-				<Border.Width>
-					<MultiBinding Converter="{StaticResource GridWidthMultiConverter}">
-						<Binding ElementName="SlotSizeSlider" Path="Value"/>
-						<Binding ElementName="PortraitCheckBox" Path="IsChecked"/>
-					</MultiBinding>
-				</Border.Width>
-				<Grid ClipToBounds="True">
-					<Panel ClipToBounds="True"
-						Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
-						VerticalAlignment="Top"
-						HorizontalAlignment="Center">
-						<Border CornerRadius="12" ClipToBounds="True">
-							<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
-							ClipToBounds="True"
-							VerticalAlignment="Center"
-							Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
-							Height="{Binding ElementName=IconSizeSlider, Path=Value}"
-							Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
-						</Border>
-					</Panel>
-					<Grid Margin="14">
-						<Grid.RowDefinitions>
-							<RowDefinition Height="*"/>
-							<RowDefinition Height="Auto"/>
-						</Grid.RowDefinitions>
-
-						<StackPanel Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center">
-							<TextBlock Text="{Binding Name}"
-									   FontSize="13"
-									   FontWeight="Bold"
-									   Foreground="#FFFFFF"
-									   TextAlignment="Center"
-									   TextWrapping="Wrap">
-								<TextBlock.Effect>
-									<DropShadowDirectionEffect
-										Color="Black"
-										BlurRadius="12"
-										ShadowDepth="-2"
-										Opacity="0.9"/>
-								</TextBlock.Effect>
-							</TextBlock>
-
-							<TextBlock Text="{Binding StatusText}"
-									   FontSize="11"
-									   Foreground="#B8B8B8"
-									   TextAlignment="Center"
-									   Margin="0,4,0,0">
-								<TextBlock.Effect>
-									<DropShadowDirectionEffect
-										Color="Black"
-										BlurRadius="10"
-										ShadowDepth="-2"
-										Opacity="1"/>
-								</TextBlock.Effect>
-							</TextBlock>
-
-							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,3,0,8">
-								<TextBlock Text="Latest: "
-										   FontSize="10"
-										   Foreground="#8B8B8B">
-									<TextBlock.Effect>
-										<DropShadowDirectionEffect
-											Color="Black"
-											BlurRadius="10"
-											ShadowDepth="-2"
-											Opacity="1"/>
-									</TextBlock.Effect>
-								</TextBlock>
-
-								<TextBlock Text="{Binding LatestVersion}"
-										   FontSize="10"
-										   Foreground="#B8B8B8">
-									<TextBlock.Effect>
-										<DropShadowDirectionEffect
-											Color="Black"
-											BlurRadius="10"
-											ShadowDepth="-2"
-											Opacity="1"/>
-									</TextBlock.Effect>
-								</TextBlock>
-							</StackPanel>
-
-							<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-								<Button Classes="modern"
-										Content="{Binding ButtonText}"
-										FontSize="12"
-										Height="38"
-										Width="100"
-										Margin="0,0,6,0"
-										IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-										Click="GameButton_Click"
-										Tag="{Binding}"/>
-
-								<Button Classes="options"
-										Padding="0"
-										Width="38"
-										Height="38"
-										FontSize="18"
-										IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-										Click="OptionsButton_Click"
-										Tag="{Binding}">
-									<TextBlock Text="⋯" Foreground="White" TextAlignment="Center" VerticalAlignment="Center"/>
-									<Button.ContextMenu>
-
-										<ContextMenu>
-											<MenuItem Header="Open GitHub Page"
-													  Click="OpenGitHubPage_Click"
-													  CommandParameter="{Binding}"/>
-											<MenuItem Header="Add Custom Image"
-													  Click="SetCustomIcon_Click"
-													  CommandParameter="{Binding}"/>
-											<MenuItem Header="Remove Custom Image"
-													  Click="RemoveCustomIcon_Click"
-													  CommandParameter="{Binding}"
-													  IsVisible="{Binding HasCustomIcon}"/>
-											<MenuItem Header="Hide Game"
-													  Click="HideGame_Click"
-													  CommandParameter="{Binding}"/>
-											<MenuItem Header="Open Folder"
-													  Click="OpenFolder_Click"
-													  IsVisible="{Binding IsInstalled}"
-													  CommandParameter="{Binding}"/>
-											<MenuItem Header="Delete"
-													  Click="DeleteGame_Click"
-													  IsVisible="{Binding IsInstalled}"
-													  CommandParameter="{Binding}"/>
-										</ContextMenu>
-									</Button.ContextMenu>
-								</Button>
-							</StackPanel>
-						</StackPanel>
+			<StackPanel>
+				<Border Classes="gamecardgrid">
+					<Border.Width>
+						<MultiBinding Converter="{StaticResource GridWidthMultiConverter}">
+							<Binding ElementName="SlotSizeSlider" Path="Value"/>
+							<Binding ElementName="PortraitCheckBox" Path="IsChecked"/>
+						</MultiBinding>
+					</Border.Width>
+					<Grid ClipToBounds="True">
+						<!-- Background Image -->
+						<Panel ClipToBounds="True"
+							Margin="{Binding ElementName=IconMarginSlider, Path=Value}"
+							VerticalAlignment="Top"
+							HorizontalAlignment="Center">
+							<Border CornerRadius="12" ClipToBounds="True">
+								<asyncImageLoader:AdvancedImage Source="{Binding IconUrl}"
+								ClipToBounds="True"
+								VerticalAlignment="Center"
+								Opacity="{Binding ElementName=IconOpacitySlider, Path=Value}"
+								Height="{Binding ElementName=IconSizeSlider, Path=Value}"
+								Stretch="{Binding Path=IsChecked, ElementName=IconFillCheckBox, Converter={StaticResource BooleanToStretchConverter}}" />
+							</Border>
+						</Panel>
+						
+						<!-- Options Button - Top Right -->
+						<Button Classes="options-grid"
+								Width="40"
+								Height="40"
+								FontSize="18"
+								VerticalAlignment="Top"
+								HorizontalAlignment="Right"
+								Margin="12"
+								IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+								Click="OptionsButton_Click"
+								Tag="{Binding}">
+							<TextBlock Text="⋯" Foreground="White" TextAlignment="Center" VerticalAlignment="Center"/>
+							<Button.ContextMenu>
+								<ContextMenu>
+									<MenuItem Header="Open GitHub Page"
+											  Click="OpenGitHubPage_Click"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Add Custom Image"
+											  Click="SetCustomIcon_Click"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Remove Custom Image"
+											  Click="RemoveCustomIcon_Click"
+											  CommandParameter="{Binding}"
+											  IsVisible="{Binding HasCustomIcon}"/>
+									<MenuItem Header="Hide Game"
+											  Click="HideGame_Click"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Open Folder"
+											  Click="OpenFolder_Click"
+											  IsVisible="{Binding IsInstalled}"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Delete"
+											  Click="DeleteGame_Click"
+											  IsVisible="{Binding IsInstalled}"
+											  CommandParameter="{Binding}"/>
+								</ContextMenu>
+							</Button.ContextMenu>
+						</Button>
 					</Grid>
+				</Border>
+				
+				<!-- Info Bar Below Card -->
+				<Grid Margin="10,12,10,0">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="*"/>
+					</Grid.ColumnDefinitions>
+					
+					<!-- Download/Launch Button -->
+					<Button Grid.Column="0"
+							Classes="modern-icon"
+							Width="48"
+							Height="48"
+							Margin="0,0,12,0"
+							IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+							Click="GameButton_Click"
+							Tag="{Binding}">
+						<Image Width="32" Height="32" 
+							Source="avares://N64RecompLauncher/Assets/DefaultGame.png"/>
+					</Button>
+					
+					<!-- Game Info -->
+					<StackPanel Grid.Column="1" VerticalAlignment="Center">
+						<TextBlock Text="{Binding Name}"
+								   FontSize="14"
+								   FontWeight="Bold"
+								   Foreground="#FFFFFF"
+								   TextAlignment="Left"
+								   TextWrapping="Wrap"
+								   Margin="0,0,0,4"/>
+
+						<TextBlock Text="{Binding StatusText}"
+								   FontSize="11"
+								   Foreground="#B8B8B8"
+								   TextAlignment="Left"
+								   Margin="0,0,0,2"/>
+
+						<StackPanel Orientation="Horizontal">
+							<TextBlock Text="Latest: "
+									   FontSize="10"
+									   Foreground="#8B8B8B"/>
+							
+							<TextBlock Text="{Binding LatestVersion}"
+									   FontSize="10"
+									   Foreground="#B8B8B8"/>
+						</StackPanel>
+					</StackPanel>
 				</Grid>
-			</Border>
+			</StackPanel>
 		</DataTemplate>
 	</Window.Resources>
 
@@ -291,7 +276,7 @@
 			<Setter Property="Template">
 				<ControlTemplate TargetType="Button">
 					<Border Background="{TemplateBinding Background}"
-							CornerRadius="4"
+							CornerRadius="6"
 							Padding="{TemplateBinding Padding}">
 						<ContentPresenter
 							Name="PART_ContentPresenter"
@@ -317,6 +302,42 @@
 			<Setter Property="Foreground" Value="White"/>
 		</Style>
 
+		<!-- Modern Icon Button Style for Grid View -->
+		<Style Selector="Button.modern-icon">
+			<Setter Property="Background" Value="{Binding ButtonColor}"/>
+			<Setter Property="Foreground" Value="White"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Template">
+				<ControlTemplate TargetType="Button">
+					<Border Background="{TemplateBinding Background}"
+							CornerRadius="8"
+							Padding="{TemplateBinding Padding}">
+						<ContentPresenter
+							Name="PART_ContentPresenter"
+							Content="{TemplateBinding Content}"
+							ContentTemplate="{TemplateBinding ContentTemplate}"
+							HorizontalAlignment="Center"
+							VerticalAlignment="Center"
+							Foreground="{TemplateBinding Foreground}"/>
+					</Border>
+				</ControlTemplate>
+			</Setter>
+		</Style>
+
+		<Style Selector="Button.modern-icon:pointerover">
+			<Setter Property="Opacity" Value="0.85"/>
+			<Setter Property="Foreground" Value="White"/>
+		</Style>
+
+		<Style Selector="Button.modern-icon:pressed">
+			<Setter Property="Opacity" Value="0.7"/>
+			<Setter Property="Foreground" Value="White"/>
+		</Style>
+
 		<Style Selector="Button.options">
 			<Setter Property="Background" Value="#1a1a1c"/>
 			<Setter Property="Foreground" Value="White"/>
@@ -333,7 +354,7 @@
 					<Border Background="{TemplateBinding Background}"
 							BorderBrush="{TemplateBinding BorderBrush}"
 							BorderThickness="{TemplateBinding BorderThickness}"
-							CornerRadius="4"
+							CornerRadius="6"
 							Padding="{TemplateBinding Padding}">
 						<ContentPresenter
 							Name="PART_ContentPresenter"
@@ -358,6 +379,51 @@
 		<Style Selector="Button.options:pressed">
 			<Setter Property="Background" Value="#1a1a1c"/>
 			<Setter Property="BorderBrush" Value="#2d2d30"/>
+			<Setter Property="Foreground" Value="White"/>
+		</Style>
+
+		<!-- Grid Options Button Style -->
+		<Style Selector="Button.options-grid">
+			<Setter Property="Background" Value="#1a1a1cDD"/>
+			<Setter Property="Foreground" Value="White"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="Template">
+				<ControlTemplate TargetType="Button">
+					<Border Background="{TemplateBinding Background}"
+							CornerRadius="8"
+							Padding="{TemplateBinding Padding}">
+						<ContentPresenter
+							Name="PART_ContentPresenter"
+							Content="{TemplateBinding Content}"
+							ContentTemplate="{TemplateBinding ContentTemplate}"
+							HorizontalAlignment="Center"
+							VerticalAlignment="Center"
+							Foreground="{TemplateBinding Foreground}"
+							FontSize="{TemplateBinding FontSize}"
+							FontWeight="{TemplateBinding FontWeight}"/>
+					</Border>
+				</ControlTemplate>
+			</Setter>
+		</Style>
+
+		<Style Selector="Border.gamecardgrid:pointerover Button.options-grid">
+			<Setter Property="Opacity" Value="1"/>
+		</Style>
+
+		<Style Selector="Button.options-grid:pointerover">
+			<Setter Property="Background" Value="#252527EE"/>
+			<Setter Property="Foreground" Value="White"/>
+		</Style>
+
+		<Style Selector="Button.options-grid:pressed">
+			<Setter Property="Background" Value="#1a1a1cEE"/>
 			<Setter Property="Foreground" Value="White"/>
 		</Style>
 
@@ -399,13 +465,13 @@
 
 		<Style Selector="Border.gamecard">
 			<Setter Property="Background" Value="#18181b"/>
-			<Setter Property="CornerRadius" Value="12"/>
+			<Setter Property="CornerRadius" Value="14"/>
 			<Setter Property="Margin" Value="0,0,0,12"/>
 		</Style>
 
 		<Style Selector="Border.gamecardgrid">
 			<Setter Property="Background" Value="#18181b"/>
-			<Setter Property="CornerRadius" Value="12"/>
+			<Setter Property="CornerRadius" Value="14"/>
 			<Setter Property="Margin" Value="10"/>
 		</Style>
 

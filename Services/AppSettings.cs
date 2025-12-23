@@ -11,10 +11,10 @@ namespace N64RecompLauncher
         public bool IconFill { get; set; } = false;
         public bool PortraitFrame { get; set; } = false;
         public float IconOpacity { get; set; } = 1.0f;
-        public int IconSize { get; set; } = 208;
+        public int IconSize { get; set; } = 212;
         public int IconMargin { get; set; } = 8;
         public int SlotTextMargin { get; set; } = 112;
-        public int SlotSize { get; set; } = 208;
+        public int SlotSize { get; set; } = 212;
         public TargetOS Platform { get; set; } = TargetOS.Auto;
         public List<string> HiddenGames { get; set; } = new List<string>();
 
