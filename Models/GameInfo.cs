@@ -162,6 +162,7 @@ namespace N64RecompLauncher.Models
                     _status = value;
                     DispatchPropertyChanged();
                     DispatchPropertyChanged(nameof(ButtonText));
+                    DispatchPropertyChanged(nameof(ButtonImage));
                     DispatchPropertyChanged(nameof(ButtonColor));
                     DispatchPropertyChanged(nameof(StatusText));
                     DispatchPropertyChanged(nameof(IsInstalled));
@@ -195,6 +196,29 @@ namespace N64RecompLauncher.Models
                     GameStatus.Installing => "Installing...",
                     _ => "Download"
                 };
+            }
+        }
+
+        private Avalonia.Media.Imaging.Bitmap? _buttonImageCache;
+
+        public Avalonia.Media.Imaging.Bitmap ButtonImage
+        {
+            get
+            {
+                var imagePath = Status switch
+                {
+                    GameStatus.NotInstalled => "avares://N64RecompLauncher/Assets/Icons/button_download.png",
+                    GameStatus.Installed => "avares://N64RecompLauncher/Assets/Icons/button_launch.png",
+                    GameStatus.UpdateAvailable => "avares://N64RecompLauncher/Assets/Icons/button_update.png",
+                    GameStatus.Downloading => "avares://N64RecompLauncher/Assets/Icons/button_loading.png",
+                    GameStatus.Installing => "avares://N64RecompLauncher/Assets/Icons/button_loading.png",
+                    _ => "avares://N64RecompLauncher/Assets/Icons/button_loading.png"
+                };
+
+                _buttonImageCache = new Avalonia.Media.Imaging.Bitmap(
+                    Avalonia.Platform.AssetLoader.Open(new Uri(imagePath)));
+
+                return _buttonImageCache;
             }
         }
 

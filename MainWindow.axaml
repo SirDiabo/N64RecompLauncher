@@ -212,7 +212,7 @@
 				</Border>
 				
 				<!-- Info Bar Below Card -->
-				<Grid Margin="10,12,10,0">
+				<Grid Margin="10,0,10,20">
 					<Grid.ColumnDefinitions>
 						<ColumnDefinition Width="Auto"/>
 						<ColumnDefinition Width="*"/>
@@ -227,8 +227,7 @@
 							IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 							Click="GameButton_Click"
 							Tag="{Binding}">
-						<Image Width="32" Height="32" 
-							Source="avares://N64RecompLauncher/Assets/DefaultGame.png"/>
+						<Image Width="48" Source="{Binding ButtonImage}"/>
 					</Button>
 					
 					<!-- Game Info -->
