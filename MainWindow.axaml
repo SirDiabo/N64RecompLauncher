@@ -219,16 +219,16 @@
 					</Grid.ColumnDefinitions>
 					
 					<!-- Download/Launch Button -->
-					<Button Grid.Column="0"
-							Classes="modern-icon"
-							Width="48"
-							Height="48"
-							Margin="0,0,12,0"
-							IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-							Click="GameButton_Click"
-							Tag="{Binding}">
-						<Image Width="48" Source="{Binding ButtonImage}"/>
-					</Button>
+				<Button Grid.Column="0"
+					Classes="modern-icon"
+					Width="48"
+					Height="48"
+					Margin="0,0,12,0"
+					IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+					Click="GameButton_Click"
+					Tag="{Binding}">
+					<Image Width="48" Source="{Binding ButtonImage}"/>
+				</Button>
 					
 					<!-- Game Info -->
 					<StackPanel Grid.Column="1" VerticalAlignment="Center">
