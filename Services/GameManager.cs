@@ -131,6 +131,14 @@ namespace N64RecompLauncher.Services
                     FolderName = "DNZHRecomp",
                     GameManager = this,
                 },
+                new() {
+                    Name = "Starfox 64 Recomp",
+                    Repository = "sonicdcer/Starfox64Recomp",
+                    Branch = "main",
+                    ImageRes = "512",
+                    FolderName = "Starfox64Recomp",
+                    GameManager = this,
+                },
             };
         }
 
