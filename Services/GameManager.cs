@@ -84,7 +84,7 @@ namespace N64RecompLauncher.Services
             return new List<GameInfo>
             {
                 new() {
-                    Name = "Zelda 64 Recomp",
+                    Name = "Zelda 64",
                     Repository = "Zelda64Recomp/Zelda64Recomp",
                     Branch = "dev",
                     ImageRes = "512",
@@ -92,7 +92,7 @@ namespace N64RecompLauncher.Services
                     GameManager = this,
                 },
                 new() {
-                    Name = "Goemon 64 Recomp",
+                    Name = "Goemon 64",
                     Repository = "klorfmorf/Goemon64Recomp",
                     Branch = "dev",
                     ImageRes = "512",
@@ -100,7 +100,7 @@ namespace N64RecompLauncher.Services
                     GameManager = this,
                 },
                 new() {
-                    Name = "Mario Kart 64 Recomp",
+                    Name = "Mario Kart 64",
                     Repository = "sonicdcer/MarioKart64Recomp",
                     Branch = "main",
                     ImageRes = "512",
@@ -108,7 +108,7 @@ namespace N64RecompLauncher.Services
                     GameManager = this,
                 },
                 new() {
-                    Name = "Dinosaur Planet Recomp",
+                    Name = "Dinosaur Planet",
                     Repository = "Francessco121/dino-recomp",
                     Branch = "main",
                     ImageRes = "64",
@@ -116,7 +116,7 @@ namespace N64RecompLauncher.Services
                     GameManager = this,
                 },
                 new() {
-                    Name = "Dr. Mario 64 Recomp",
+                    Name = "Dr. Mario 64",
                     Repository = "theboy181/drmario64_recomp_plus",
                     Branch = "main",
                     ImageRes = "512",
@@ -124,7 +124,7 @@ namespace N64RecompLauncher.Services
                     GameManager = this,
                 },
                 new() {
-                    Name = "Duke Nukem: Zero Hour Recomp",
+                    Name = "Duke Nukem: Zero Hour",
                     Repository = "sonicdcer/DNZHRecomp",
                     Branch = "main",
                     ImageRes = "512",
@@ -132,7 +132,7 @@ namespace N64RecompLauncher.Services
                     GameManager = this,
                 },
                 new() {
-                    Name = "Starfox 64 Recomp",
+                    Name = "StarFox 64",
                     Repository = "sonicdcer/Starfox64Recomp",
                     Branch = "main",
                     ImageRes = "512",
