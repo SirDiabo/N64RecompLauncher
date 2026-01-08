@@ -55,6 +55,34 @@ namespace N64RecompLauncher
             }
         }
 
+        private bool _isContinueVisible;
+        public bool IsContinueVisible
+        {
+            get => _isContinueVisible;
+            set
+            {
+                if (_isContinueVisible != value)
+                {
+                    _isContinueVisible = value;
+                    OnPropertyChanged(nameof(IsContinueVisible));
+                }
+            }
+        }
+
+        private GameInfo? _continueGameInfo;
+        public GameInfo? ContinueGameInfo
+        {
+            get => _continueGameInfo;
+            set
+            {
+                if (_continueGameInfo != value)
+                {
+                    _continueGameInfo = value;
+                    OnPropertyChanged(nameof(ContinueGameInfo));
+                }
+            }
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -93,6 +121,7 @@ namespace N64RecompLauncher
                 if (e.PropertyName == nameof(GameManager.Games))
                 {
                     OnPropertyChanged(nameof(Games));
+                    UpdateContinueButtonState();
                     Debug.WriteLine($"Games collection changed. Count: {_gameManager.Games?.Count ?? 0}");
                     foreach (var game in _gameManager.Games ?? new())
                     {
@@ -100,6 +129,12 @@ namespace N64RecompLauncher
                     }
                 }
             };
+        }
+
+        private void UpdateContinueButtonState()
+        {
+            ContinueGameInfo = _gameManager.GetLatestPlayedInstalledGame();
+            IsContinueVisible = ContinueGameInfo != null;
         }
 
         private void LoadCurrentPlatform()
@@ -158,6 +193,7 @@ namespace N64RecompLauncher
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         DataContext = this;
+                        UpdateContinueButtonState();
                     });
                 }
                 catch (Exception ex)
@@ -183,6 +219,7 @@ namespace N64RecompLauncher
                     _ = ShowMessageBoxAsync($"Failed to perform action for {game.Name}: {ex.Message}", "Action Error");
                 }
             }
+            UpdateContinueButtonState();
         }
 
         private void OptionsButton_Click(object sender, RoutedEventArgs e)
@@ -196,6 +233,25 @@ namespace N64RecompLauncher
             }
         }
 
+        private void ContinueButton_Click(object sender, RoutedEventArgs e)
+        {
+            var latestGame = _gameManager.GetLatestPlayedInstalledGame();
+            if (latestGame != null)
+            {
+                try
+                {
+                    _ = latestGame.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+                }
+                catch (Exception ex)
+                {
+                    _ = ShowMessageBoxAsync($"Failed to launch {latestGame.Name}: {ex.Message}", "Launch Error");
+                }
+            }
+            else
+            {
+                _ = ShowMessageBoxAsync("No installed games found to continue.", "No Game Found");
+            }
+        }
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {

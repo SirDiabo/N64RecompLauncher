@@ -533,8 +533,37 @@
 
 				<!-- Navigation Buttons -->
 				<StackPanel Grid.Row="1" Margin="12,0" VerticalAlignment="Top">
+					
+					<!-- Continue Button -->
 					<Button Classes="settings"
 							Margin="0,0,0,4"
+							CornerRadius="8"
+							Width="216"
+							Height="64"
+							HorizontalAlignment="Left"
+							Click="ContinueButton_Click"
+							IsVisible="{Binding IsContinueVisible}">
+						<Grid>
+							<asyncImageLoader:AdvancedImage Source="{Binding ContinueGameInfo.IconUrl}"
+															HorizontalAlignment="Right"
+															Stretch="Uniform"
+															Width="216"
+															Height="64"
+														    Opacity="1.0"/>
+							<StackPanel Orientation="Horizontal">
+								<Image Width="32" Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/Continue.png"
+									   Margin="0,0,12,0"/>
+								<TextBlock Text="Continue" 
+										  VerticalAlignment="Center"/>
+							</StackPanel>
+						</Grid>
+					</Button>
+
+					<!-- Settings Button -->
+					<Button Classes="settings"
+							Margin="0,0,0,4"
+							CornerRadius="8"
 							Width="216"
 							HorizontalAlignment="Left"
 							Click="SettingsButton_Click">

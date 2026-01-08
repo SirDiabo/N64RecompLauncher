@@ -79,6 +79,31 @@ namespace N64RecompLauncher.Services
             }
         }
 
+        // Get the most recently played and installed game
+        public GameInfo? GetLatestPlayedInstalledGame()
+        {
+            DateTime latestTime = DateTime.MinValue;
+            GameInfo? latestGame = null;
+            foreach (var game in Games)
+            {
+                var gamePath = Path.Combine(_gamesFolder, game.FolderName);
+                var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
+                if (File.Exists(lastPlayedPath))
+                {
+                    var timeString = File.ReadAllText(lastPlayedPath).Trim();
+                    if (DateTime.TryParseExact(timeString, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime lastPlayed))
+                    {
+                        if (lastPlayed > latestTime)
+                        {
+                            latestTime = lastPlayed;
+                            latestGame = game;
+                        }
+                    }
+                }
+            }
+            return latestGame;
+        }
+
         private List<GameInfo> GetBaseGames()
         {
             return new List<GameInfo>
