@@ -59,6 +59,20 @@ namespace N64RecompLauncher
         {
             InitializeComponent();
 
+            // Set window size to 80% of primary screen working area
+            var screen = Screens.Primary;
+            if (screen != null)
+            {
+                this.Width = screen.WorkingArea.Width * 0.8;
+                this.Height = screen.WorkingArea.Height * 0.8;
+            }
+            else
+            {
+                // Fallback to default size if screen info unavailable
+                this.Width = 1280;
+                this.Height = 720;
+            }
+
             try
             {
                 _settings = AppSettings.Load();

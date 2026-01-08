@@ -4,7 +4,6 @@
         xmlns:local="clr-namespace:N64RecompLauncher"
 		xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
         Title="N64Recomp Launcher"
-        Height="720" Width="1280"
         Background="#0e0e10"
         WindowStartupLocation="CenterScreen">
 
