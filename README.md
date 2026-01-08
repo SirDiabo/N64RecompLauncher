@@ -1,14 +1,15 @@
-﻿# N64Recomp Launcher 🎮
+﻿# N64Recomp Launcher
 
 [![.NET 9](https://img.shields.io/badge/.NET-9-512BD4)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/github/license/SirDiabo/N64RecompLauncher)](https://github.com/SirDiabo/N64RecompLauncher/blob/main/LICENSE)
 
+![N64Recomp Launcher Screenshot](Assets/LauncherScreenshot.png)
 A modern, user-friendly launcher application for managing and running N64 recompiled games. This tool streamlines the process of downloading, installing, and launching your favorite N64 titles.
 
 > ⚠️ **Platform Compatibility Notice**
 > - ✅ Windows: Works perfectly
 > - ✅ Linux: Working mostly properly
-> - ⚠️ macOS: Currently experiencing some issues
+> - ⚠️ macOS: Not yet supported
 > - ⚠️ Linux Flatpak: Not yet supported
 
 ## ✨ Features
