@@ -545,7 +545,7 @@
 							Click="ContinueButton_Click"
 							IsVisible="{Binding IsContinueVisible}">
 						<Grid>
-							<asyncImageLoader:AdvancedImage Source="{Binding ContinueGameInfo.IconUrl}"
+							<asyncImageLoader:AdvancedImage Source="{Binding ContinueGameInfo.DefaultIconUrl}"
 															HorizontalAlignment="Right"
 															Stretch="Uniform"
 															Width="216"

@@ -117,6 +117,20 @@ namespace N64RecompLauncher.Models
                 return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
             }
         }
+
+        public string DefaultIconUrl
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(Repository) || string.IsNullOrEmpty(Branch) || string.IsNullOrEmpty(ImageRes))
+                {
+                    return "/Assets/DefaultGame.png";
+                }
+
+                return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+            }
+        }
+
         public bool IsInstalled
         {
             get
