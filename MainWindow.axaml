@@ -4,6 +4,7 @@
         xmlns:local="clr-namespace:N64RecompLauncher"
 		xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
         Title="N64Recomp Launcher"
+		Height="720" Width="1280"
         Background="#0e0e10"
         WindowStartupLocation="CenterScreen">
 
@@ -548,8 +549,7 @@
 															HorizontalAlignment="Right"
 															Stretch="Uniform"
 															Width="216"
-															Height="64"
-														    Opacity="1.0"/>
+															Height="64"/>
 							<StackPanel Orientation="Horizontal">
 								<Image Width="32" Height="32" 
 									   Source="avares://N64RecompLauncher/Assets/Continue.png"
