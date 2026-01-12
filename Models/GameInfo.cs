@@ -580,7 +580,9 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{Repository}/releases/latest");
+                // Check for a prerelease first
+                var prereleaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
+                var request = new HttpRequestMessage(HttpMethod.Get, prereleaseRequestUrl);
 
                 string etag = GitHubApiCache.GetETag(Repository);
                 if (!string.IsNullOrEmpty(etag))
@@ -611,15 +613,18 @@ namespace N64RecompLauncher.Models
                 response.EnsureSuccessStatusCode();
 
                 string responseContent = await response.Content.ReadAsStringAsync();
-                var release = JsonSerializer.Deserialize<GitHubRelease>(responseContent);
+                var releases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(responseContent);
 
-                if (release != null && !string.IsNullOrWhiteSpace(release.tag_name))
+                // Check for a prerelease first
+                var prerelease = releases?.FirstOrDefault(r => r.prerelease) ?? releases?.FirstOrDefault();
+
+                if (prerelease != null && !string.IsNullOrWhiteSpace(prerelease.tag_name))
                 {
-                    LatestVersion = release.tag_name;
-                    _cachedRelease = release;
+                    LatestVersion = prerelease.tag_name;
+                    _cachedRelease = prerelease;
 
                     string? newETag = response.Headers.ETag?.Tag;
-                    GitHubApiCache.SetCache(Repository, release.tag_name, newETag ?? string.Empty, release);
+                    GitHubApiCache.SetCache(Repository, prerelease.tag_name, newETag ?? string.Empty, prerelease);
 
                     if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
                     {
@@ -632,6 +637,7 @@ namespace N64RecompLauncher.Models
                 Console.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
             }
         }
+
 
         private string GetGitHubApiToken()
         {
@@ -702,6 +708,8 @@ namespace N64RecompLauncher.Models
                 string platformIdentifier = GetPlatformIdentifier(settings);
                 var gamePath = Path.Combine(gamesFolder, FolderName);
                 var versionFile = Path.Combine(gamePath, "version.txt");
+
+                // Check for a cached release first
                 if (latestRelease == null)
                 {
                     if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null && cache.CachedRelease != null)
@@ -710,9 +718,15 @@ namespace N64RecompLauncher.Models
                     }
                     else
                     {
-                        var releaseResponse = await httpClient.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
-                        var deserializedRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse) ?? throw new InvalidOperationException("Failed to deserialize GitHub release information.");
-                        latestRelease = deserializedRelease;
+                        // Check for prerelease first
+                        var prereleaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
+                        var releaseResponse = await httpClient.GetStringAsync(prereleaseRequestUrl);
+                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse)
+                            ?? throw new InvalidOperationException("Failed to deserialize GitHub release information.");
+
+                        latestRelease = deserializedReleases.FirstOrDefault(r => r.prerelease) ??
+                                        deserializedReleases.FirstOrDefault(); // Fallback to latest if no prerelease.
+
                         GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
                     }
                 }
@@ -740,9 +754,7 @@ namespace N64RecompLauncher.Models
 
                 // Find the appropriate asset for the platform
                 var asset = latestRelease.assets.FirstOrDefault(a =>
-                    // Check for platform override first if specified.
                     (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
-                    // If no override, match the detected platform.
                     (string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase)));
 
                 // If no asset found, show error and return
@@ -801,6 +813,7 @@ namespace N64RecompLauncher.Models
                 Status = GameStatus.NotInstalled;
             }
         }
+
 
         static async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
         {

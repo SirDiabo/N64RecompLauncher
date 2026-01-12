@@ -240,7 +240,7 @@ namespace N64RecompLauncher.Services
                             folderName = "DNZHRecomp", 
                             platformOverride = (string?)null },
 
-                        new { name = "StarFox 64", 
+                        new { name = "Star Fox 64", 
                             repository = "sonicdcer/Starfox64Recomp", 
                             branch = "main", 
                             imageRes = "512", 
@@ -255,6 +255,13 @@ namespace N64RecompLauncher.Services
                             imageRes = "512",
                             folderName = "ChameleonTwistRecomp",
                             platformOverride = "ChameleonTwistJPRecompiled" },
+
+                        new { name = "Mega Man 64",
+                            repository = "MegaMan64Recomp/MegaMan64Recompiled",
+                            branch = "main",
+                            imageRes = "512",
+                            folderName = "MegaMan64Recomp",
+                            platformOverride = "MegaMan64Recompiled" },
 
                         new { name = "Quest 64", 
                             repository = "Rainchus/Quest64-Recomp", 

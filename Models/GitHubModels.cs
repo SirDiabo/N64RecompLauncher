@@ -4,6 +4,7 @@ namespace N64RecompLauncher.Models
     {
         public string tag_name { get; set; }
         public GitHubAsset[] assets { get; set; }
+        public bool prerelease { get; set; }
     }
 
     public class GitHubAsset
