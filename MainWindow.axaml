@@ -574,16 +574,32 @@
 							<TextBlock Text="Settings" VerticalAlignment="Center"/>
 						</StackPanel>
 					</Button>
+
+					<!-- Check for Updates Button -->
+					<Button Classes="settings"
+							Margin="0,0,0,4"
+							CornerRadius="8"
+							Width="216"
+							HorizontalAlignment="Left"
+							Click="CheckforUpdates_Click">
+						<StackPanel Orientation="Horizontal">
+							<Image Width="32" Height="32" 
+								   Source="avares://N64RecompLauncher/Assets/CheckForUpdates.png"
+								   Margin="0,0,12,0"/>
+							<TextBlock Text="Check for Updates" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
+
 				</StackPanel>
 
-				<!-- Quick Actions -->
-				<StackPanel Grid.Row="2" Margin="12,0,12,20">
-					<TextBlock Text="QUICK ACTIONS"
+				<!-- Display Filters -->
+				<StackPanel Grid.Row="2" Margin="12,0,12,0">
+					<TextBlock Text="DISPLAY FILTERS"
 							   FontSize="10"
 							   FontWeight="Bold"
 							   Foreground="#4a4a4a"
 							   LetterSpacing="1"
-							   Margin="12,0,0,12"/>
+							   Margin="12,0,0,4"/>
 					
 					<Button x:Name="UnhideAllGamesButton"
 							Classes="settings"
@@ -591,7 +607,7 @@
 							HorizontalAlignment="Left"
 							Margin="0,0,0,4"
 							Click="UnhideAllGamesButton_Click">
-						<TextBlock Text="Show All Games"/>
+						<TextBlock Text="All Games"/>
 					</Button>
 
 					<Button x:Name="HideNonInstalledButton"
@@ -600,15 +616,27 @@
 							HorizontalAlignment="Left"
 							Margin="0,0,0,4"
 							Click="HideNonInstalledButton_Click">
-						<TextBlock Text="Hide Non-Installed"/>
+						<TextBlock Text="Installed Only"/>
 					</Button>
 
-					<Button x:Name="CheckforUpdates"
+					<Button x:Name="HideNonStableButton"
 							Classes="settings"
 							Width="216"
 							HorizontalAlignment="Left"
-							Click="CheckforUpdates_Click">
-						<TextBlock Text="Check for Updates"/>
+							Margin="0,0,0,4"
+							Click="HideNonStableButton_Click"
+							IsVisible="{Binding ShowExperimentalGames}">
+						<TextBlock Text="Stable Only"/>
+					</Button>
+
+					<Button x:Name="OnlyExperimentalGamesButton"
+							Classes="settings"
+							Width="216"
+							HorizontalAlignment="Left"
+							Margin="0,0,0,4"
+							Click="OnlyExperimentalGamesButton_Click"
+							IsVisible="{Binding ShowExperimentalGames}">
+						<TextBlock Text="Experimental Only"/>
 					</Button>
 				</StackPanel>
 
@@ -746,7 +774,7 @@
 									   Margin="0,0,0,8"/>
 
 							<CheckBox x:Name="ShowExperimentalCheckBox"
-									   Content="Show/Hide Experimental Games"
+									   Content="Show Experimental Games"
 									   Foreground="#E0E0E0"
 									   Margin="0,0,0,8"
 									   Checked="ShowExperimentalCheckBox_Checked"

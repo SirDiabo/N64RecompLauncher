@@ -28,6 +28,19 @@ namespace N64RecompLauncher
         public AppSettings Settings => _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
+        private bool _showExperimentalGames;
+        public bool ShowExperimentalGames
+        {
+            get => _showExperimentalGames;
+            set
+            {
+                if (_showExperimentalGames != value)
+                {
+                    _showExperimentalGames = value;
+                    OnPropertyChanged(nameof(ShowExperimentalGames));
+                }
+            }
+        }
         private string _currentVersionString;
         public string currentVersionString
         {
@@ -99,6 +112,7 @@ namespace N64RecompLauncher
 
             _gameManager = new GameManager();
 
+            _gameManager.UnhideAllGames();
             LoadCurrentVersion();
             LoadCurrentPlatform();
             UpdateSettingsUI();
@@ -754,6 +768,32 @@ namespace N64RecompLauncher
             }
         }
 
+        private async void HideNonStableButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _gameManager.HideAllNonStableGames();
+                await _gameManager.LoadGamesAsync();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to hide non-stable games: {ex.Message}", "Error");
+            }
+        }
+
+        private async void OnlyExperimentalGamesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _gameManager.OnlyShowExperimentalGames();
+                await _gameManager.LoadGamesAsync();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to hide stable games: {ex.Message}", "Error");
+            }
+        }
+
         private async void HideGame_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
@@ -861,6 +901,7 @@ namespace N64RecompLauncher
         {
             if (_settings != null)
             {
+                ShowExperimentalGames = true;
                 _settings.ShowExperimentalGames = true;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
@@ -871,6 +912,7 @@ namespace N64RecompLauncher
         {
             if (_settings != null)
             {
+                ShowExperimentalGames = false;
                 _settings.ShowExperimentalGames = false;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();

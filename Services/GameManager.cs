@@ -460,9 +460,39 @@ namespace N64RecompLauncher.Services
         public void HideAllNonInstalledGames()
         {
             var settings = AppSettings.Load();
+            UnhideAllGames();
             foreach (var game in Games)
             {
                 if (game.Status == GameStatus.NotInstalled && !settings.HiddenGames.Contains(game.Name))
+                {
+                    settings.HiddenGames.Add(game.Name);
+                }
+            }
+            AppSettings.Save(settings);
+            FilterGames(settings);
+        }
+
+        public void HideAllNonStableGames()
+        {     var settings = AppSettings.Load();
+            UnhideAllGames();
+            foreach (var game in Games)
+            {
+                if (game.IsExperimental == true && !settings.HiddenGames.Contains(game.Name))
+                {
+                    settings.HiddenGames.Add(game.Name);
+                }
+            }
+            AppSettings.Save(settings);
+            FilterGames(settings);
+        }
+
+        public void OnlyShowExperimentalGames()
+        {
+            var settings = AppSettings.Load();
+            UnhideAllGames();
+            foreach (var game in Games)
+            {
+                if (game.IsExperimental == false && !settings.HiddenGames.Contains(game.Name))
                 {
                     settings.HiddenGames.Add(game.Name);
                 }
