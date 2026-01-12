@@ -580,9 +580,9 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                // Check for a prerelease first
-                var prereleaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
-                var request = new HttpRequestMessage(HttpMethod.Get, prereleaseRequestUrl);
+                // Check for releases first (latest release)
+                var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
+                var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
 
                 string etag = GitHubApiCache.GetETag(Repository);
                 if (!string.IsNullOrEmpty(etag))
@@ -615,8 +615,25 @@ namespace N64RecompLauncher.Models
                 string responseContent = await response.Content.ReadAsStringAsync();
                 var releases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(responseContent);
 
-                // Check for a prerelease first
-                var prerelease = releases?.FirstOrDefault(r => r.prerelease) ?? releases?.FirstOrDefault();
+                // Try to find the latest release
+                var latestRelease = releases?.FirstOrDefault(r => !r.prerelease);
+                if (latestRelease != null && !string.IsNullOrWhiteSpace(latestRelease.tag_name))
+                {
+                    LatestVersion = latestRelease.tag_name;
+                    _cachedRelease = latestRelease;
+
+                    string? newETag = response.Headers.ETag?.Tag;
+                    GitHubApiCache.SetCache(Repository, latestRelease.tag_name, newETag ?? string.Empty, latestRelease);
+
+                    if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                    {
+                        Status = GameStatus.UpdateAvailable;
+                    }
+                    return; // Exit after finding the latest release
+                }
+
+                // If no latest release found, check for a pre-release
+                var prerelease = releases?.FirstOrDefault(r => r.prerelease);
 
                 if (prerelease != null && !string.IsNullOrWhiteSpace(prerelease.tag_name))
                 {
@@ -637,7 +654,6 @@ namespace N64RecompLauncher.Models
                 Console.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
             }
         }
-
 
         private string GetGitHubApiToken()
         {
@@ -718,16 +734,20 @@ namespace N64RecompLauncher.Models
                     }
                     else
                     {
-                        // Check for prerelease first
-                        var prereleaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
-                        var releaseResponse = await httpClient.GetStringAsync(prereleaseRequestUrl);
+                        // Check for the latest release first
+                        var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
+                        var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
                         var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse)
                             ?? throw new InvalidOperationException("Failed to deserialize GitHub release information.");
 
-                        latestRelease = deserializedReleases.FirstOrDefault(r => r.prerelease) ??
-                                        deserializedReleases.FirstOrDefault(); // Fallback to latest if no prerelease.
+                        // Prioritize latest releases
+                        latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
+                                        deserializedReleases.FirstOrDefault(r => r.prerelease); // Fallback to pre-release
 
-                        GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
+                        if (latestRelease != null)
+                        {
+                            GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
+                        }
                     }
                 }
 
@@ -813,7 +833,6 @@ namespace N64RecompLauncher.Models
                 Status = GameStatus.NotInstalled;
             }
         }
-
 
         static async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
         {
