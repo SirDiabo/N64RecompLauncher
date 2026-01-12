@@ -698,6 +698,7 @@ namespace N64RecompLauncher.Models
             {
                 Status = GameStatus.Downloading;
 
+                // Determine platform identifier
                 string platformIdentifier = GetPlatformIdentifier(settings);
                 var gamePath = Path.Combine(gamesFolder, FolderName);
                 var versionFile = Path.Combine(gamePath, "version.txt");
@@ -716,6 +717,7 @@ namespace N64RecompLauncher.Models
                     }
                 }
 
+                // Check if the installed version is already the latest
                 if (File.Exists(versionFile))
                 {
                     var existingVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
@@ -736,10 +738,14 @@ namespace N64RecompLauncher.Models
                     }
                 }
 
+                // Find the appropriate asset for the platform
                 var asset = latestRelease.assets.FirstOrDefault(a =>
+                    // Check for platform override first if specified.
                     (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
+                    // If no override, match the detected platform.
                     (string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase)));
 
+                // If no asset found, show error and return
                 if (asset == null)
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -750,6 +756,7 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
+                // Download the asset
                 var downloadPath = Path.Combine(Path.GetTempPath(), asset.name);
                 using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
                 {
@@ -758,16 +765,17 @@ namespace N64RecompLauncher.Models
                     await downloadResponse.Content.CopyToAsync(fs);
                 }
 
+                // Install or update the game
                 Status = GameStatus.Installing;
-
                 await InstallOrUpdateGame(downloadPath, gamePath, asset.name, latestRelease.tag_name);
-
                 File.Delete(downloadPath);
 
+                // Update status
                 InstalledVersion = latestRelease.tag_name;
                 LatestVersion = latestRelease.tag_name;
                 Status = GameStatus.Installed;
 
+                // Refresh game list
                 if (GameManager != null)
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>

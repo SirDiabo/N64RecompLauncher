@@ -41,6 +41,12 @@ A modern, user-friendly launcher application for managing and running N64 recomp
 
 ## ⚙️ Configuration
 
+### GitHub API Token
+To avoid hitting GitHub's API rate limits, you can provide a personal access token.
+Create a token with no special permissions needed and set it in the launcher settings.
+You can create a token at ```GitHub Settings -> Developer settings > Personal access tokens > Tokens (classic) > Generate new token```
+You don't need to give it any special permissions. Then paste that Token into your Settings field. Do not share your Token!
+
 ### games.json Structure
 
 The launcher uses a `games.json` file to manage the available games. You can customize this file to add your own games or modify existing entries. The file is organized into three categories: `standard`, `experimental`, and `custom`.

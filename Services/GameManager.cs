@@ -249,13 +249,6 @@ namespace N64RecompLauncher.Services
                     },
                     experimental = new object[]
                     {
-                        new { name = "Mega Man 64",
-                            repository = "MegaMan64Recomp/MegaMan64Recompiled",
-                            branch = "main",
-                            imageRes = "512",
-                            folderName = "MegaMan64Recomp",
-                            platformOverride = " MegaMan64Recompiled-v0.1.0-alpha.zip" },
-
                         new { name = "Chameleon Twist",
                             repository = "Rainchus/ChameleonTwist1-JP-Recomp",
                             branch = "main",
