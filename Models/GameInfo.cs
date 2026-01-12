@@ -83,6 +83,8 @@ namespace N64RecompLauncher.Models
         public string? Branch { get; set; }
         public string? ImageRes { get; set; }
         public string? FolderName { get; set; }
+        public string? PlatformOverride { get; set; }
+        public bool IsExperimental { get; set; }
         private string? _customIconPath { get; set; }
         public string? CustomIconPath
         {
@@ -693,7 +695,7 @@ namespace N64RecompLauncher.Models
                         latestRelease = deserializedRelease;
                         GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
                     }
-            }
+                }
 
                 if (File.Exists(versionFile))
                 {
@@ -716,7 +718,8 @@ namespace N64RecompLauncher.Models
                 }
 
                 var asset = latestRelease.assets.FirstOrDefault(a =>
-                    a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase));
+                    (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
+                    (string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase)));
 
                 if (asset == null)
                 {

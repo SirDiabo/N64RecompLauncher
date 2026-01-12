@@ -743,6 +743,18 @@
 							<TextBlock Text="Store data in the game directory"
 									   FontSize="12"
 									   Foreground="#6B6B6B"
+									   Margin="0,0,0,8"/>
+
+							<CheckBox x:Name="ShowExperimentalCheckBox"
+									   Content="Show/Hide Experimental Games"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"
+									   Checked="ShowExperimentalCheckBox_Checked"
+									   Unchecked="ShowExperimentalCheckBox_Unchecked" />
+
+							<TextBlock Text="Show Recomp Games that are still experimental"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
 									   Margin="0,0,0,25"/>
 
 							<TextBlock Text="Target Platform"
@@ -793,7 +805,7 @@
 									   FontSize="12"
 									   Foreground="#6B6B6B"
 									   Margin="0,0,0,20"/>
-							
+
 							<TextBlock Text="Slot Scale"
 									   FontSize="13"
 									   FontWeight="SemiBold"

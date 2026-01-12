@@ -273,6 +273,9 @@ namespace N64RecompLauncher
                 if (PortraitCheckBox != null)
                     PortraitCheckBox.IsChecked = _settings.PortraitFrame;
 
+                if (ShowExperimentalCheckBox != null)
+                    ShowExperimentalCheckBox.IsChecked = _settings.ShowExperimentalGames;
+
                 PlatformString = _settings.Platform switch
                 {
                     TargetOS.Auto => "Automatic",
@@ -849,6 +852,26 @@ namespace N64RecompLauncher
                 }
                 return false;
             });
+        }
+
+        private async void ShowExperimentalCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.ShowExperimentalGames = true;
+                OnSettingChanged();
+                await _gameManager.LoadGamesAsync();
+            }
+        }
+
+        private async void ShowExperimentalCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.ShowExperimentalGames = false;
+                OnSettingChanged();
+                await _gameManager.LoadGamesAsync();
+            }
         }
 
         public new event PropertyChangedEventHandler? PropertyChanged;

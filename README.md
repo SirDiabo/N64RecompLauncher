@@ -39,6 +39,59 @@ A modern, user-friendly launcher application for managing and running N64 recomp
 3. Browse your game library through the intuitive interface
 4. Select a game and click "Download/Launch" to play
 
+## ⚙️ Configuration
+
+### games.json Structure
+
+The launcher uses a `games.json` file to manage the available games. You can customize this file to add your own games or modify existing entries. The file is organized into three categories: `standard`, `experimental`, and `custom`.
+
+#### Game Entry Properties
+
+Each game entry requires the following properties:
+
+- **`name`** - The display name of the game as it appears in the launcher
+- **`repository`** - The GitHub repository in the format `username/repository`
+- **`branch`** - The branch to fetch the game icon from (e.g., `main`, `dev`)
+- **`imageRes`** - The filename of the icon PNG located in the repository's `/icons` directory (e.g., `512` for `512.png`)
+- **`folderName`** - The folder name where the game will be downloaded and installed
+- **`platformOverride`** - *(Optional)* Specifies a custom asset name if the release assets don't contain standard version numbers or platform identifiers. Leave as `null` if not needed
+
+#### Example Configuration
+
+```json
+{
+    "standard": [
+        {
+            "name": "Example Game",
+            "repository": "username/example-game-repo",
+            "branch": "main",
+            "imageRes": "512",
+            "folderName": "ExampleGame",
+            "platformOverride": null
+        },
+        {
+            "name": "Another Game",
+            "repository": "anotheruser/another-game-repo",
+            "branch": "dev",
+            "imageRes": "256",
+            "folderName": "AnotherGame",
+            "platformOverride": "custom-asset-name"
+        },
+    ],
+    "experimental": [
+        {
+            "name": "Experimental Game",
+            "repository": "expuser/experimental-game-repo",
+            "branch": "experimental",
+            "imageRes": "128",
+            "folderName": "ExperimentalGame",
+            "platformOverride": UniqueFileName
+        },
+    ],
+    "custom": []
+}
+```
+
 ## 📞 Support
 
 If you encounter any issues or have questions:
