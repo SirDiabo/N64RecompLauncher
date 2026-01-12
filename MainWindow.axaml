@@ -948,6 +948,42 @@
 									   Foreground="#6B6B6B"
 									   Margin="0,0,0,30"/>
 
+							<!-- GitHub API Token Section -->
+							<TextBlock Text="GITHUB API"
+									   FontSize="11"
+									   FontWeight="Bold"
+									   Foreground="#4a4a4a"
+									   LetterSpacing="1"
+									   Margin="0,0,0,15"/>
+
+							<TextBlock Text="GitHub API Token"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+
+							<TextBox x:Name="GitHubTokenTextBox"
+									 Foreground="#E0E0E0"
+									 Background="#1a1a1c"
+									 BorderBrush="#2d2d30"
+									 BorderThickness="1"
+									 Padding="12,10"
+									 CornerRadius="4"
+									 Margin="0,0,0,8"
+									 TextChanged="GitHubTokenTextBox_TextChanged"
+									 Text="{Binding Settings.GitHubApiToken, Mode=TwoWay}"/>
+
+							<TextBlock Text="Enter your personal access token from GitHub to increase API call limits"
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,8"
+									   TextWrapping="Wrap"/>
+
+							<Button Classes="options"
+									Content="Clear Token"
+									HorizontalAlignment="Stretch"
+									Margin="0,0,0,30"
+									Click="ClearGitHubToken_Click"/>
 						</StackPanel>
 					</ScrollViewer>
 				</Border>

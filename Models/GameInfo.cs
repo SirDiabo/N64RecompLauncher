@@ -588,6 +588,12 @@ namespace N64RecompLauncher.Models
                     request.Headers.TryAddWithoutValidation("If-None-Match", etag);
                 }
 
+                var token = GetGitHubApiToken();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+
                 var response = await httpClient.SendAsync(request);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
@@ -624,6 +630,19 @@ namespace N64RecompLauncher.Models
             catch (Exception ex)
             {
                 Console.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
+            }
+        }
+
+        private string GetGitHubApiToken()
+        {
+            try
+            {
+                var settings = AppSettings.Load();
+                return settings?.GitHubApiToken ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 

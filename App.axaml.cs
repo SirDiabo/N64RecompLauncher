@@ -139,6 +139,13 @@ public class App : Application, INotifyPropertyChanged
             httpClient.Timeout = DownloadTimeout;
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("N64RecompLauncher-Updater");
 
+            var settings = AppSettings.Load();
+            if (!string.IsNullOrEmpty(settings?.GitHubApiToken))
+            {
+                httpClient.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", settings.GitHubApiToken);
+            }
+
             if (!string.IsNullOrEmpty(updateCheckInfo.ETag))
             {
                 httpClient.DefaultRequestHeaders.TryAddWithoutValidation("If-None-Match", updateCheckInfo.ETag);

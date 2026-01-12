@@ -17,6 +17,7 @@ namespace N64RecompLauncher
         public int SlotSize { get; set; } = 200;
         public TargetOS Platform { get; set; } = TargetOS.Auto;
         public List<string> HiddenGames { get; set; } = new List<string>();
+        public string GitHubApiToken { get; set; } = string.Empty;
 
         private static readonly string SettingsPath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,

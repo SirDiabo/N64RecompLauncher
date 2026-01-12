@@ -276,6 +276,9 @@ namespace N64RecompLauncher
                 if (ShowExperimentalCheckBox != null)
                     ShowExperimentalCheckBox.IsChecked = _settings.ShowExperimentalGames;
 
+                if (GitHubTokenTextBox != null)
+                    GitHubTokenTextBox.Text = _settings.GitHubApiToken;
+
                 PlatformString = _settings.Platform switch
                 {
                     TargetOS.Auto => "Automatic",
@@ -871,6 +874,27 @@ namespace N64RecompLauncher
                 _settings.ShowExperimentalGames = false;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
+            }
+        }
+
+        private void GitHubTokenTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_settings != null && sender is TextBox textBox)
+            {
+                _settings.GitHubApiToken = textBox.Text ?? string.Empty;
+                OnSettingChanged();
+            }
+        }
+
+        private void ClearGitHubToken_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.GitHubApiToken = string.Empty;
+                if (GitHubTokenTextBox != null)
+                    GitHubTokenTextBox.Text = string.Empty;
+                OnSettingChanged();
+                _ = ShowMessageBoxAsync("GitHub API token cleared.", "Token Cleared");
             }
         }
 
