@@ -6,6 +6,7 @@
         Title="N64Recomp Launcher"
 		Height="720" Width="1280"
         Background="#0e0e10"
+		WindowState="{Binding FullScreen}"
         WindowStartupLocation="CenterScreen">
 
 	<Window.Resources>
@@ -700,11 +701,32 @@
 							   FontWeight="Bold"
 							   Foreground="#FFFFFF"
 							   VerticalAlignment="Center"/>
-					<TextBlock Text="{Binding currentVersionString}"
-							   VerticalAlignment="Center"
-							   HorizontalAlignment="Right"
-							   Foreground="#4a4a4a"
-							   FontSize="12"/>
+					    <StackPanel Orientation="Horizontal"
+						       HorizontalAlignment="Right"
+							   VerticalAlignment="Center">
+							<TextBlock Grid.Row="0"
+								   Text="{Binding currentVersionString}"
+								   VerticalAlignment="Center"
+								   HorizontalAlignment="Right"
+								   Foreground="#aaaaaa"
+								   FontSize="14"/>
+							<Button Classes="modern-icon"
+									Width="32"
+									Margin="10,0,0,0"
+									Click="ToggleFullscreen_Click">
+								<Image Width="32" 
+									   Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/Icons/button_fullscreen.png"/>
+							</Button>
+							<Button Classes="modern-icon"
+									Width="32"
+									Margin="10,0,0,0"
+									Click="CloseLauncher_Click">
+								<Image Width="32" 
+									   Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/Icons/button_close.png"/>
+							</Button>
+						</StackPanel>
 				</Grid>
 			</Border>
 

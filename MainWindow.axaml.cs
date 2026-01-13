@@ -28,6 +28,8 @@ namespace N64RecompLauncher
         public AppSettings Settings => _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
+        public bool IsFullscreen = false;
+        public string FullScreen = "Normal";
         private bool _showExperimentalGames;
         public bool ShowExperimentalGames
         {
@@ -202,6 +204,26 @@ namespace N64RecompLauncher
                         _ = ShowMessageBoxAsync($"Failed to load games: {ex.Message}", "Load Error"));
                 }
             });
+        }
+
+        public void CloseLauncher_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        public void ToggleFullscreen_Click(object sender, RoutedEventArgs e)
+        {
+            IsFullscreen = !IsFullscreen;
+            if (IsFullscreen)
+            {
+                WindowState = WindowState.FullScreen;
+                FullScreen = "Fullscreen";
+            }
+            else
+            {
+                WindowState = WindowState.Normal;
+                FullScreen = "Normal";
+            }
         }
 
         private async void GameButton_Click(object sender, RoutedEventArgs e)
