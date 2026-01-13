@@ -884,6 +884,18 @@
 										   HorizontalAlignment="Right"
 										   Margin="0,0,0,15"/>
 
+								<CheckBox x:Name="StartFullscreenCheckBox"
+										   Content="Start in Fullscreen"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"
+										   Checked="StartFullscreenCheckBox_Checked"
+										   Unchecked="StartFullscreenCheckBox_Unchecked" />
+								
+								<TextBlock Text="Start the launcher in fullscreen mode"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,20"/>
+
 								<CheckBox x:Name="PortraitCheckBox"
 										   Content="Portrait Grid Slots"
 										   Foreground="#E0E0E0"

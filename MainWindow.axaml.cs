@@ -28,8 +28,26 @@ namespace N64RecompLauncher
         public AppSettings Settings => _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
-        public bool IsFullscreen = false;
-        public string FullScreen = "Normal";
+        public bool IsFullscreen
+        {
+            get => _settings.StartFullscreen;
+            set
+            {
+                if (_settings.StartFullscreen != value)
+                {
+                    _settings.StartFullscreen = value;
+                    OnPropertyChanged(nameof(IsFullscreen));
+                }
+            }
+        }
+        public string FullScreen
+            {
+            get => _settings.StartFullscreen ? "Fullscreen" : "Normal";
+            set
+            {
+                OnPropertyChanged(nameof(FullScreen));
+            }
+        }
         private bool _showExperimentalGames;
         public bool ShowExperimentalGames
         {
@@ -318,6 +336,9 @@ namespace N64RecompLauncher
                 if (GamePathTextBox != null)
                     GamePathTextBox.Text = _settings.GamesPath;
 
+                if (StartFullscreenCheckBox != null)
+                    StartFullscreenCheckBox.IsChecked = _settings.StartFullscreen;
+
                 PlatformString = _settings.Platform switch
                 {
                     TargetOS.Auto => "Automatic",
@@ -340,6 +361,24 @@ namespace N64RecompLauncher
             catch (Exception ex)
             {
                 _ = ShowMessageBoxAsync($"Failed to save settings: {ex.Message}", "Save Error");
+            }
+        }
+
+        private void StartFullscreenCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.StartFullscreen = true;
+                OnSettingChanged();
+            }
+        }
+
+        private void StartFullscreenCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.StartFullscreen = false;
+                OnSettingChanged();
             }
         }
 
