@@ -315,6 +315,9 @@ namespace N64RecompLauncher
                 if (GitHubTokenTextBox != null)
                     GitHubTokenTextBox.Text = _settings.GitHubApiToken;
 
+                if (GamePathTextBox != null)
+                    GamePathTextBox.Text = _settings.GamesPath;
+
                 PlatformString = _settings.Platform switch
                 {
                     TargetOS.Auto => "Automatic",
@@ -950,6 +953,21 @@ namespace N64RecompLauncher
             }
         }
 
+        private async void GamePathTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_settings != null && sender is TextBox textBox)
+            {
+                _settings.GamesPath = textBox.Text ?? string.Empty;
+                OnSettingChanged();
+
+                if (_gameManager != null)
+                {
+                    await _gameManager.UpdateGamesFolderAsync(_settings.GamesPath);
+                    await _gameManager.LoadGamesAsync();
+                }
+            }
+        }
+
         private void ClearGitHubToken_Click(object sender, RoutedEventArgs e)
         {
             if (_settings != null)
@@ -959,6 +977,59 @@ namespace N64RecompLauncher
                     GitHubTokenTextBox.Text = string.Empty;
                 OnSettingChanged();
                 _ = ShowMessageBoxAsync("GitHub API token cleared.", "Token Cleared");
+            }
+        }
+
+        private async void ClearGamePath_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.GamesPath = string.Empty;
+                if (GamePathTextBox != null)
+                    GamePathTextBox.Text = string.Empty;
+                OnSettingChanged();
+
+                // Reset to default path
+                if (_gameManager != null)
+                {
+                    await _gameManager.UpdateGamesFolderAsync(string.Empty);
+                }
+
+                _ = ShowMessageBoxAsync("Custom games path cleared. Default path will be used.", "Path Cleared");
+            }
+        }
+
+        private async void BrowseGamePath_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select Games Folder",
+                    AllowMultiple = false
+                });
+
+                if (folders?.Count > 0)
+                {
+                    var selectedPath = folders[0].Path.LocalPath;
+                    if (GamePathTextBox != null)
+                        GamePathTextBox.Text = selectedPath;
+
+                    if (_settings != null)
+                    {
+                        _settings.GamesPath = selectedPath;
+                        OnSettingChanged();
+
+                        if (_gameManager != null)
+                        {
+                            await _gameManager.UpdateGamesFolderAsync(selectedPath);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to select folder: {ex.Message}", "Error");
             }
         }
 

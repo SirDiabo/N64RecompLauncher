@@ -807,6 +807,44 @@
 									   Foreground="#6B6B6B"
 									   Margin="0,0,0,25"/>
 
+							<TextBlock Text="Custom Games Path"
+									   FontSize="13"
+									   FontWeight="SemiBold"
+									   Foreground="#E0E0E0"
+									   Margin="0,0,0,8"/>
+
+							<TextBlock Text="Enter a custom Game Install Path. Leave Blank for Default."
+									   FontSize="12"
+									   Foreground="#6B6B6B"
+									   Margin="0,0,0,8"
+									   TextWrapping="Wrap"/>
+							
+							<Panel HorizontalAlignment="Stretch" 
+								   Margin="0,0,0,8">
+								<TextBox x:Name="GamePathTextBox"
+										 Foreground="#E0E0E0"
+										 Background="#1a1a1c"
+										 BorderBrush="#2d2d30"
+										 BorderThickness="1"
+										 Padding="12,10"
+										 CornerRadius="4"
+										 Margin="0,0,48,8"
+										 TextChanged="GamePathTextBox_TextChanged"
+										 Text="{Binding Settings.GamePath, Mode=TwoWay}"/>
+								<Button Classes="options"
+										HorizontalAlignment="Right"
+										Margin="8,0,0,8"
+										Content="📁"
+										Click="BrowseGamePath_Click">
+								</Button>
+							</Panel>
+
+							<Button Classes="options"
+									Content="Clear Custom Game Path"
+									HorizontalAlignment="Stretch"
+									Margin="0,0,0,30"
+									Click="ClearGamePath_Click"/>
+
 							<TextBlock Text="Target Platform"
 									   FontSize="13"
 									   FontWeight="SemiBold"

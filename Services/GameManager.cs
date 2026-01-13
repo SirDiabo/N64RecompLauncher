@@ -9,9 +9,10 @@ namespace N64RecompLauncher.Services
 {
     public class GameManager : INotifyPropertyChanged, IDisposable
     {
+        public AppSettings _settings;
         private readonly HttpClient _httpClient;
         private bool _disposed = false;
-        private readonly string _gamesFolder;
+        private string _gamesFolder;
         private readonly string _cacheFolder;
         private readonly string _gamesConfigPath;
 
@@ -56,7 +57,17 @@ namespace N64RecompLauncher.Services
         {
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "N64Recomp-Launcher/1.0");
-            _gamesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RecompiledGames");
+            _settings = AppSettings.Load();
+
+            if (!string.IsNullOrEmpty(_settings.GamesPath))
+            {
+                _gamesFolder = _settings.GamesPath;
+            }
+            else
+            {
+                _gamesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RecompiledGames");
+            }
+
             _cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Cache");
             _gamesConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
 
@@ -418,6 +429,36 @@ namespace N64RecompLauncher.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error exporting games: {ex.Message}");
+            }
+        }
+
+        public async Task UpdateGamesFolderAsync(string newPath)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(newPath))
+                {
+                    _gamesFolder = newPath;
+                }
+                else
+                {
+                    _gamesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RecompiledGames");
+                }
+
+                Directory.CreateDirectory(_gamesFolder);
+
+                Games.Clear();
+
+                await LoadGamesAsync();
+
+                OnPropertyChanged(nameof(Games));
+
+                System.Diagnostics.Debug.WriteLine($"Games folder updated to: {_gamesFolder}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating games folder: {ex.Message}");
+                throw;
             }
         }
 
