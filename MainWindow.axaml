@@ -757,324 +757,327 @@
 				</ScrollViewer>
 
 				<!-- Settings Panel Overlay -->
-				<Border x:Name="SettingsPanel"
-						HorizontalAlignment="Right"
-						VerticalAlignment="Stretch"
-						Width="400"
-						Background="#14141a"
-						BorderBrush="#1a1a1c"
-						BorderThickness="1,0,0,0"
-						IsVisible="False"
-						ZIndex="10">
+					<Border x:Name="SettingsPanel"
+							HorizontalAlignment="Right"
+							VerticalAlignment="Stretch"
+							Width="400"
+							Background="#14141a"
+							BorderBrush="#1a1a1c"
+							BorderThickness="1,0,0,0"
+							IsVisible="False"
+							ZIndex="10">
 					<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 						<StackPanel Margin="30,30,30,30" x:Name="SettingsContent">
 							
-							<TextBlock Text="Settings"
-									   FontSize="28"
-									   FontWeight="Bold"
-									   Foreground="#FFFFFF"
-									   Margin="0,0,0,30"/>
-
-							<!-- General Section -->
-							<TextBlock Text="GENERAL"
-									   FontSize="11"
-									   FontWeight="Bold"
-									   Foreground="#4a4a4a"
-									   LetterSpacing="1"
-									   Margin="0,0,0,15"/>
-
-							<CheckBox x:Name="PortableCheckBox"
-									   Content="Portable Mode"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"
-									   Checked="PortableCheckBox_Checked"
-									   Unchecked="PortableCheckBox_Unchecked" />
-
-							<TextBlock Text="Store data in the game directory"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,8"/>
-
-							<CheckBox x:Name="ShowExperimentalCheckBox"
-									   Content="Show Experimental Games"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"
-									   Checked="ShowExperimentalCheckBox_Checked"
-									   Unchecked="ShowExperimentalCheckBox_Unchecked" />
-
-							<TextBlock Text="Show Recomp Games that are still experimental"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,25"/>
-
-							<TextBlock Text="Custom Games Path"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-
-							<TextBlock Text="Enter a custom Game Install Path. Leave Blank for Default."
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,8"
-									   TextWrapping="Wrap"/>
+						<TextBlock Text="Settings"
+										   FontSize="28"
+										   FontWeight="Bold"
+										   Foreground="#FFFFFF"
+										   HorizontalAlignment="Center"/>
 							
-							<Panel HorizontalAlignment="Stretch" 
-								   Margin="0,0,0,8">
-								<TextBox x:Name="GamePathTextBox"
+								<!-- General Section -->
+								<TextBlock Text="GENERAL"
+										   FontSize="11"
+										   FontWeight="Bold"
+										   Foreground="#4a4a4a"
+										   LetterSpacing="1"
+										   HorizontalAlignment="Right"
+										   Margin="0,0,0,15"/>
+
+								<CheckBox x:Name="PortableCheckBox"
+										   Content="Portable Mode"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"
+										   Checked="PortableCheckBox_Checked"
+										   Unchecked="PortableCheckBox_Unchecked" />
+
+								<TextBlock Text="Store data in the game directory"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,8"/>
+
+								<CheckBox x:Name="ShowExperimentalCheckBox"
+										   Content="Show Experimental Games"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"
+										   Checked="ShowExperimentalCheckBox_Checked"
+										   Unchecked="ShowExperimentalCheckBox_Unchecked" />
+
+								<TextBlock Text="Show Recomp Games that are still experimental"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,25"/>
+
+								<TextBlock Text="Custom Games Path"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+
+								<TextBlock Text="Enter a custom Game Install Path. Leave Blank for Default."
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,8"
+										   TextWrapping="Wrap"/>
+							
+								<Panel HorizontalAlignment="Stretch" 
+									   Margin="0,0,0,8">
+									<TextBox x:Name="GamePathTextBox"
+											 Foreground="#E0E0E0"
+											 Background="#1a1a1c"
+											 BorderBrush="#2d2d30"
+											 BorderThickness="1"
+											 Padding="12,10"
+											 CornerRadius="4"
+											 Margin="0,0,48,8"
+											 TextChanged="GamePathTextBox_TextChanged"
+											 Text="{Binding Settings.GamePath, Mode=TwoWay}"/>
+									<Button Classes="options"
+											HorizontalAlignment="Right"
+											Margin="8,0,0,8"
+											Content="📁"
+											Click="BrowseGamePath_Click">
+									</Button>
+								</Panel>
+
+								<Button Classes="options"
+										Content="Clear Custom Game Path"
+										HorizontalAlignment="Stretch"
+										Margin="0,0,0,30"
+										Click="ClearGamePath_Click"/>
+
+								<TextBlock Text="Target Platform"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+
+								<TextBlock Text="{Binding PlatformString}"
+										   FontSize="12"
+										   Foreground="#B8B8B8"
+										   Margin="0,0,0,8"/>
+							
+								<Button Classes="options"
+										Content="Change Platform"
+										HorizontalAlignment="Stretch"
+										Margin="0,0,0,30"
+										Click="OptionsButton_Click"
+										Tag="{Binding}">
+										<Button.ContextMenu>
+											<ContextMenu>
+												<MenuItem Header="Automatic" Click="PlatformAuto_Click"/>
+												<MenuItem Header="Windows" Click="PlatformWindows_Click"/>
+												<MenuItem Header="MacOS" Click="PlatformMacOS_Click"/>
+												<MenuItem Header="Linux X64" Click="PlatformLinuxX64_Click"/>
+												<MenuItem Header="Linux ARM64" Click="PlatformLinuxARM64_Click"/>
+												<MenuItem Header="Linux Flatpak" Click="PlatformFlatpak_Click"/>								
+											</ContextMenu>
+										</Button.ContextMenu>
+								</Button>
+
+								<!-- UI Customization Section -->
+								<TextBlock Text="UI CUSTOMIZATION"
+										   FontSize="11"
+										   FontWeight="Bold"
+										   Foreground="#4a4a4a"
+										   LetterSpacing="1"
+										   HorizontalAlignment="Right"
+										   Margin="0,0,0,15"/>
+
+								<CheckBox x:Name="PortraitCheckBox"
+										   Content="Portrait Grid Slots"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"
+										   Checked="PortraitCheckBox_Checked"
+										   Unchecked="PortraitCheckBox_Unchecked" />
+
+								<TextBlock Text="Display grid items in portrait aspect ratio"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,20"/>
+
+								<TextBlock Text="Slot Scale"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+							
+								<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
+										   FontSize="12"
+										   Foreground="#B8B8B8"
+										   Margin="0,0,0,8"/>
+							
+								<Slider x:Name="SlotSizeSlider"
+										   Foreground="#5865F2"
+										   Margin="0,0,0,8"
+										   Minimum="120"
+										   Maximum="400"
+										   Value="120"
+										   TickFrequency="4"
+										   IsSnapToTickEnabled="True"
+										   ValueChanged="SlotSizeSlider_ValueChanged" />
+							
+								<TextBlock Text="Adjust the size of game cards"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,20"/>
+
+								<CheckBox x:Name="IconFillCheckBox"
+										   Content="Fill Images"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"
+										   Checked="IconFillCheckBox_Checked"
+										   Unchecked="IconFillCheckBox_Unchecked" />
+							
+								<TextBlock Text="Stretch images to fill entire card slots"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,20"/>
+							
+								<TextBlock Text="Image Opacity"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+							
+								<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
+										   FontSize="12"
+										   Foreground="#B8B8B8"
+										   Margin="0,0,0,8"/>
+
+								<Slider x:Name="IconOpacitySlider"
+										   Foreground="#5865F2"
+										   Margin="0,0,0,8"
+										   Minimum="0.0"
+										   Maximum="1.0"
+										   Value="0.2"
+										   TickFrequency="0.1"
+										   IsSnapToTickEnabled="True"
+										   ValueChanged="IconOpacitySlider_ValueChanged" />
+
+								<TextBlock Text="Control transparency of game images"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,20"/>
+
+								<TextBlock Text="Image Size"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+							
+								<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
+										   FontSize="12"
+										   Foreground="#B8B8B8"
+										   Margin="0,0,0,8"/>
+
+								<Slider x:Name="IconSizeSlider"
+										   Foreground="#5865F2"
+										   Margin="0,0,0,8"
+										   Minimum="64"
+										   Maximum="512"
+										   Value="256"
+										   TickFrequency="4"
+										   IsSnapToTickEnabled="True"
+										   ValueChanged="IconSizeSlider_ValueChanged" />
+
+								<TextBlock Text="Adjust game image dimensions"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,20"/>
+
+								<TextBlock Text="Image Margin"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+							
+								<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
+										   FontSize="12"
+										   Foreground="#B8B8B8"
+										   Margin="0,0,0,8"/>
+
+								<Slider x:Name="IconMarginSlider"
+										   Foreground="#5865F2"
+										   Margin="0,0,0,8"
+										   Minimum="0"
+										   Maximum="512"
+										   Value="0"
+										   TickFrequency="8"
+										   IsSnapToTickEnabled="True"
+										   ValueChanged="IconMarginSlider_ValueChanged" />
+
+								<TextBlock Text="Set left padding for images"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,20"/>
+
+								<TextBlock Text="Text Margin"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+							
+								<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
+										   FontSize="12"
+										   Foreground="#B8B8B8"
+										   Margin="0,0,0,8"/>
+
+								<Slider x:Name="TextMarginSlider"
+										   Foreground="#5865F2"
+										   Margin="0,0,0,8"
+										   Minimum="0"
+										   Maximum="256"
+										   Value="0"
+										   TickFrequency="8"
+										   IsSnapToTickEnabled="True"
+										   ValueChanged="TextMarginSlider_ValueChanged" />
+
+								<TextBlock Text="Adjust left spacing of text labels"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,30"/>
+
+								<!-- GitHub API Token Section -->
+								<TextBlock Text="GITHUB API"
+										   FontSize="11"
+										   FontWeight="Bold"
+										   Foreground="#4a4a4a"
+										   LetterSpacing="1"
+										   HorizontalAlignment="Right"
+										   Margin="0,0,0,15"/>
+
+								<TextBlock Text="GitHub API Token"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"/>
+
+								<TextBox x:Name="GitHubTokenTextBox"
 										 Foreground="#E0E0E0"
 										 Background="#1a1a1c"
 										 BorderBrush="#2d2d30"
 										 BorderThickness="1"
 										 Padding="12,10"
 										 CornerRadius="4"
-										 Margin="0,0,48,8"
-										 TextChanged="GamePathTextBox_TextChanged"
-										 Text="{Binding Settings.GamePath, Mode=TwoWay}"/>
+										 Margin="0,0,0,8"
+										 TextChanged="GitHubTokenTextBox_TextChanged"
+										 Text="{Binding Settings.GitHubApiToken, Mode=TwoWay}"/>
+
+								<TextBlock Text="Enter your personal access token from GitHub to increase API call limits"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,8"
+										   TextWrapping="Wrap"/>
+
 								<Button Classes="options"
-										HorizontalAlignment="Right"
-										Margin="8,0,0,8"
-										Content="📁"
-										Click="BrowseGamePath_Click">
-								</Button>
-							</Panel>
-
-							<Button Classes="options"
-									Content="Clear Custom Game Path"
-									HorizontalAlignment="Stretch"
-									Margin="0,0,0,30"
-									Click="ClearGamePath_Click"/>
-
-							<TextBlock Text="Target Platform"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-
-							<TextBlock Text="{Binding PlatformString}"
-									   FontSize="12"
-									   Foreground="#B8B8B8"
-									   Margin="0,0,0,8"/>
-							
-							<Button Classes="options"
-									Content="Change Platform"
-									HorizontalAlignment="Stretch"
-									Margin="0,0,0,30"
-									Click="OptionsButton_Click"
-									Tag="{Binding}">
-									<Button.ContextMenu>
-										<ContextMenu>
-											<MenuItem Header="Automatic" Click="PlatformAuto_Click"/>
-											<MenuItem Header="Windows" Click="PlatformWindows_Click"/>
-											<MenuItem Header="MacOS" Click="PlatformMacOS_Click"/>
-											<MenuItem Header="Linux X64" Click="PlatformLinuxX64_Click"/>
-											<MenuItem Header="Linux ARM64" Click="PlatformLinuxARM64_Click"/>
-											<MenuItem Header="Linux Flatpak" Click="PlatformFlatpak_Click"/>								
-										</ContextMenu>
-									</Button.ContextMenu>
-							</Button>
-
-							<!-- UI Customization Section -->
-							<TextBlock Text="UI CUSTOMIZATION"
-									   FontSize="11"
-									   FontWeight="Bold"
-									   Foreground="#4a4a4a"
-									   LetterSpacing="1"
-									   Margin="0,0,0,15"/>
-
-							<CheckBox x:Name="PortraitCheckBox"
-									   Content="Portrait Grid Slots"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"
-									   Checked="PortraitCheckBox_Checked"
-									   Unchecked="PortraitCheckBox_Unchecked" />
-
-							<TextBlock Text="Display grid items in portrait aspect ratio"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,20"/>
-
-							<TextBlock Text="Slot Scale"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-							
-							<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
-									   FontSize="12"
-									   Foreground="#B8B8B8"
-									   Margin="0,0,0,8"/>
-							
-							<Slider x:Name="SlotSizeSlider"
-									   Foreground="#5865F2"
-									   Margin="0,0,0,8"
-									   Minimum="120"
-									   Maximum="400"
-									   Value="120"
-									   TickFrequency="4"
-									   IsSnapToTickEnabled="True"
-									   ValueChanged="SlotSizeSlider_ValueChanged" />
-							
-							<TextBlock Text="Adjust the size of game cards"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,20"/>
-
-							<CheckBox x:Name="IconFillCheckBox"
-									   Content="Fill Images"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"
-									   Checked="IconFillCheckBox_Checked"
-									   Unchecked="IconFillCheckBox_Unchecked" />
-							
-							<TextBlock Text="Stretch images to fill entire card slots"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,20"/>
-							
-							<TextBlock Text="Image Opacity"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-							
-							<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
-									   FontSize="12"
-									   Foreground="#B8B8B8"
-									   Margin="0,0,0,8"/>
-
-							<Slider x:Name="IconOpacitySlider"
-									   Foreground="#5865F2"
-									   Margin="0,0,0,8"
-									   Minimum="0.0"
-									   Maximum="1.0"
-									   Value="0.2"
-									   TickFrequency="0.1"
-									   IsSnapToTickEnabled="True"
-									   ValueChanged="IconOpacitySlider_ValueChanged" />
-
-							<TextBlock Text="Control transparency of game images"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,20"/>
-
-							<TextBlock Text="Image Size"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-							
-							<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
-									   FontSize="12"
-									   Foreground="#B8B8B8"
-									   Margin="0,0,0,8"/>
-
-							<Slider x:Name="IconSizeSlider"
-									   Foreground="#5865F2"
-									   Margin="0,0,0,8"
-									   Minimum="64"
-									   Maximum="512"
-									   Value="256"
-									   TickFrequency="4"
-									   IsSnapToTickEnabled="True"
-									   ValueChanged="IconSizeSlider_ValueChanged" />
-
-							<TextBlock Text="Adjust game image dimensions"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,20"/>
-
-							<TextBlock Text="Image Margin"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-							
-							<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
-									   FontSize="12"
-									   Foreground="#B8B8B8"
-									   Margin="0,0,0,8"/>
-
-							<Slider x:Name="IconMarginSlider"
-									   Foreground="#5865F2"
-									   Margin="0,0,0,8"
-									   Minimum="0"
-									   Maximum="512"
-									   Value="0"
-									   TickFrequency="8"
-									   IsSnapToTickEnabled="True"
-									   ValueChanged="IconMarginSlider_ValueChanged" />
-
-							<TextBlock Text="Set left padding for images"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,20"/>
-
-							<TextBlock Text="Text Margin"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-							
-							<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
-									   FontSize="12"
-									   Foreground="#B8B8B8"
-									   Margin="0,0,0,8"/>
-
-							<Slider x:Name="TextMarginSlider"
-									   Foreground="#5865F2"
-									   Margin="0,0,0,8"
-									   Minimum="0"
-									   Maximum="256"
-									   Value="0"
-									   TickFrequency="8"
-									   IsSnapToTickEnabled="True"
-									   ValueChanged="TextMarginSlider_ValueChanged" />
-
-							<TextBlock Text="Adjust left spacing of text labels"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,30"/>
-
-							<!-- GitHub API Token Section -->
-							<TextBlock Text="GITHUB API"
-									   FontSize="11"
-									   FontWeight="Bold"
-									   Foreground="#4a4a4a"
-									   LetterSpacing="1"
-									   Margin="0,0,0,15"/>
-
-							<TextBlock Text="GitHub API Token"
-									   FontSize="13"
-									   FontWeight="SemiBold"
-									   Foreground="#E0E0E0"
-									   Margin="0,0,0,8"/>
-
-							<TextBox x:Name="GitHubTokenTextBox"
-									 Foreground="#E0E0E0"
-									 Background="#1a1a1c"
-									 BorderBrush="#2d2d30"
-									 BorderThickness="1"
-									 Padding="12,10"
-									 CornerRadius="4"
-									 Margin="0,0,0,8"
-									 TextChanged="GitHubTokenTextBox_TextChanged"
-									 Text="{Binding Settings.GitHubApiToken, Mode=TwoWay}"/>
-
-							<TextBlock Text="Enter your personal access token from GitHub to increase API call limits"
-									   FontSize="12"
-									   Foreground="#6B6B6B"
-									   Margin="0,0,0,8"
-									   TextWrapping="Wrap"/>
-
-							<Button Classes="options"
-									Content="Clear Token"
-									HorizontalAlignment="Stretch"
-									Margin="0,0,0,30"
-									Click="ClearGitHubToken_Click"/>
-						</StackPanel>
-					</ScrollViewer>
-				</Border>
+										Content="Clear Token"
+										HorizontalAlignment="Stretch"
+										Margin="0,0,0,30"
+										Click="ClearGitHubToken_Click"/>
+							</StackPanel>
+						</ScrollViewer>
+				</Border>		
 			</Grid>
 		</Grid>
 	</Grid>
