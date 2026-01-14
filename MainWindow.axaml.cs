@@ -2,11 +2,13 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
 using System;
@@ -102,6 +104,10 @@ namespace N64RecompLauncher
             }
         }
 
+        private InputService? _inputService;
+        private bool _isProcessingInput = false;
+        private bool _hasInitializedFocus = false;
+
         private GameInfo? _continueGameInfo;
         public GameInfo? ContinueGameInfo
         {
@@ -136,6 +142,16 @@ namespace N64RecompLauncher
             LoadCurrentVersion();
             LoadCurrentPlatform();
             UpdateSettingsUI();
+
+            _inputService = new InputService(this);
+            _inputService.OnConfirm += HandleConfirmAction;
+            _inputService.OnCancel += HandleCancelAction;
+
+            this.KeyDown += MainWindow_KeyDown;
+            this.KeyUp += MainWindow_KeyUp;
+
+            this.Activated += MainWindow_Activated;
+            this.Deactivated += MainWindow_Deactivated;
 
             _gameManager.PropertyChanged += (s, e) => {
                 if (e.PropertyName == nameof(GameManager.Games))
@@ -214,6 +230,13 @@ namespace N64RecompLauncher
                     {
                         DataContext = this;
                         UpdateContinueButtonState();
+
+                        // Set initial focus after UI is loaded
+                        if (!_hasInitializedFocus)
+                        {
+                            SetInitialFocus();
+                            _hasInitializedFocus = true;
+                        }
                     });
                 }
                 catch (Exception ex)
@@ -222,6 +245,34 @@ namespace N64RecompLauncher
                         _ = ShowMessageBoxAsync($"Failed to load games: {ex.Message}", "Load Error"));
                 }
             });
+        }
+
+        private void SetInitialFocus()
+        {
+            // Small delay to ensure UI is fully rendered
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Try to focus the Continue button if visible
+                if (IsContinueVisible && this.FindControl<Button>("ContinueButton") is Button continueBtn)
+                {
+                    continueBtn.Focus();
+                    return;
+                }
+
+                // Try Settings button
+                if (this.FindControl<Button>("SettingsButton") is Button settingsBtn)
+                {
+                    settingsBtn.Focus();
+                    return;
+                }
+
+                // Fallback to first focusable control
+                var firstFocusable = this.GetVisualDescendants()
+                    .OfType<Control>()
+                    .FirstOrDefault(c => c.IsVisible && c.IsEnabled && c.Focusable);
+
+                firstFocusable?.Focus();
+            }, DispatcherPriority.Loaded);
         }
 
         public void CloseLauncher_Click(object sender, RoutedEventArgs e)
@@ -297,6 +348,17 @@ namespace N64RecompLauncher
         {
             isSettingsPanelOpen = !isSettingsPanelOpen;
             SettingsPanel.IsVisible = isSettingsPanelOpen;
+
+            if (isSettingsPanelOpen)
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    var firstSettingsControl = SettingsContent?.GetVisualDescendants()
+                        .OfType<Control>()
+                        .FirstOrDefault(c => c.IsVisible && c.IsEnabled && c.Focusable);
+                    firstSettingsControl?.Focus();
+                }, DispatcherPriority.Loaded);
+            }
         }
 
         private void UpdateSettingsUI()
@@ -1126,6 +1188,179 @@ namespace N64RecompLauncher
             {
                 _ = ShowMessageBoxAsync($"Failed to select folder: {ex.Message}", "Error");
             }
+        }
+
+        private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (_isProcessingInput || !IsActive)
+                return;
+
+            _isProcessingInput = true;
+
+            try
+            {
+                switch (e.Key)
+                {
+                    case Key.Space:
+                        HandleConfirmAction();
+                        e.Handled = true;
+                        break;
+
+                    case Key.LeftShift:
+                        HandleCancelAction();
+                        e.Handled = true;
+                        break;
+
+                    case Key.Up:
+                        _inputService?.HandleNavigation(Services.NavigationDirection.Up);
+                        e.Handled = true;
+                        break;
+
+                    case Key.Down:
+                        _inputService?.HandleNavigation(Services.NavigationDirection.Down);
+                        e.Handled = true;
+                        break;
+
+                    case Key.Left:
+                        _inputService?.HandleNavigation(Services.NavigationDirection.Left);
+                        e.Handled = true;
+                        break;
+
+                    case Key.Right:
+                        _inputService?.HandleNavigation(Services.NavigationDirection.Right);
+                        e.Handled = true;
+                        break;
+                }
+            }
+            finally
+            {
+                _isProcessingInput = false;
+            }
+        }
+
+        private void MainWindow_KeyUp(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Up || e.Key == Key.Down || e.Key == Key.Left || e.Key == Key.Right)
+            {
+                _inputService?.ResetNavigationTimer();
+            }
+        }
+
+        private void HandleConfirmAction()
+        {
+            var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+
+            if (focused is MenuItem menuItem)
+            {
+                // Trigger the menu item click
+                menuItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            }
+            else if (focused is Button button)
+            {
+                // If button has a context menu, open it
+                if (button.ContextMenu != null)
+                {
+                    button.ContextMenu.PlacementTarget = button;
+                    button.ContextMenu.Placement = PlacementMode.Bottom;
+                    button.ContextMenu.Open();
+
+                    // Focus first menu item after opening
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        var firstMenuItem = button.ContextMenu.Items.OfType<MenuItem>().FirstOrDefault();
+                        firstMenuItem?.Focus();
+                    }, DispatcherPriority.Loaded);
+                }
+                else
+                {
+                    // Normal button click
+                    button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                }
+            }
+            else if (focused is CheckBox checkBox)
+            {
+                checkBox.IsChecked = !checkBox.IsChecked;
+            }
+            else if (focused is ToggleButton toggleButton)
+            {
+                toggleButton.IsChecked = !toggleButton.IsChecked;
+            }
+        }
+
+        private void HandleCancelAction()
+        {
+            // First check if any context menu is open and close it
+            var allButtons = this.GetVisualDescendants().OfType<Button>();
+            foreach (var button in allButtons)
+            {
+                if (button.ContextMenu?.IsOpen == true)
+                {
+                    button.ContextMenu.Close();
+                    button.Focus(); // Return focus to the button
+                    return;
+                }
+            }
+
+            // Close settings panel if open
+            if (isSettingsPanelOpen && SettingsPanel != null)
+            {
+                isSettingsPanelOpen = false;
+                SettingsPanel.IsVisible = false;
+
+                // Return focus to settings button
+                var settingsButton = this.FindControl<Button>("SettingsButton");
+                if (settingsButton != null)
+                {
+                    settingsButton.Focus();
+                }
+                else
+                {
+                    // Fallback: focus the first focusable element outside settings panel
+                    var firstFocusable = this.GetVisualDescendants()
+                        .OfType<Control>()
+                        .FirstOrDefault(c => c.IsVisible && c.IsEnabled && c.Focusable && !IsInsideSettingsPanel(c));
+                    firstFocusable?.Focus();
+                }
+                return;
+            }
+        }
+
+        private bool IsInsideSettingsPanel(Control control)
+        {
+            var parent = control.Parent;
+            while (parent != null)
+            {
+                if (parent == SettingsPanel)
+                    return true;
+                parent = parent.Parent;
+            }
+            return false;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+
+            // Unsubscribe from events
+            this.Activated -= MainWindow_Activated;
+            this.Deactivated -= MainWindow_Deactivated;
+
+            if (_inputService != null)
+            {
+                _inputService.OnConfirm -= HandleConfirmAction;
+                _inputService.OnCancel -= HandleCancelAction;
+                _inputService.Dispose();
+            }
+        }
+
+        private void MainWindow_Activated(object? sender, EventArgs e)
+        {
+            _inputService?.SetWindowActive(true);
+        }
+
+        private void MainWindow_Deactivated(object? sender, EventArgs e)
+        {
+            _inputService?.SetWindowActive(false);
         }
 
         public new event PropertyChangedEventHandler? PropertyChanged;
