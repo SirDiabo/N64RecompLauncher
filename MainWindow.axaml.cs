@@ -733,8 +733,6 @@ namespace N64RecompLauncher
                         Directory.Delete(gamePath, true);
 
                         await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder);
-
-                        _ = ShowMessageBoxAsync($"{game.Name} has been successfully deleted.", "Deletion Complete");
                     }
                     else
                     {
@@ -992,18 +990,62 @@ namespace N64RecompLauncher
             }
         }
 
+        private System.Threading.CancellationTokenSource? _gamePathUpdateCts;
+
         private async void GamePathTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (_settings != null && sender is TextBox textBox)
+            if (_settings == null || sender is not TextBox textBox)
+                return;
+
+            _gamePathUpdateCts?.Cancel();
+            _gamePathUpdateCts = new System.Threading.CancellationTokenSource();
+            var token = _gamePathUpdateCts.Token;
+
+            try
             {
-                _settings.GamesPath = textBox.Text ?? string.Empty;
+                await Task.Delay(500, token);
+
+                var newPath = textBox.Text?.Trim() ?? string.Empty;
+
+                if (_settings.GamesPath == newPath)
+                    return;
+
+                _settings.GamesPath = newPath;
                 OnSettingChanged();
 
                 if (_gameManager != null)
                 {
+                    if (!string.IsNullOrEmpty(newPath))
+                    {
+                        if (!Directory.Exists(newPath))
+                        {
+                            var result = await ShowMessageBoxAsync(
+                                $"The directory '{newPath}' does not exist. Create it?",
+                                "Directory Not Found",
+                                true);
+
+                            if (!result)
+                            {
+                                // Revert to previous value
+                                textBox.Text = _settings.GamesPath;
+                                return;
+                            }
+                        }
+                    }
+
                     await _gameManager.UpdateGamesFolderAsync(_settings.GamesPath);
                     await _gameManager.LoadGamesAsync();
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // User is still typing, ignore
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to update games path: {ex.Message}", "Error");
+                if (GamePathTextBox != null)
+                    GamePathTextBox.Text = _settings.GamesPath;
             }
         }
 
@@ -1021,20 +1063,25 @@ namespace N64RecompLauncher
 
         private async void ClearGamePath_Click(object sender, RoutedEventArgs e)
         {
-            if (_settings != null)
+            if (_settings == null)
+                return;
+
+            try
             {
                 _settings.GamesPath = string.Empty;
                 if (GamePathTextBox != null)
                     GamePathTextBox.Text = string.Empty;
                 OnSettingChanged();
 
-                // Reset to default path
                 if (_gameManager != null)
                 {
                     await _gameManager.UpdateGamesFolderAsync(string.Empty);
+                    await _gameManager.LoadGamesAsync();
                 }
-
-                _ = ShowMessageBoxAsync("Custom games path cleared. Default path will be used.", "Path Cleared");
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to clear games path: {ex.Message}", "Error");
             }
         }
 
@@ -1051,17 +1098,26 @@ namespace N64RecompLauncher
                 if (folders?.Count > 0)
                 {
                     var selectedPath = folders[0].Path.LocalPath;
-                    if (GamePathTextBox != null)
-                        GamePathTextBox.Text = selectedPath;
+
+                    if (!Directory.Exists(selectedPath))
+                    {
+                        _ = ShowMessageBoxAsync("Selected folder does not exist.", "Invalid Selection");
+                        return;
+                    }
 
                     if (_settings != null)
                     {
                         _settings.GamesPath = selectedPath;
+
+                        if (GamePathTextBox != null)
+                            GamePathTextBox.Text = selectedPath;
+
                         OnSettingChanged();
 
                         if (_gameManager != null)
                         {
                             await _gameManager.UpdateGamesFolderAsync(selectedPath);
+                            await _gameManager.LoadGamesAsync();
                         }
                     }
                 }

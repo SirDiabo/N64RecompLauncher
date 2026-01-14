@@ -57,9 +57,19 @@ namespace N64RecompLauncher.Services
         {
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "N64Recomp-Launcher/1.0");
-            _settings = AppSettings.Load();
 
-            if (!string.IsNullOrEmpty(_settings.GamesPath))
+            try
+            {
+                _settings = AppSettings.Load();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load settings in GameManager: {ex.Message}");
+                _settings = new AppSettings();
+            }
+
+            // Initialize games folder with null check
+            if (!string.IsNullOrEmpty(_settings?.GamesPath))
             {
                 _gamesFolder = _settings.GamesPath;
             }
@@ -71,8 +81,15 @@ namespace N64RecompLauncher.Services
             _cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Cache");
             _gamesConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
 
-            Directory.CreateDirectory(_gamesFolder);
-            Directory.CreateDirectory(_cacheFolder);
+            try
+            {
+                Directory.CreateDirectory(_gamesFolder);
+                Directory.CreateDirectory(_cacheFolder);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to create directories: {ex.Message}");
+            }
 
             LoadVersionString();
 
@@ -436,28 +453,49 @@ namespace N64RecompLauncher.Services
         {
             try
             {
-                if (!string.IsNullOrEmpty(newPath))
+                string targetPath;
+
+                if (!string.IsNullOrWhiteSpace(newPath))
                 {
-                    _gamesFolder = newPath;
+                    // Validate the path exists or can be created
+                    if (!Directory.Exists(newPath))
+                    {
+                        try
+                        {
+                            Directory.CreateDirectory(newPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to create custom games directory: {ex.Message}");
+                            throw new InvalidOperationException($"Cannot create directory at {newPath}", ex);
+                        }
+                    }
+                    targetPath = newPath;
                 }
                 else
                 {
-                    _gamesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RecompiledGames");
+                    targetPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RecompiledGames");
+                    Directory.CreateDirectory(targetPath);
                 }
 
-                Directory.CreateDirectory(_gamesFolder);
-
+                _gamesFolder = targetPath;
                 Games.Clear();
 
                 await LoadGamesAsync();
 
                 OnPropertyChanged(nameof(Games));
+                OnPropertyChanged(nameof(GamesFolder));
 
                 System.Diagnostics.Debug.WriteLine($"Games folder updated to: {_gamesFolder}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating games folder: {ex.Message}");
+
+                // Fallback to default path on error
+                _gamesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RecompiledGames");
+                Directory.CreateDirectory(_gamesFolder);
+
                 throw;
             }
         }

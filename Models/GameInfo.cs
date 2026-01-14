@@ -322,6 +322,13 @@ namespace N64RecompLauncher.Models
 
         public async Task CheckStatusAsync(HttpClient httpClient, string gamesFolder)
         {
+            if (string.IsNullOrEmpty(FolderName))
+            {
+                System.Diagnostics.Debug.WriteLine($"Warning: FolderName is null or empty for game {Name}");
+                Status = GameStatus.NotInstalled;
+                return;
+            }
+
             IsLoading = true;
 
             try
@@ -338,7 +345,7 @@ namespace N64RecompLauncher.Models
                     {
                         try
                         {
-                            InstalledVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
+                            InstalledVersion = (await File.ReadAllTextAsync(versionFile).ConfigureAwait(false))?.Trim();
                         }
                         catch
                         {
@@ -363,14 +370,15 @@ namespace N64RecompLauncher.Models
 
                 if (!string.IsNullOrEmpty(LatestVersion) &&
                     !string.IsNullOrEmpty(InstalledVersion) &&
-                    InstalledVersion != LatestVersion)
+                    InstalledVersion != LatestVersion &&
+                    InstalledVersion != "Unknown")
                 {
                     Status = GameStatus.UpdateAvailable;
                 }
             }
             catch (Exception ex)
             {
-                await ShowMessageBoxAsync($"Error checking status for {Name}: {ex.Message}", "Error");
+                System.Diagnostics.Debug.WriteLine($"Error checking status for {Name}: {ex.Message}");
                 Status = GameStatus.NotInstalled;
             }
             finally
@@ -566,6 +574,12 @@ namespace N64RecompLauncher.Models
 
         private async Task CheckLatestVersionAsync(HttpClient httpClient)
         {
+            if (string.IsNullOrEmpty(Repository))
+            {
+                System.Diagnostics.Debug.WriteLine($"Warning: Repository is null or empty for game {Name}");
+                return;
+            }
+
             try
             {
                 if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
@@ -573,14 +587,14 @@ namespace N64RecompLauncher.Models
                     LatestVersion = cache.Version;
                     _cachedRelease = cache.CachedRelease;
 
-                    if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                    if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
+                        InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
                     {
                         Status = GameStatus.UpdateAvailable;
                     }
                     return;
                 }
 
-                // Check for releases first (latest release)
                 var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
                 var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
 
@@ -615,8 +629,14 @@ namespace N64RecompLauncher.Models
                 string responseContent = await response.Content.ReadAsStringAsync();
                 var releases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(responseContent);
 
+                if (releases == null || !releases.Any())
+                {
+                    System.Diagnostics.Debug.WriteLine($"No releases found for {Repository}");
+                    return;
+                }
+
                 // Try to find the latest release
-                var latestRelease = releases?.FirstOrDefault(r => !r.prerelease);
+                var latestRelease = releases.FirstOrDefault(r => !r.prerelease);
                 if (latestRelease != null && !string.IsNullOrWhiteSpace(latestRelease.tag_name))
                 {
                     LatestVersion = latestRelease.tag_name;
@@ -625,15 +645,16 @@ namespace N64RecompLauncher.Models
                     string? newETag = response.Headers.ETag?.Tag;
                     GitHubApiCache.SetCache(Repository, latestRelease.tag_name, newETag ?? string.Empty, latestRelease);
 
-                    if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                    if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
+                        InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
                     {
                         Status = GameStatus.UpdateAvailable;
                     }
-                    return; // Exit after finding the latest release
+                    return;
                 }
 
                 // If no latest release found, check for a pre-release
-                var prerelease = releases?.FirstOrDefault(r => r.prerelease);
+                var prerelease = releases.FirstOrDefault(r => r.prerelease);
 
                 if (prerelease != null && !string.IsNullOrWhiteSpace(prerelease.tag_name))
                 {
@@ -643,15 +664,20 @@ namespace N64RecompLauncher.Models
                     string? newETag = response.Headers.ETag?.Tag;
                     GitHubApiCache.SetCache(Repository, prerelease.tag_name, newETag ?? string.Empty, prerelease);
 
-                    if (Status == GameStatus.Installed && InstalledVersion != LatestVersion)
+                    if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
+                        InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
                     {
                         Status = GameStatus.UpdateAvailable;
                     }
                 }
             }
+            catch (HttpRequestException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Network error fetching latest version for {Repository}: {ex.Message}");
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
             }
         }
 
@@ -716,6 +742,18 @@ namespace N64RecompLauncher.Models
 
         private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease, AppSettings settings)
         {
+            if (string.IsNullOrEmpty(FolderName))
+            {
+                await ShowMessageBoxAsync("Game configuration is invalid (missing folder name).", "Configuration Error");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(Repository))
+            {
+                await ShowMessageBoxAsync("Game configuration is invalid (missing repository).", "Configuration Error");
+                return;
+            }
+
             try
             {
                 Status = GameStatus.Downloading;
@@ -728,7 +766,7 @@ namespace N64RecompLauncher.Models
                 // Check for a cached release first
                 if (latestRelease == null)
                 {
-                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null && cache.CachedRelease != null)
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache?.CachedRelease != null)
                     {
                         latestRelease = cache.CachedRelease;
                     }
@@ -737,24 +775,34 @@ namespace N64RecompLauncher.Models
                         // Check for the latest release first
                         var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
                         var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
-                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse)
-                            ?? throw new InvalidOperationException("Failed to deserialize GitHub release information.");
+                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
+
+                        if (deserializedReleases == null || !deserializedReleases.Any())
+                        {
+                            await ShowMessageBoxAsync($"No releases found for {Name}.", "No Releases");
+                            Status = GameStatus.NotInstalled;
+                            return;
+                        }
 
                         // Prioritize latest releases
                         latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
-                                        deserializedReleases.FirstOrDefault(r => r.prerelease); // Fallback to pre-release
+                                        deserializedReleases.FirstOrDefault(r => r.prerelease);
 
-                        if (latestRelease != null)
+                        if (latestRelease == null)
                         {
-                            GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
+                            await ShowMessageBoxAsync($"No valid releases found for {Name}.", "No Releases");
+                            Status = GameStatus.NotInstalled;
+                            return;
                         }
+
+                        GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
                     }
                 }
 
                 // Check if the installed version is already the latest
                 if (File.Exists(versionFile))
                 {
-                    var existingVersion = await File.ReadAllTextAsync(versionFile).ConfigureAwait(false);
+                    var existingVersion = (await File.ReadAllTextAsync(versionFile).ConfigureAwait(false))?.Trim();
                     if (existingVersion == latestRelease.tag_name)
                     {
                         Status = GameStatus.Installed;
@@ -773,7 +821,7 @@ namespace N64RecompLauncher.Models
                 }
 
                 // Find the appropriate asset for the platform
-                var asset = latestRelease.assets.FirstOrDefault(a =>
+                var asset = latestRelease.assets?.FirstOrDefault(a =>
                     (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
                     (string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase)));
 
@@ -782,7 +830,10 @@ namespace N64RecompLauncher.Models
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        await ShowMessageBoxAsync($"No compatible asset found for platform {platformIdentifier}", "Error");
+                        await ShowMessageBoxAsync(
+                            $"No compatible download found for {Name} on platform '{platformIdentifier}'.\n\n" +
+                            $"Available assets: {string.Join(", ", latestRelease.assets?.Select(a => a.name) ?? new[] { "none" })}",
+                            "Platform Not Supported");
                     });
                     Status = GameStatus.NotInstalled;
                     return;
@@ -790,22 +841,40 @@ namespace N64RecompLauncher.Models
 
                 // Download the asset
                 var downloadPath = Path.Combine(Path.GetTempPath(), asset.name);
-                using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
+
+                try
                 {
-                    downloadResponse.EnsureSuccessStatusCode();
-                    using var fs = new FileStream(downloadPath, FileMode.Create);
-                    await downloadResponse.Content.CopyToAsync(fs);
+                    using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
+                    {
+                        downloadResponse.EnsureSuccessStatusCode();
+                        using var fs = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                        await downloadResponse.Content.CopyToAsync(fs);
+                    }
+
+                    // Install or update the game
+                    Status = GameStatus.Installing;
+                    await InstallOrUpdateGame(downloadPath, gamePath, asset.name, latestRelease.tag_name);
+
+                    // Update status
+                    InstalledVersion = latestRelease.tag_name;
+                    LatestVersion = latestRelease.tag_name;
+                    Status = GameStatus.Installed;
                 }
-
-                // Install or update the game
-                Status = GameStatus.Installing;
-                await InstallOrUpdateGame(downloadPath, gamePath, asset.name, latestRelease.tag_name);
-                File.Delete(downloadPath);
-
-                // Update status
-                InstalledVersion = latestRelease.tag_name;
-                LatestVersion = latestRelease.tag_name;
-                Status = GameStatus.Installed;
+                finally
+                {
+                    // Clean up download file
+                    if (File.Exists(downloadPath))
+                    {
+                        try
+                        {
+                            File.Delete(downloadPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to delete temp file {downloadPath}: {ex.Message}");
+                        }
+                    }
+                }
 
                 // Refresh game list
                 if (GameManager != null)
@@ -820,7 +889,15 @@ namespace N64RecompLauncher.Models
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    await ShowMessageBoxAsync($"Network error installing {Name}: {ex.Message}", "Network Error");
+                    await ShowMessageBoxAsync($"Network error installing {Name}: {ex.Message}\n\nPlease check your internet connection.", "Network Error");
+                });
+                Status = GameStatus.NotInstalled;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await ShowMessageBoxAsync($"Permission error installing {Name}: {ex.Message}\n\nPlease check folder permissions.", "Permission Error");
                 });
                 Status = GameStatus.NotInstalled;
             }
@@ -828,7 +905,7 @@ namespace N64RecompLauncher.Models
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    await ShowMessageBoxAsync($"Error installing {Name}: {ex.Message}", "Error");
+                    await ShowMessageBoxAsync($"Error installing {Name}: {ex.Message}", "Installation Error");
                 });
                 Status = GameStatus.NotInstalled;
             }
@@ -1311,9 +1388,22 @@ namespace N64RecompLauncher.Models
 
         private async void Launch(string gamesFolder)
         {
+            if (string.IsNullOrEmpty(FolderName))
+            {
+                await ShowMessageBoxAsync("Cannot launch game: folder name is not configured.", "Configuration Error");
+                return;
+            }
+
             try
             {
                 string gamePath = Path.Combine(gamesFolder, FolderName);
+
+                if (!Directory.Exists(gamePath))
+                {
+                    await ShowMessageBoxAsync($"Game directory not found: {gamePath}", "Directory Not Found");
+                    return;
+                }
+
                 string? executablePath = null;
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -1330,112 +1420,34 @@ namespace N64RecompLauncher.Models
                     }
                     else
                     {
-                        var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories);
-
-                        foreach (var file in allFiles)
-                        {
-                            var fileName = Path.GetFileName(file);
-
-                            if (fileName.Contains('.') &&
-                                (fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
-                                 fileName.EndsWith(".so") || fileName.EndsWith(".dylib") ||
-                                 fileName.EndsWith(".json") || fileName.EndsWith(".cfg") ||
-                                 fileName.EndsWith(".ini") || fileName.EndsWith(".log")))
-                            {
-                                continue;
-                            }
-
-                            if (fileName.Contains("Recompiled", StringComparison.OrdinalIgnoreCase) ||
-                                fileName.Contains(Name.Replace(" ", ""), StringComparison.OrdinalIgnoreCase))
-                            {
-                                executablePath = file;
-                                break;
-                            }
-                        }
-
-                        if (string.IsNullOrEmpty(executablePath))
-                        {
-                            executablePath = allFiles.FirstOrDefault(f =>
-                                !Path.GetFileName(f).Contains('.') &&
-                                new FileInfo(f).Length > 1024);
-                        }
+                        executablePath = FindExecutableInPath(gamePath);
                     }
                 }
-                else
+                else // Linux
                 {
-                    var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories);
-
-                    foreach (var file in allFiles)
-                    {
-                        var fileName = Path.GetFileName(file);
-
-                        if (fileName.Contains('.') &&
-                            (fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
-                             fileName.EndsWith(".so") || fileName.EndsWith(".dylib") ||
-                             fileName.EndsWith(".json") || fileName.EndsWith(".cfg") ||
-                             fileName.EndsWith(".ini") || fileName.EndsWith(".log")))
-                        {
-                            continue;
-                        }
-
-                        if (fileName.Contains("Recompiled", StringComparison.OrdinalIgnoreCase) ||
-                            fileName.Contains(Name.Replace(" ", ""), StringComparison.OrdinalIgnoreCase))
-                        {
-                            executablePath = file;
-                            break;
-                        }
-                    }
-
-                    if (string.IsNullOrEmpty(executablePath))
-                    {
-                        executablePath = allFiles.FirstOrDefault(f =>
-                            !Path.GetFileName(f).Contains('.') &&
-                            new FileInfo(f).Length > 1024);
-                    }
+                    executablePath = FindExecutableInPath(gamePath);
                 }
 
                 if (string.IsNullOrEmpty(executablePath))
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        await ShowMessageBoxAsync($"No executable found in {gamePath}", "Error");
+                        await ShowMessageBoxAsync(
+                            $"No executable found for {Name} in:\n{gamePath}\n\n" +
+                            $"The game may not have installed correctly.",
+                            "Executable Not Found");
                     });
                     return;
                 }
 
+                // Make executable on Unix systems
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
                     !executablePath.EndsWith(".app"))
                 {
-                    try
-                    {
-                        var chmodProcess = new ProcessStartInfo
-                        {
-                            FileName = "chmod",
-                            Arguments = $"+x \"{executablePath}\"",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true
-                        };
-
-                        using var process = Process.Start(chmodProcess);
-                        if (process != null)
-                        {
-                            await process.WaitForExitAsync();
-
-                            if (process.ExitCode != 0)
-                            {
-                                string errorOutput = await process.StandardError.ReadToEndAsync();
-                                System.Diagnostics.Debug.WriteLine($"chmod failed: {errorOutput}");
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Failed to make file executable: {ex.Message}");
-                    }
+                    await MakeExecutableAsync(executablePath);
                 }
 
+                // Launch the game
                 var startInfo = new ProcessStartInfo();
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && executablePath.EndsWith(".app"))
@@ -1448,13 +1460,13 @@ namespace N64RecompLauncher.Models
                 else
                 {
                     startInfo.FileName = executablePath;
-                    startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath);
+                    startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath) ?? gamePath;
                     startInfo.UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
                 }
 
                 UpdateLastPlayedTime(RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && executablePath.EndsWith(".app")
                     ? gamePath
-                    : Path.GetDirectoryName(executablePath));
+                    : (Path.GetDirectoryName(executablePath) ?? gamePath));
 
                 Process.Start(startInfo);
 
@@ -1470,18 +1482,108 @@ namespace N64RecompLauncher.Models
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    await ShowMessageBoxAsync($"Error launching {Name}: {ex.Message}", "Error");
+                    await ShowMessageBoxAsync($"Error launching {Name}: {ex.Message}", "Launch Error");
                 });
+            }
+        }
+
+        private string? FindExecutableInPath(string gamePath)
+        {
+            var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories);
+
+            // First pass: look for files matching game name or "recomp"
+            foreach (var file in allFiles)
+            {
+                var fileName = Path.GetFileName(file);
+                if (string.IsNullOrEmpty(fileName)) continue;
+
+                // Skip non-executable extensions
+                if (fileName.Contains('.') &&
+                    (fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(".cfg", StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(".ini", StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(".log", StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                if (fileName.Contains("Recompiled", StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(Name) && fileName.Contains(Name.Replace(" ", ""), StringComparison.OrdinalIgnoreCase)))
+                {
+                    return file;
+                }
+            }
+
+            // Second pass: look for any file without extension that's large enough
+            return allFiles.FirstOrDefault(f =>
+            {
+                try
+                {
+                    return !Path.GetFileName(f).Contains('.') && new FileInfo(f).Length > 1024;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
+
+        private async Task MakeExecutableAsync(string executablePath)
+        {
+            try
+            {
+                var chmodProcess = new ProcessStartInfo
+                {
+                    FileName = "chmod",
+                    Arguments = $"+x \"{executablePath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using var process = Process.Start(chmodProcess);
+                if (process != null)
+                {
+                    await process.WaitForExitAsync();
+
+                    if (process.ExitCode != 0)
+                    {
+                        string errorOutput = await process.StandardError.ReadToEndAsync();
+                        System.Diagnostics.Debug.WriteLine($"chmod failed for {executablePath}: {errorOutput}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to make file executable {executablePath}: {ex.Message}");
             }
         }
 
         private void UpdateLastPlayedTime(string gamePath)
         {
+            if (string.IsNullOrEmpty(gamePath))
+                return;
+
             try
             {
+                if (!Directory.Exists(gamePath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Cannot update LastPlayed: directory does not exist: {gamePath}");
+                    return;
+                }
+
                 var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
                 var currentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 File.WriteAllText(lastPlayedPath, currentTime);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Permission denied updating LastPlayed.txt for {Name}: {ex.Message}");
             }
             catch (Exception ex)
             {
