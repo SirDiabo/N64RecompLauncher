@@ -1,10 +1,11 @@
 ﻿<Window x:Class="N64RecompLauncher.MainWindow"
-        xmlns="https://github.com/avaloniaui"
+		xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:anim="https://github.com/whistyun/AnimatedImage.Avalonia"
         xmlns:local="clr-namespace:N64RecompLauncher"
 		xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
         Title="N64Recomp Launcher"
-		Height="720" Width="1280"
+		Width="1280" Height="720"
         Background="#0e0e10"
 		WindowState="{Binding FullScreen}"
         WindowStartupLocation="CenterScreen">
@@ -90,7 +91,7 @@
 								</TextBlock>
 							</StackPanel>
 						</StackPanel>
-
+						
 						<!-- Gamecard: Options -->
 						<StackPanel Grid.Column="1" 
 									Orientation="Horizontal" 
@@ -592,7 +593,7 @@
 
 				<!-- Logo/Header -->
 				<StackPanel Grid.Row="0" Margin="20,30,20,30">
-					<local:AnimatedGifImage GifSource="/Assets/icon.gif"
+					<Image anim:ImageBehavior.AnimatedSource="avares://N64RecompLauncher/Assets/icon.gif"
 											Width="80"
 											Height="80"
 											HorizontalAlignment="Center"

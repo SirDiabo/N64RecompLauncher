@@ -220,31 +220,32 @@ namespace N64RecompLauncher
         protected override void OnOpened(EventArgs e)
         {
             base.OnOpened(e);
-            _ = Task.Run(async () =>
+            _ = InitializeGamesAsync();
+        }
+
+        private async Task InitializeGamesAsync()
+        {
+            try
             {
-                try
-                {
-                    await _gameManager.LoadGamesAsync();
+                await _gameManager.LoadGamesAsync();
 
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    DataContext = this;
+                    UpdateContinueButtonState();
+
+                    if (!_hasInitializedFocus)
                     {
-                        DataContext = this;
-                        UpdateContinueButtonState();
-
-                        // Set initial focus after UI is loaded
-                        if (!_hasInitializedFocus)
-                        {
-                            SetInitialFocus();
-                            _hasInitializedFocus = true;
-                        }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                        _ = ShowMessageBoxAsync($"Failed to load games: {ex.Message}", "Load Error"));
-                }
-            });
+                        SetInitialFocus();
+                        _hasInitializedFocus = true;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    _ = ShowMessageBoxAsync($"Failed to load games: {ex.Message}", "Load Error"));
+            }
         }
 
         private void SetInitialFocus()
@@ -1061,53 +1062,52 @@ namespace N64RecompLauncher
 
             _gamePathUpdateCts?.Cancel();
             _gamePathUpdateCts = new System.Threading.CancellationTokenSource();
-            var token = _gamePathUpdateCts.Token;
 
             try
             {
-                await Task.Delay(500, token);
-
-                var newPath = textBox.Text?.Trim() ?? string.Empty;
-
-                if (_settings.GamesPath == newPath)
-                    return;
-
-                _settings.GamesPath = newPath;
-                OnSettingChanged();
-
-                if (_gameManager != null)
-                {
-                    if (!string.IsNullOrEmpty(newPath))
-                    {
-                        if (!Directory.Exists(newPath))
-                        {
-                            var result = await ShowMessageBoxAsync(
-                                $"The directory '{newPath}' does not exist. Create it?",
-                                "Directory Not Found",
-                                true);
-
-                            if (!result)
-                            {
-                                // Revert to previous value
-                                textBox.Text = _settings.GamesPath;
-                                return;
-                            }
-                        }
-                    }
-
-                    await _gameManager.UpdateGamesFolderAsync(_settings.GamesPath);
-                    await _gameManager.LoadGamesAsync();
-                }
+                await Task.Delay(500, _gamePathUpdateCts.Token);
+                await UpdateGamePath(textBox.Text?.Trim() ?? string.Empty, textBox);
             }
             catch (OperationCanceledException)
             {
-                // User is still typing, ignore
+                // User is still typing
+            }
+        }
+
+        private async Task UpdateGamePath(string newPath, TextBox textBox)
+        {
+            if (_settings.GamesPath == newPath)
+                return;
+
+            _settings.GamesPath = newPath;
+            OnSettingChanged();
+
+            if (_gameManager == null)
+                return;
+
+            if (!string.IsNullOrEmpty(newPath) && !Directory.Exists(newPath))
+            {
+                var result = await ShowMessageBoxAsync(
+                    $"The directory '{newPath}' does not exist. Create it?",
+                    "Directory Not Found",
+                    true);
+
+                if (!result)
+                {
+                    textBox.Text = _settings.GamesPath;
+                    return;
+                }
+            }
+
+            try
+            {
+                await _gameManager.UpdateGamesFolderAsync(_settings.GamesPath);
+                await _gameManager.LoadGamesAsync();
             }
             catch (Exception ex)
             {
                 await ShowMessageBoxAsync($"Failed to update games path: {ex.Message}", "Error");
-                if (GamePathTextBox != null)
-                    GamePathTextBox.Text = _settings.GamesPath;
+                textBox.Text = _settings.GamesPath;
             }
         }
 

@@ -808,14 +808,7 @@ namespace N64RecompLauncher.Models
                         Status = GameStatus.Installed;
                         InstalledVersion = existingVersion;
                         LatestVersion = latestRelease.tag_name;
-
-                        if (GameManager != null)
-                        {
-                            await Dispatcher.UIThread.InvokeAsync(async () =>
-                            {
-                                await GameManager.LoadGamesAsync();
-                            });
-                        }
+                        await RefreshGameList();
                         return;
                     }
                 }
@@ -908,6 +901,17 @@ namespace N64RecompLauncher.Models
                     await ShowMessageBoxAsync($"Error installing {Name}: {ex.Message}", "Installation Error");
                 });
                 Status = GameStatus.NotInstalled;
+            }
+        }
+
+        private async Task RefreshGameList()
+        {
+            if (GameManager != null)
+            {
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await GameManager.LoadGamesAsync();
+                });
             }
         }
 

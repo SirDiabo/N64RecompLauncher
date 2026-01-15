@@ -15,14 +15,15 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="AsyncImageLoader.Avalonia" Version="3.3.0" />
-		<PackageReference Include="Avalonia" Version="11.3.0" />
-		<PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
-		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
-		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
+		<PackageReference Include="AnimatedImage.Avalonia" Version="2.1.2" />
+		<PackageReference Include="AsyncImageLoader.Avalonia" Version="3.5.0" />
+		<PackageReference Include="Avalonia" Version="11.3.11" />
+		<PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
+		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.11" />
 		<PackageReference Include="ppy.SDL2-CS" Version="1.0.82" />
-		<PackageReference Include="System.Text.Json" Version="9.0.8" />
-		<PackageReference Include="System.Drawing.Common" Version="9.0.8" />
+		<PackageReference Include="System.Text.Json" Version="10.0.2" />
+		<PackageReference Include="System.Drawing.Common" Version="10.0.2" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -209,115 +209,104 @@ namespace N64RecompLauncher.Services
 			_lastNavigationTime = DateTime.MinValue;
 		}
 
-		private Control? GetNextControl(Control current, NavigationDirection direction)
-		{
-			var allControls = GetFocusableControls(_mainWindow);
+        private Control? GetNextControl(Control current, NavigationDirection direction)
+        {
+            var allControls = GetFocusableControls(_mainWindow);
 
-			if (!allControls.Any())
-				return null;
+            if (!allControls.Any())
+                return null;
 
-			var currentIndex = allControls.IndexOf(current);
-			if (currentIndex == -1)
-				return allControls.FirstOrDefault();
+            var currentIndex = allControls.IndexOf(current);
+            if (currentIndex == -1)
+                return allControls.FirstOrDefault();
 
-			// Get the bounds of the current control in window coordinates
-			var currentBounds = current.Bounds;
-			var currentTopLeft = current.TranslatePoint(new Avalonia.Point(0, 0), _mainWindow);
+            var currentCenter = GetControlCenter(current);
+            if (!currentCenter.HasValue)
+                return GetNextControlSimple(allControls, currentIndex, direction);
 
-			if (!currentTopLeft.HasValue)
-			{
-				// Fallback to simple list navigation
-				return GetNextControlSimple(allControls, currentIndex, direction);
-			}
+            Control? bestCandidate = null;
+            double bestScore = double.MaxValue;
 
-			// Calculate current control's center in window coordinates
-			var currentCenter = new Avalonia.Point(
-				currentTopLeft.Value.X + currentBounds.Width / 2,
-				currentTopLeft.Value.Y + currentBounds.Height / 2
-			);
+            foreach (var candidate in allControls)
+            {
+                if (candidate == current)
+                    continue;
 
-			// Find the best candidate in the requested direction
-			Control? bestCandidate = null;
-			double bestScore = double.MaxValue;
+                var candidateCenter = GetControlCenter(candidate);
+                if (!candidateCenter.HasValue)
+                    continue;
 
-			foreach (var candidate in allControls)
-			{
-				if (candidate == current)
-					continue;
+                var score = CalculateNavigationScore(currentCenter.Value, candidateCenter.Value, direction);
+                if (score.HasValue && score.Value < bestScore)
+                {
+                    bestScore = score.Value;
+                    bestCandidate = candidate;
+                }
+            }
 
-				var candidateBounds = candidate.Bounds;
-				var candidateTopLeft = candidate.TranslatePoint(new Avalonia.Point(0, 0), _mainWindow);
+            return bestCandidate ?? GetNextControlWithWrapping(allControls, currentIndex, direction, currentCenter.Value);
+        }
 
-				if (!candidateTopLeft.HasValue)
-					continue;
+        private Avalonia.Point? GetControlCenter(Control control)
+        {
+            var topLeft = control.TranslatePoint(new Avalonia.Point(0, 0), _mainWindow);
+            if (!topLeft.HasValue)
+                return null;
 
-				// Calculate candidate's center in window coordinates
-				var candidateCenter = new Avalonia.Point(
-					candidateTopLeft.Value.X + candidateBounds.Width / 2,
-					candidateTopLeft.Value.Y + candidateBounds.Height / 2
-				);
+            var bounds = control.Bounds;
+            return new Avalonia.Point(
+                topLeft.Value.X + bounds.Width / 2,
+                topLeft.Value.Y + bounds.Height / 2
+            );
+        }
 
-				double dx = candidateCenter.X - currentCenter.X;
-				double dy = candidateCenter.Y - currentCenter.Y;
+        private double? CalculateNavigationScore(Avalonia.Point current, Avalonia.Point candidate, NavigationDirection direction)
+        {
+            double dx = candidate.X - current.X;
+            double dy = candidate.Y - current.Y;
 
-				// Check if candidate is in the correct direction
-				bool isInDirection = false;
-				double primaryDistance = 0;
-				double secondaryDistance = 0;
+            bool isInDirection;
+            double primaryDistance;
+            double secondaryDistance;
 
-				switch (direction)
-				{
-					case NavigationDirection.Up:
-						isInDirection = dy < -1; // Must be above
-						primaryDistance = Math.Abs(dy);
-						secondaryDistance = Math.Abs(dx);
-						break;
-					case NavigationDirection.Down:
-						isInDirection = dy > 1; // Must be below
-						primaryDistance = Math.Abs(dy);
-						secondaryDistance = Math.Abs(dx);
-						break;
-					case NavigationDirection.Left:
-						isInDirection = dx < -1; // Must be to the left
-						primaryDistance = Math.Abs(dx);
-						secondaryDistance = Math.Abs(dy);
-						break;
-					case NavigationDirection.Right:
-						isInDirection = dx > 1; // Must be to the right
-						primaryDistance = Math.Abs(dx);
-						secondaryDistance = Math.Abs(dy);
-						break;
-				}
+            switch (direction)
+            {
+                case NavigationDirection.Up:
+                    if (dy >= -1) return null;
+                    isInDirection = true;
+                    primaryDistance = Math.Abs(dy);
+                    secondaryDistance = Math.Abs(dx);
+                    break;
+                case NavigationDirection.Down:
+                    if (dy <= 1) return null;
+                    isInDirection = true;
+                    primaryDistance = Math.Abs(dy);
+                    secondaryDistance = Math.Abs(dx);
+                    break;
+                case NavigationDirection.Left:
+                    if (dx >= -1) return null;
+                    isInDirection = true;
+                    primaryDistance = Math.Abs(dx);
+                    secondaryDistance = Math.Abs(dy);
+                    break;
+                case NavigationDirection.Right:
+                    if (dx <= 1) return null;
+                    isInDirection = true;
+                    primaryDistance = Math.Abs(dx);
+                    secondaryDistance = Math.Abs(dy);
+                    break;
+                default:
+                    return null;
+            }
 
-				if (!isInDirection)
-					continue;
+            if (!isInDirection)
+                return null;
 
-				// Calculate score:
-				// 1. Primary distance is most important
-				// 2. Secondary distance breaks ties
-				// 3. Add penalty for items that are far off-axis
-				double offAxisPenalty = secondaryDistance > 10 ? secondaryDistance * 2.5 : 0;
-				double score = primaryDistance + (secondaryDistance * 0.3) + offAxisPenalty;
+            double offAxisPenalty = secondaryDistance > 10 ? secondaryDistance * 2.5 : 0;
+            return primaryDistance + (secondaryDistance * 0.3) + offAxisPenalty;
+        }
 
-				if (score < bestScore)
-				{
-					bestScore = score;
-					bestCandidate = candidate;
-				}
-			}
-
-			// If no candidate found in the spatial direction, try wrapping or fallback
-			if (bestCandidate == null)
-			{
-				// For vertical navigation, try to find controls in the same general horizontal area
-				// For horizontal navigation, try to find controls in the same general vertical area
-				bestCandidate = GetNextControlWithWrapping(allControls, currentIndex, direction, currentCenter);
-			}
-
-			return bestCandidate;
-		}
-
-		private Control? GetNextControlWithWrapping(List<Control> allControls, int currentIndex, NavigationDirection direction, Avalonia.Point currentCenter)
+        private Control? GetNextControlWithWrapping(List<Control> allControls, int currentIndex, NavigationDirection direction, Avalonia.Point currentCenter)
 		{
 			// Try to wrap around in a smart way based on position
 			Control? wrapCandidate = null;

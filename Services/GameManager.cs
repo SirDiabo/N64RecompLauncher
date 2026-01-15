@@ -345,20 +345,13 @@ namespace N64RecompLauncher.Services
 
             var allGames = await LoadGamesFromJsonAsync().ConfigureAwait(false);
 
-            foreach (var game in allGames)
+            var filteredGames = allGames
+                .Where(game => !game.IsExperimental || settings.ShowExperimentalGames)
+                .Where(game => !settings.HiddenGames.Contains(game.Name))
+                .ToList();
+
+            foreach (var game in filteredGames)
             {
-                // Filter out experimental games if setting is disabled
-                if (game.IsExperimental && !settings.ShowExperimentalGames)
-                {
-                    continue;
-                }
-
-                // Filter out hidden games
-                if (settings.HiddenGames.Contains(game.Name))
-                {
-                    continue;
-                }
-
                 Games.Add(game);
             }
 
@@ -370,25 +363,22 @@ namespace N64RecompLauncher.Services
                     IsInstalled = Directory.Exists(Path.Combine(_gamesFolder, g.FolderName)),
                     LastPlayed = GetLastPlayedTime(g.FolderName)
                 })
-                .ToList();
-
-            var sortedGames = gameStatuses
                 .OrderBy(x => x.IsInstalled ? 0 : 1)
                 .ThenByDescending(x => x.LastPlayed)
                 .ThenBy(x => x.Game.Name)
                 .Select(x => x.Game)
                 .ToList();
 
-            for (int i = 0; i < sortedGames.Count; i++)
+            for (int i = 0; i < gameStatuses.Count; i++)
             {
-                var currentIndex = Games.IndexOf(sortedGames[i]);
+                var currentIndex = Games.IndexOf(gameStatuses[i]);
                 if (currentIndex != i && currentIndex != -1)
                 {
                     Games.Move(currentIndex, i);
                 }
             }
 
-            var statusTasks = Games.Select(async game =>
+            await Task.WhenAll(Games.Select(async game =>
             {
                 try
                 {
@@ -398,9 +388,7 @@ namespace N64RecompLauncher.Services
                 {
                     System.Diagnostics.Debug.WriteLine($"Error checking status for {game.Name}: {ex.Message}");
                 }
-            });
-
-            await Task.WhenAll(statusTasks);
+            }));
         }
 
         public async Task ExportGamesAsync()
