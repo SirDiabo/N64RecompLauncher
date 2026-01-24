@@ -114,10 +114,16 @@ namespace N64RecompLauncher.Services
 
         public GameInfo? GetLatestPlayedInstalledGame()
         {
+            if (Games == null || string.IsNullOrEmpty(_gamesFolder))
+                return null;
+
             DateTime latestTime = DateTime.MinValue;
             GameInfo? latestGame = null;
             foreach (var game in Games)
             {
+                if (game == null || string.IsNullOrEmpty(game.FolderName))
+                    continue;
+
                 var gamePath = Path.Combine(_gamesFolder, game.FolderName);
                 var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
                 if (File.Exists(lastPlayedPath))
@@ -146,7 +152,13 @@ namespace N64RecompLauncher.Services
                 {
                     // Create default games.json if it doesn't exist
                     await CreateDefaultGamesJsonAsync();
-                    return allGames;
+                }
+                else
+                {
+                    // Merge defaults with existing (only on first load or when needed)
+                    // We'll only merge if we detect the file needs updating
+                    // For now, let's just read the existing file
+                    // await MergeDefaultGamesAsync();
                 }
 
                 string json = await File.ReadAllTextAsync(_gamesConfigPath).ConfigureAwait(false);
@@ -218,91 +230,230 @@ namespace N64RecompLauncher.Services
             return games;
         }
 
+        private async Task MergeDefaultGamesAsync()
+        {
+            try
+            {
+                // Read existing games.json
+                string existingJson = await File.ReadAllTextAsync(_gamesConfigPath).ConfigureAwait(false);
+                using var existingDoc = JsonDocument.Parse(existingJson);
+                var existingRoot = existingDoc.RootElement;
+
+                // Get default games
+                var defaultGames = GetDefaultGamesData();
+
+                // Parse existing games into lists
+                var existingStandard = new List<Dictionary<string, object?>>();
+                var existingExperimental = new List<Dictionary<string, object?>>();
+                var existingCustom = new List<Dictionary<string, object?>>();
+
+                if (existingRoot.TryGetProperty("standard", out var stdArray))
+                {
+                    existingStandard = ParseToDict(stdArray);
+                }
+                if (existingRoot.TryGetProperty("experimental", out var expArray))
+                {
+                    existingExperimental = ParseToDict(expArray);
+                }
+                if (existingRoot.TryGetProperty("custom", out var custArray))
+                {
+                    existingCustom = ParseToDict(custArray);
+                }
+
+                // Merge defaults with existing (only add new ones)
+                var mergedStandard = MergeGameLists(existingStandard, defaultGames.standard);
+                var mergedExperimental = MergeGameLists(existingExperimental, defaultGames.experimental);
+
+                // Create merged structure
+                var mergedData = new
+                {
+                    standard = mergedStandard,
+                    experimental = mergedExperimental,
+                    custom = existingCustom
+                };
+
+                // Save merged data
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(mergedData, options);
+                await File.WriteAllTextAsync(_gamesConfigPath, json).ConfigureAwait(false);
+
+                System.Diagnostics.Debug.WriteLine($"Games merged successfully at {_gamesConfigPath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error merging default games: {ex.Message}");
+            }
+        }
+
+        private List<Dictionary<string, object?>> ParseToDict(JsonElement array)
+        {
+            var result = new List<Dictionary<string, object?>>();
+
+            foreach (var item in array.EnumerateArray())
+            {
+                var dict = new Dictionary<string, object?>();
+
+                foreach (var prop in item.EnumerateObject())
+                {
+                    dict[prop.Name] = prop.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => prop.Value.GetString(),
+                        JsonValueKind.Null => null,
+                        _ => prop.Value.GetRawText()
+                    };
+                }
+
+                result.Add(dict);
+            }
+
+            return result;
+        }
+
+        private List<Dictionary<string, object?>> MergeGameLists(
+            List<Dictionary<string, object?>> existing,
+            List<object> defaults)
+        {
+            var merged = new List<Dictionary<string, object?>>(existing);
+
+            foreach (var defaultGame in defaults)
+            {
+                var defaultDict = ObjectToDict(defaultGame);
+                var gameName = defaultDict.ContainsKey("name") ? defaultDict["name"]?.ToString() : null;
+
+                if (string.IsNullOrEmpty(gameName))
+                    continue;
+
+                // Check if game already exists
+                bool exists = existing.Any(g =>
+                    g.ContainsKey("name") &&
+                    g["name"]?.ToString()?.Equals(gameName, StringComparison.OrdinalIgnoreCase) == true);
+
+                if (!exists)
+                {
+                    merged.Add(defaultDict);
+                    System.Diagnostics.Debug.WriteLine($"Added new game: {gameName}");
+                }
+            }
+
+            return merged;
+        }
+
+        private Dictionary<string, object?> ObjectToDict(object obj)
+        {
+            var dict = new Dictionary<string, object?>();
+            var props = obj.GetType().GetProperties();
+
+            foreach (var prop in props)
+            {
+                dict[char.ToLower(prop.Name[0]) + prop.Name.Substring(1)] = prop.GetValue(obj);
+            }
+
+            return dict;
+        }
+
+        private (List<object> standard, List<object> experimental) GetDefaultGamesData()
+        {
+            var standard = new List<object>
+            {
+                new { name = "Zelda 64",
+                    repository = "Zelda64Recomp/Zelda64Recomp",
+                    branch = "dev",
+                    imageRes = "512",
+                    folderName = "Zelda64Recomp",
+                    platformOverride = (string?)null },
+
+                new { name = "Goemon 64",
+                    repository = "klorfmorf/Goemon64Recomp",
+                    branch = "dev",
+                    imageRes = "512",
+                    folderName = "Goemon64Recomp",
+                    platformOverride = (string?)null },
+
+                new { name = "Mario Kart 64",
+                    repository = "sonicdcer/MarioKart64Recomp",
+                    branch = "main",
+                    imageRes = "512",
+                    folderName = "MarioKart64Recomp",
+                    platformOverride = (string?)null },
+
+                new { name = "Dinosaur Planet",
+                    repository = "Francessco121/dino-recomp",
+                    branch = "main",
+                    imageRes = "64",
+                    folderName = "DinosaurPlanetRecomp",
+                    platformOverride = (string?)null },
+
+                new { name = "Dr. Mario 64",
+                    repository = "theboy181/drmario64_recomp_plus",
+                    branch = "main",
+                    imageRes = "512",
+                    folderName = "DrMario64RecompPlus",
+                    platformOverride = (string?)null },
+
+                new { name = "Duke Nukem: Zero Hour",
+                    repository = "sonicdcer/DNZHRecomp",
+                    branch = "main",
+                    imageRes = "512",
+                    folderName = "DNZHRecomp",
+                    platformOverride = (string?)null },
+
+                new { name = "Star Fox 64",
+                    repository = "sonicdcer/Starfox64Recomp",
+                    branch = "main",
+                    imageRes = "512",
+                    folderName = "Starfox64Recomp",
+                    platformOverride = (string?)null },
+
+                new  { name = "Banjo 64",
+                    repository = "BanjoRecomp/BanjoRecomp",
+                    branch = "main",
+                    imageRes = "app",
+                    folderName = "BanjoRecomp",
+                    platformOverride = (string?)null },
+            };
+
+            var experimental = new List<object>
+            {
+                new { name = "Chameleon Twist",
+                    repository = "Rainchus/ChameleonTwist1-JP-Recomp",
+                    branch = "main",
+                    imageRes = "512",
+                    folderName = "ChameleonTwistRecomp",
+                    platformOverride = "ChameleonTwistJPRecompiled" },
+
+                new { name = "Mega Man 64",
+                    repository = "MegaMan64Recomp/MegaMan64Recompiled",
+                    branch = "main",
+                    imageRes = "512",
+                    folderName = "MegaMan64Recomp",
+                    platformOverride = "MegaMan64Recompiled" },
+
+                new { name = "Quest 64",
+                    repository = "Rainchus/Quest64-Recomp",
+                    branch = "main",
+                    imageRes = "512",
+                    folderName = "Quest64Recomp",
+                    platformOverride = "Quest64Recompiled" },
+            };
+
+            return (standard, experimental);
+        }
+
         private async Task CreateDefaultGamesJsonAsync()
         {
             try
             {
-                var defaultData = new
+                var defaultData = GetDefaultGamesData();
+
+                var data = new
                 {
-                    standard = new object[]
-                    {
-                        new { name = "Zelda 64", 
-                            repository = "Zelda64Recomp/Zelda64Recomp", 
-                            branch = "dev", 
-                            imageRes = "512", 
-                            folderName = "Zelda64Recomp", 
-                            platformOverride = (string?)null },
-
-                        new { name = "Goemon 64", 
-                            repository = "klorfmorf/Goemon64Recomp", 
-                            branch = "dev", 
-                            imageRes = "512", 
-                            folderName = "Goemon64Recomp", 
-                            platformOverride = (string?)null },
-
-                        new { name = "Mario Kart 64", 
-                            repository = "sonicdcer/MarioKart64Recomp", 
-                            branch = "main", 
-                            imageRes = "512", 
-                            folderName = "MarioKart64Recomp", 
-                            platformOverride = (string?)null },
-
-                        new { name = "Dinosaur Planet", 
-                            repository = "Francessco121/dino-recomp", 
-                            branch = "main", 
-                            imageRes = "64", 
-                            folderName = "DinosaurPlanetRecomp", 
-                            platformOverride = (string?)null },
-
-                        new { name = "Dr. Mario 64", 
-                            repository = "theboy181/drmario64_recomp_plus", 
-                            branch = "main", 
-                            imageRes = "512", 
-                            folderName = "DrMario64RecompPlus", 
-                            platformOverride = (string?)null },
-
-                        new { name = "Duke Nukem: Zero Hour", 
-                            repository = "sonicdcer/DNZHRecomp", 
-                            branch = "main", 
-                            imageRes = "512", 
-                            folderName = "DNZHRecomp", 
-                            platformOverride = (string?)null },
-
-                        new { name = "Star Fox 64", 
-                            repository = "sonicdcer/Starfox64Recomp", 
-                            branch = "main", 
-                            imageRes = "512", 
-                            folderName = "Starfox64Recomp", 
-                            platformOverride = (string?)null },
-                    },
-                    experimental = new object[]
-                    {
-                        new { name = "Chameleon Twist",
-                            repository = "Rainchus/ChameleonTwist1-JP-Recomp",
-                            branch = "main",
-                            imageRes = "512",
-                            folderName = "ChameleonTwistRecomp",
-                            platformOverride = "ChameleonTwistJPRecompiled" },
-
-                        new { name = "Mega Man 64",
-                            repository = "MegaMan64Recomp/MegaMan64Recompiled",
-                            branch = "main",
-                            imageRes = "512",
-                            folderName = "MegaMan64Recomp",
-                            platformOverride = "MegaMan64Recompiled" },
-
-                        new { name = "Quest 64", 
-                            repository = "Rainchus/Quest64-Recomp", 
-                            branch = "main", 
-                            imageRes = "512", 
-                            folderName = "Quest64Recomp", 
-                            platformOverride = "Quest64Recompiled" },
-                    },
+                    standard = defaultData.standard,
+                    experimental = defaultData.experimental,
                     custom = Array.Empty<object>()
                 };
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(defaultData, options);
+                string json = JsonSerializer.Serialize(data, options);
 
                 await File.WriteAllTextAsync(_gamesConfigPath, json).ConfigureAwait(false);
 
@@ -316,9 +467,15 @@ namespace N64RecompLauncher.Services
 
         private void LoadCustomIcons()
         {
+            if (Games == null || string.IsNullOrEmpty(_cacheFolder))
+                return;
+
             foreach (var game in Games)
             {
-                game.LoadCustomIcon(_cacheFolder);
+                if (game != null)
+                {
+                    game.LoadCustomIcon(_cacheFolder);
+                }
             }
         }
 
@@ -341,23 +498,34 @@ namespace N64RecompLauncher.Services
         {
             var settings = AppSettings.Load();
 
+            if (Games == null)
+                Games = new ObservableCollection<GameInfo>();
+
             Games.Clear();
 
             var allGames = await LoadGamesFromJsonAsync().ConfigureAwait(false);
 
+            if (allGames == null)
+                allGames = new List<GameInfo>();
+
             var filteredGames = allGames
-                .Where(game => !game.IsExperimental || settings.ShowExperimentalGames)
-                .Where(game => !settings.HiddenGames.Contains(game.Name))
+                .Where(game => game != null && (!game.IsExperimental || settings.ShowExperimentalGames))
+                .Where(game => game != null && !settings.HiddenGames.Contains(game.Name))
                 .ToList();
 
             foreach (var game in filteredGames)
             {
-                Games.Add(game);
+                if (game != null)
+                    Games.Add(game);
             }
 
             LoadCustomIcons();
 
+            if (string.IsNullOrEmpty(_gamesFolder))
+                return;
+
             var gameStatuses = Games
+                .Where(g => g != null && !string.IsNullOrEmpty(g.FolderName))
                 .Select(g => new {
                     Game = g,
                     IsInstalled = Directory.Exists(Path.Combine(_gamesFolder, g.FolderName)),
@@ -365,20 +533,24 @@ namespace N64RecompLauncher.Services
                 })
                 .OrderBy(x => x.IsInstalled ? 0 : 1)
                 .ThenByDescending(x => x.LastPlayed)
-                .ThenBy(x => x.Game.Name)
+                .ThenBy(x => x.Game?.Name ?? "")
                 .Select(x => x.Game)
                 .ToList();
 
             for (int i = 0; i < gameStatuses.Count; i++)
             {
-                var currentIndex = Games.IndexOf(gameStatuses[i]);
+                var game = gameStatuses[i];
+                if (game == null)
+                    continue;
+
+                var currentIndex = Games.IndexOf(game);
                 if (currentIndex != i && currentIndex != -1)
                 {
                     Games.Move(currentIndex, i);
                 }
             }
 
-            await Task.WhenAll(Games.Select(async game =>
+            await Task.WhenAll(Games.Where(game => game != null).Select(async game =>
             {
                 try
                 {
@@ -490,6 +662,9 @@ namespace N64RecompLauncher.Services
 
         private DateTime GetLastPlayedTime(string folderName)
         {
+            if (string.IsNullOrEmpty(_gamesFolder) || string.IsNullOrEmpty(folderName))
+                return DateTime.MinValue;
+
             try
             {
                 var gamePath = Path.Combine(_gamesFolder, folderName);
@@ -514,6 +689,9 @@ namespace N64RecompLauncher.Services
 
         public void HideGame(string gameName)
         {
+            if (string.IsNullOrEmpty(gameName))
+                return;
+
             var settings = AppSettings.Load();
             if (!settings.HiddenGames.Contains(gameName))
             {
@@ -535,9 +713,13 @@ namespace N64RecompLauncher.Services
         {
             var settings = AppSettings.Load();
             UnhideAllGames();
+
+            if (Games == null)
+                return;
+
             foreach (var game in Games)
             {
-                if (game.Status == GameStatus.NotInstalled && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && game.Status == GameStatus.NotInstalled && !settings.HiddenGames.Contains(game.Name))
                 {
                     settings.HiddenGames.Add(game.Name);
                 }
@@ -547,7 +729,8 @@ namespace N64RecompLauncher.Services
         }
 
         public void HideAllNonStableGames()
-        {     var settings = AppSettings.Load();
+        {
+            var settings = AppSettings.Load();
             UnhideAllGames();
             foreach (var game in Games)
             {
@@ -564,9 +747,13 @@ namespace N64RecompLauncher.Services
         {
             var settings = AppSettings.Load();
             UnhideAllGames();
+
+            if (Games == null)
+                return;
+
             foreach (var game in Games)
             {
-                if (game.IsExperimental == false && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && game.IsExperimental == false && !settings.HiddenGames.Contains(game.Name))
                 {
                     settings.HiddenGames.Add(game.Name);
                 }
@@ -577,9 +764,12 @@ namespace N64RecompLauncher.Services
 
         private void FilterGames(AppSettings settings)
         {
+            if (Games == null || settings?.HiddenGames == null)
+                return;
+
             for (int i = Games.Count - 1; i >= 0; i--)
             {
-                if (settings.HiddenGames.Contains(Games[i].Name))
+                if (Games[i] != null && settings.HiddenGames.Contains(Games[i].Name))
                 {
                     Games.RemoveAt(i);
                 }
