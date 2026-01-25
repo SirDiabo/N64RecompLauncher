@@ -222,10 +222,12 @@ namespace N64RecompLauncher.Services
                 // Merge defaults with existing (only add new ones)
                 var mergedStandard = MergeGameLists(existingStandard, defaultGames.standard);
                 var mergedExperimental = MergeGameLists(existingExperimental, defaultGames.experimental);
+                var mergedCustom = MergeGameLists(existingCustom, defaultGames.custom);
 
                 // Check if anything was actually added
                 bool hasChanges = mergedStandard.Count != existingStandard.Count ||
-                                  mergedExperimental.Count != existingExperimental.Count;
+                                  mergedExperimental.Count != existingExperimental.Count ||
+                                  mergedCustom.Count != existingCustom.Count;
 
                 // Only write if there were changes
                 if (hasChanges)
@@ -235,7 +237,7 @@ namespace N64RecompLauncher.Services
                     {
                         standard = mergedStandard,
                         experimental = mergedExperimental,
-                        custom = existingCustom
+                        custom = mergedCustom
                     };
 
                     // Save merged data
@@ -361,92 +363,158 @@ namespace N64RecompLauncher.Services
             return dict;
         }
 
-        private (List<object> standard, List<object> experimental) GetDefaultGamesData()
+        private (List<object> standard, List<object> experimental, List<object> custom) GetDefaultGamesData()
         {
             var standard = new List<object>
-            {
-                new { name = "Zelda 64",
-                    repository = "Zelda64Recomp/Zelda64Recomp",
-                    branch = "dev",
-                    imageRes = "512",
-                    folderName = "Zelda64Recomp",
-                    platformOverride = (string?)null },
+    {
+        new { name = "Zelda 64",
+            repository = "Zelda64Recomp/Zelda64Recomp",
+            branch = "dev",
+            imageRes = "512",
+            folderName = "Zelda64Recomp",
+            platformOverride = (string?)null },
 
-                new { name = "Goemon 64",
-                    repository = "klorfmorf/Goemon64Recomp",
-                    branch = "dev",
-                    imageRes = "512",
-                    folderName = "Goemon64Recomp",
-                    platformOverride = (string?)null },
+        new { name = "Goemon 64",
+            repository = "klorfmorf/Goemon64Recomp",
+            branch = "dev",
+            imageRes = "512",
+            folderName = "Goemon64Recomp",
+            platformOverride = (string?)null },
 
-                new { name = "Mario Kart 64",
-                    repository = "sonicdcer/MarioKart64Recomp",
-                    branch = "main",
-                    imageRes = "512",
-                    folderName = "MarioKart64Recomp",
-                    platformOverride = (string?)null },
+        new { name = "Mario Kart 64",
+            repository = "sonicdcer/MarioKart64Recomp",
+            branch = "main",
+            imageRes = "512",
+            folderName = "MarioKart64Recomp",
+            platformOverride = (string?)null },
 
-                new { name = "Dinosaur Planet",
-                    repository = "Francessco121/dino-recomp",
-                    branch = "main",
-                    imageRes = "64",
-                    folderName = "DinosaurPlanetRecomp",
-                    platformOverride = (string?)null },
+        new { name = "Dinosaur Planet",
+            repository = "Francessco121/dino-recomp",
+            branch = "main",
+            imageRes = "64",
+            folderName = "DinosaurPlanetRecomp",
+            platformOverride = (string?)null },
 
-                new { name = "Dr. Mario 64",
-                    repository = "theboy181/drmario64_recomp_plus",
-                    branch = "main",
-                    imageRes = "512",
-                    folderName = "DrMario64RecompPlus",
-                    platformOverride = (string?)null },
+        new { name = "Dr. Mario 64",
+            repository = "theboy181/drmario64_recomp_plus",
+            branch = "main",
+            imageRes = "512",
+            folderName = "DrMario64RecompPlus",
+            platformOverride = (string?)null },
 
-                new { name = "Duke Nukem: Zero Hour",
-                    repository = "sonicdcer/DNZHRecomp",
-                    branch = "main",
-                    imageRes = "512",
-                    folderName = "DNZHRecomp",
-                    platformOverride = (string?)null },
+        new { name = "Duke Nukem: Zero Hour",
+            repository = "sonicdcer/DNZHRecomp",
+            branch = "main",
+            imageRes = "512",
+            folderName = "DNZHRecomp",
+            platformOverride = (string?)null },
 
-                new { name = "Star Fox 64",
-                    repository = "sonicdcer/Starfox64Recomp",
-                    branch = "main",
-                    imageRes = "512",
-                    folderName = "Starfox64Recomp",
-                    platformOverride = (string?)null },
+        new { name = "Star Fox 64",
+            repository = "sonicdcer/Starfox64Recomp",
+            branch = "main",
+            imageRes = "512",
+            folderName = "Starfox64Recomp",
+            platformOverride = (string?)null },
 
-                new  { name = "Banjo 64",
-                    repository = "BanjoRecomp/BanjoRecomp",
-                    branch = "main",
-                    imageRes = "app",
-                    folderName = "BanjoRecomp",
-                    platformOverride = (string?)null },
-            };
+        new  { name = "Banjo 64",
+            repository = "BanjoRecomp/BanjoRecomp",
+            branch = "main",
+            imageRes = "app",
+            folderName = "BanjoRecomp",
+            platformOverride = (string?)null },
+    };
 
             var experimental = new List<object>
-            {
-                new { name = "Chameleon Twist",
-                    repository = "Rainchus/ChameleonTwist1-JP-Recomp",
-                    branch = "main",
-                    imageRes = "512",
-                    folderName = "ChameleonTwistRecomp",
-                    platformOverride = "ChameleonTwistJPRecompiled" },
+    {
+        new { name = "Chameleon Twist",
+            repository = "Rainchus/ChameleonTwist1-JP-Recomp",
+            branch = "main",
+            imageRes = "512",
+            folderName = "ChameleonTwistRecomp",
+            platformOverride = "ChameleonTwistJPRecompiled" },
 
-                new { name = "Mega Man 64",
-                    repository = "MegaMan64Recomp/MegaMan64Recompiled",
-                    branch = "main",
-                    imageRes = "512",
-                    folderName = "MegaMan64Recomp",
-                    platformOverride = "MegaMan64Recompiled" },
+        new { name = "Mega Man 64",
+            repository = "MegaMan64Recomp/MegaMan64Recompiled",
+            branch = "main",
+            imageRes = "512",
+            folderName = "MegaMan64Recomp",
+            platformOverride = "MegaMan64Recompiled" },
 
-                new { name = "Quest 64",
-                    repository = "Rainchus/Quest64-Recomp",
-                    branch = "main",
-                    imageRes = "512",
-                    folderName = "Quest64Recomp",
-                    platformOverride = "Quest64Recompiled" },
-            };
+        new { name = "Quest 64",
+            repository = "Rainchus/Quest64-Recomp",
+            branch = "main",
+            imageRes = "512",
+            folderName = "Quest64Recomp",
+            platformOverride = "Quest64Recompiled" },
+    };
 
-            return (standard, experimental);
+            var custom = new List<object>
+    {
+        new { name = "Starfox 64 (Starship)",
+            repository = "harbourmasters/starship",
+            branch = "main",
+            imageRes = "512",
+            folderName = "harbourmasters.starship",
+            platformOverride = "Windows" },
+
+        new { name = "Zelda OoT (Ship of Harkinian)",
+            repository = "harbourmasters/shipwright",
+            branch = "develop",
+            imageRes = "512",
+            folderName = "harbourmasters.shipofharkinian",
+            platformOverride = (string?)null },
+
+        new { name = "Mario Kart 64 (SpaghettiKart)",
+            repository = "harbourmasters/spaghettikart",
+            branch = "main",
+            imageRes = "512",
+            folderName = "harbourmasters.spaghettikkart",
+            platformOverride = (string?)null },
+
+        new { name = "Zelda MM (2 Ship 2 Harkinian)",
+            repository = "harbourmasters/2ship2harkinian",
+            branch = "develop",
+            imageRes = "512",
+            folderName = "harbourmasters.2ship2harkinian",
+            platformOverride = (string?)null },
+
+        new { name = "Super Mario 64 (Ghostship)",
+            repository = "harbourmasters/ghostship",
+            branch = "develop",
+            imageRes = "512",
+            folderName = "harbourmasters.ghostship",
+            platformOverride = (string?)null },
+
+        new { name = "Sonic Unleashed Recompiled",
+            repository = "hedge-dev/UnleashedRecomp",
+            branch = "main",
+            imageRes = "512",
+            folderName = "Sonic Unleashed Recompiled",
+            platformOverride = (string?)null },
+
+        new { name = "Super Metroid Launcher",
+            repository = "RadzPrower/Super-Metroid-Launcher",
+            branch = "master",
+            imageRes = "512",
+            folderName = "RadzPrower.Super-Metroid-Launcher",
+            platformOverride = "Super_Metroid_Launcher" },
+
+        new { name = "Zelda: ALttP (Zelda 3 Launcher)",
+            repository = "RadzPrower/Zelda-3-Launcher",
+            branch = "master",
+            imageRes = "512",
+            folderName = "RadzPrower.Zelda-3-Launcher",
+            platformOverride = "Zelda_3_Launcher" },
+
+        new { name = "WipeOut Phantom Edition",
+            repository = "wipeout-phantom-edition/wipeout-phantom-edition",
+            branch = "main",
+            imageRes = "512",
+            folderName = "WipeOut Phantom Edition",
+            platformOverride = "wipeout-x64-release" },
+    };
+
+            return (standard, experimental, custom);
         }
 
         private async Task CreateDefaultGamesJsonAsync()
@@ -459,7 +527,7 @@ namespace N64RecompLauncher.Services
                 {
                     standard = defaultData.standard,
                     experimental = defaultData.experimental,
-                    custom = Array.Empty<object>()
+                    custom = defaultData.custom
                 };
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
