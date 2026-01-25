@@ -463,7 +463,7 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.shipofharkinian",
-            platformOverride = (string?)null },
+            platformOverride = "Win64" },
 
         new { name = "Mario Kart 64 (SpaghettiKart)",
             repository = "harbourmasters/spaghettikart",
@@ -477,14 +477,14 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.2ship2harkinian",
-            platformOverride = (string?)null },
+            platformOverride = "Win64" },
 
         new { name = "Super Mario 64 (Ghostship)",
             repository = "harbourmasters/ghostship",
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.ghostship",
-            platformOverride = (string?)null },
+            platformOverride = "Win64" },
 
         new { name = "Sonic Unleashed Recompiled",
             repository = "hedge-dev/UnleashedRecomp",
@@ -513,6 +513,13 @@ namespace N64RecompLauncher.Services
             imageRes = "512",
             folderName = "WipeOut Phantom Edition",
             platformOverride = "wipeout-x64-release" },
+
+        new { name = "Perfect Dark",
+            repository = "fgsfdsfgs/perfect_dark",
+            branch = "port",
+            imageRes = "512",
+            folderName = "fgsfdsfgs.perfect_dark",
+            platformOverride = (string?)null },
     };
 
             return (standard, experimental, custom);
