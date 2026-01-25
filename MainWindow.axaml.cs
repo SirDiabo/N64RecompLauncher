@@ -63,6 +63,19 @@ namespace N64RecompLauncher
                 }
             }
         }
+        private bool _showCustomGames;
+        public bool ShowCustomGames
+        {
+            get => _showCustomGames;
+            set
+            {
+                if (_showCustomGames != value)
+                {
+                    _showCustomGames = value;
+                    OnPropertyChanged(nameof(ShowCustomGames));
+                }
+            }
+        }
         private string _currentVersionString;
         public string currentVersionString
         {
@@ -392,6 +405,9 @@ namespace N64RecompLauncher
 
                 if (ShowExperimentalCheckBox != null)
                     ShowExperimentalCheckBox.IsChecked = _settings.ShowExperimentalGames;
+
+                if (ShowCustomGamesCheckBox != null)
+                    ShowCustomGamesCheckBox.IsChecked = _settings.ShowCustomGames;
 
                 if (GitHubTokenTextBox != null)
                     GitHubTokenTextBox.Text = _settings.GitHubApiToken;
@@ -884,8 +900,7 @@ namespace N64RecompLauncher
         {
             try
             {
-                _gameManager.HideAllNonInstalledGames();
-                await _gameManager.LoadGamesAsync();
+                await _gameManager.HideAllNonInstalledGames();
             }
             catch (Exception ex)
             {
@@ -897,8 +912,7 @@ namespace N64RecompLauncher
         {
             try
             {
-                _gameManager.HideAllNonStableGames();
-                await _gameManager.LoadGamesAsync();
+                await _gameManager.HideAllNonStableGames();
             }
             catch (Exception ex)
             {
@@ -910,12 +924,23 @@ namespace N64RecompLauncher
         {
             try
             {
-                _gameManager.OnlyShowExperimentalGames();
-                await _gameManager.LoadGamesAsync();
+                await _gameManager.OnlyShowExperimentalGames();
             }
             catch (Exception ex)
             {
                 _ = ShowMessageBoxAsync($"Failed to hide stable games: {ex.Message}", "Error");
+            }
+        }
+
+        private async void OnlyCustomGamesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await _gameManager.OnlyShowCustomGames();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to hide non-custom games: {ex.Message}", "Error");
             }
         }
 
@@ -1039,6 +1064,28 @@ namespace N64RecompLauncher
             {
                 ShowExperimentalGames = false;
                 _settings.ShowExperimentalGames = false;
+                OnSettingChanged();
+                await _gameManager.LoadGamesAsync();
+            }
+        }
+
+        private async void ShowCustomGamesCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                ShowCustomGames = true;
+                _settings.ShowCustomGames = true;
+                OnSettingChanged();
+                await _gameManager.LoadGamesAsync();
+            }
+        }
+
+        private async void ShowCustomGamesCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                ShowCustomGames = false;
+                _settings.ShowCustomGames = false;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
             }

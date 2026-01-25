@@ -10,6 +10,7 @@ namespace N64RecompLauncher
         public bool IconFill { get; set; } = false;
         public bool PortraitFrame { get; set; } = false;
         public bool ShowExperimentalGames { get; set; } = false;
+        public bool ShowCustomGames { get; set; } = false;
         public float IconOpacity { get; set; } = 1.0f;
         public int IconSize { get; set; } = 200;
         public int IconMargin { get; set; } = 8;

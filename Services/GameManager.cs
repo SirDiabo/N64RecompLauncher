@@ -166,19 +166,19 @@ namespace N64RecompLauncher.Services
                 // Load standard games
                 if (root.TryGetProperty("standard", out var standardArray))
                 {
-                    allGames.AddRange(ParseGameArray(standardArray, isExperimental: false));
+                    allGames.AddRange(ParseGameArray(standardArray, isExperimental: false, isCustom: false));
                 }
 
                 // Load experimental games
                 if (root.TryGetProperty("experimental", out var experimentalArray))
                 {
-                    allGames.AddRange(ParseGameArray(experimentalArray, isExperimental: true));
+                    allGames.AddRange(ParseGameArray(experimentalArray, isExperimental: true, isCustom: false));
                 }
 
                 // Load custom games
                 if (root.TryGetProperty("custom", out var customArray))
                 {
-                    allGames.AddRange(ParseGameArray(customArray, isExperimental: false));
+                    allGames.AddRange(ParseGameArray(customArray, isExperimental: false, isCustom: true));
                 }
             }
             catch (Exception ex)
@@ -258,7 +258,7 @@ namespace N64RecompLauncher.Services
             }
         }
 
-        private List<GameInfo> ParseGameArray(JsonElement gamesArray, bool isExperimental)
+        private List<GameInfo> ParseGameArray(JsonElement gamesArray, bool isExperimental, bool isCustom = false)
         {
             var games = new List<GameInfo>();
 
@@ -274,6 +274,7 @@ namespace N64RecompLauncher.Services
                         ImageRes = gameElement.GetProperty("imageRes").GetString() ?? "512",
                         FolderName = gameElement.GetProperty("folderName").GetString() ?? string.Empty,
                         IsExperimental = isExperimental,
+                        IsCustom = isCustom,
                         GameManager = this,
                     };
 
@@ -450,12 +451,12 @@ namespace N64RecompLauncher.Services
 
             var custom = new List<object>
     {
-        new { name = "Starfox 64 (Starship)",
+        new { name = "Star Fox 64 (Starship)",
             repository = "harbourmasters/starship",
             branch = "main",
             imageRes = "512",
             folderName = "harbourmasters.starship",
-            platformOverride = "Windows" },
+            platformOverride = (string?)null },
 
         new { name = "Zelda OoT (Ship of Harkinian)",
             repository = "harbourmasters/shipwright",
@@ -587,6 +588,7 @@ namespace N64RecompLauncher.Services
 
             var filteredGames = allGames
                 .Where(game => game != null && (!game.IsExperimental || settings.ShowExperimentalGames))
+                .Where(game => game != null && (!game.IsCustom || settings.ShowCustomGames))
                 .Where(game => game != null && !settings.HiddenGames.Contains(game.Name))
                 .ToList();
 
@@ -789,10 +791,13 @@ namespace N64RecompLauncher.Services
             FilterGames(settings);
         }
 
-        public void HideAllNonInstalledGames()
+        public async Task HideAllNonInstalledGames()
         {
             var settings = AppSettings.Load();
-            UnhideAllGames();
+            settings.HiddenGames.Clear();
+            AppSettings.Save(settings);
+
+            await LoadGamesAsync();
 
             if (Games == null)
                 return;
@@ -805,28 +810,35 @@ namespace N64RecompLauncher.Services
                 }
             }
             AppSettings.Save(settings);
-            FilterGames(settings);
+            await LoadGamesAsync();
         }
 
-        public void HideAllNonStableGames()
+        public async Task HideAllNonStableGames()
         {
             var settings = AppSettings.Load();
-            UnhideAllGames();
+            settings.HiddenGames.Clear();
+            AppSettings.Save(settings);
+
+            await LoadGamesAsync();
+
             foreach (var game in Games)
             {
-                if (game.IsExperimental == true && !settings.HiddenGames.Contains(game.Name))
+                if ((game.IsExperimental == true || game.IsCustom == true) && !settings.HiddenGames.Contains(game.Name))
                 {
                     settings.HiddenGames.Add(game.Name);
                 }
             }
             AppSettings.Save(settings);
-            FilterGames(settings);
+            await LoadGamesAsync();
         }
 
-        public void OnlyShowExperimentalGames()
+        public async Task OnlyShowExperimentalGames()
         {
             var settings = AppSettings.Load();
-            UnhideAllGames();
+            settings.HiddenGames.Clear();
+            AppSettings.Save(settings);
+
+            await LoadGamesAsync();
 
             if (Games == null)
                 return;
@@ -839,7 +851,29 @@ namespace N64RecompLauncher.Services
                 }
             }
             AppSettings.Save(settings);
-            FilterGames(settings);
+            await LoadGamesAsync();
+        }
+
+        public async Task OnlyShowCustomGames()
+        {
+            var settings = AppSettings.Load();
+            settings.HiddenGames.Clear();
+            AppSettings.Save(settings);
+
+            await LoadGamesAsync();
+
+            if (Games == null)
+                return;
+
+            foreach (var game in Games)
+            {
+                if (game != null && !game.IsCustom && !settings.HiddenGames.Contains(game.Name))
+                {
+                    settings.HiddenGames.Add(game.Name);
+                }
+            }
+            AppSettings.Save(settings);
+            await LoadGamesAsync();
         }
 
         private void FilterGames(AppSettings settings)

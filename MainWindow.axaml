@@ -722,6 +722,16 @@
 							IsVisible="{Binding ShowExperimentalGames}">
 						<TextBlock Text="Experimental Only"/>
 					</Button>
+
+					<Button x:Name="OnlyCustomGamesButton"
+							Classes="settings"
+							Width="216"
+							HorizontalAlignment="Left"
+							Margin="0,0,0,8"
+							Click="OnlyCustomGamesButton_Click"
+							IsVisible="{Binding ShowCustomGames}">
+						<TextBlock Text="Custom Games Only"/>
+					</Button>
 				</StackPanel>
 
 				<!-- Footer Links -->
@@ -887,6 +897,18 @@
 										   Unchecked="ShowExperimentalCheckBox_Unchecked" />
 
 								<TextBlock Text="Show Recomp Games that are still experimental"
+										   FontSize="12"
+										   Foreground="#6B6B6B"
+										   Margin="0,0,0,8"/>
+
+								<CheckBox x:Name="ShowCustomGamesCheckBox"
+										   Content="Show Custom Games"
+										   Foreground="#E0E0E0"
+										   Margin="0,0,0,8"
+										   Checked="ShowCustomGamesCheckBox_Checked"
+										   Unchecked="ShowCustomGamesCheckBox_Unchecked" />
+
+								<TextBlock Text="Show Non-Recomp Games, compatible with this launcher."
 										   FontSize="12"
 										   Foreground="#6B6B6B"
 										   Margin="0,0,0,25"/>

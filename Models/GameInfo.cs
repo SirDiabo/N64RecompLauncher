@@ -85,6 +85,7 @@ namespace N64RecompLauncher.Models
         public string? FolderName { get; set; }
         public string? PlatformOverride { get; set; }
         public bool IsExperimental { get; set; }
+        public bool IsCustom { get; set; }
         private string? _customIconPath { get; set; }
         public string? CustomIconPath
         {
