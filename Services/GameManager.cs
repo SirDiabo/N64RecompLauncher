@@ -155,13 +155,11 @@ namespace N64RecompLauncher.Services
                 }
                 else
                 {
-                    // Merge defaults with existing (only on first load or when needed)
-                    // We'll only merge if we detect the file needs updating
-                    // For now, let's just read the existing file
-                    // await MergeDefaultGamesAsync();
+                    // Merge defaults with existing to add any new games
+                    await MergeDefaultGamesAsync();
                 }
 
-                string json = await File.ReadAllTextAsync(_gamesConfigPath).ConfigureAwait(false);
+                string json = await File.ReadAllTextAsync(_gamesConfigPath);
                 using var document = JsonDocument.Parse(json);
                 var root = document.RootElement;
 
@@ -189,6 +187,73 @@ namespace N64RecompLauncher.Services
             }
 
             return allGames;
+        }
+
+        private async Task MergeDefaultGamesAsync()
+        {
+            try
+            {
+                // Read existing games.json
+                string existingJson = await File.ReadAllTextAsync(_gamesConfigPath);
+                using var existingDoc = JsonDocument.Parse(existingJson);
+                var existingRoot = existingDoc.RootElement;
+
+                // Get default games
+                var defaultGames = GetDefaultGamesData();
+
+                // Parse existing games into lists
+                var existingStandard = new List<Dictionary<string, object?>>();
+                var existingExperimental = new List<Dictionary<string, object?>>();
+                var existingCustom = new List<Dictionary<string, object?>>();
+
+                if (existingRoot.TryGetProperty("standard", out var stdArray))
+                {
+                    existingStandard = ParseToDict(stdArray);
+                }
+                if (existingRoot.TryGetProperty("experimental", out var expArray))
+                {
+                    existingExperimental = ParseToDict(expArray);
+                }
+                if (existingRoot.TryGetProperty("custom", out var custArray))
+                {
+                    existingCustom = ParseToDict(custArray);
+                }
+
+                // Merge defaults with existing (only add new ones)
+                var mergedStandard = MergeGameLists(existingStandard, defaultGames.standard);
+                var mergedExperimental = MergeGameLists(existingExperimental, defaultGames.experimental);
+
+                // Check if anything was actually added
+                bool hasChanges = mergedStandard.Count != existingStandard.Count ||
+                                  mergedExperimental.Count != existingExperimental.Count;
+
+                // Only write if there were changes
+                if (hasChanges)
+                {
+                    // Create merged structure
+                    var mergedData = new
+                    {
+                        standard = mergedStandard,
+                        experimental = mergedExperimental,
+                        custom = existingCustom
+                    };
+
+                    // Save merged data
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    string json = JsonSerializer.Serialize(mergedData, options);
+                    await File.WriteAllTextAsync(_gamesConfigPath, json);
+
+                    System.Diagnostics.Debug.WriteLine($"New games merged successfully at {_gamesConfigPath}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("No new games to merge.");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error merging default games: {ex.Message}");
+            }
         }
 
         private List<GameInfo> ParseGameArray(JsonElement gamesArray, bool isExperimental)
@@ -228,61 +293,6 @@ namespace N64RecompLauncher.Services
             }
 
             return games;
-        }
-
-        private async Task MergeDefaultGamesAsync()
-        {
-            try
-            {
-                // Read existing games.json
-                string existingJson = await File.ReadAllTextAsync(_gamesConfigPath).ConfigureAwait(false);
-                using var existingDoc = JsonDocument.Parse(existingJson);
-                var existingRoot = existingDoc.RootElement;
-
-                // Get default games
-                var defaultGames = GetDefaultGamesData();
-
-                // Parse existing games into lists
-                var existingStandard = new List<Dictionary<string, object?>>();
-                var existingExperimental = new List<Dictionary<string, object?>>();
-                var existingCustom = new List<Dictionary<string, object?>>();
-
-                if (existingRoot.TryGetProperty("standard", out var stdArray))
-                {
-                    existingStandard = ParseToDict(stdArray);
-                }
-                if (existingRoot.TryGetProperty("experimental", out var expArray))
-                {
-                    existingExperimental = ParseToDict(expArray);
-                }
-                if (existingRoot.TryGetProperty("custom", out var custArray))
-                {
-                    existingCustom = ParseToDict(custArray);
-                }
-
-                // Merge defaults with existing (only add new ones)
-                var mergedStandard = MergeGameLists(existingStandard, defaultGames.standard);
-                var mergedExperimental = MergeGameLists(existingExperimental, defaultGames.experimental);
-
-                // Create merged structure
-                var mergedData = new
-                {
-                    standard = mergedStandard,
-                    experimental = mergedExperimental,
-                    custom = existingCustom
-                };
-
-                // Save merged data
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(mergedData, options);
-                await File.WriteAllTextAsync(_gamesConfigPath, json).ConfigureAwait(false);
-
-                System.Diagnostics.Debug.WriteLine($"Games merged successfully at {_gamesConfigPath}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error merging default games: {ex.Message}");
-            }
         }
 
         private List<Dictionary<string, object?>> ParseToDict(JsonElement array)
@@ -501,9 +511,8 @@ namespace N64RecompLauncher.Services
             if (Games == null)
                 Games = new ObservableCollection<GameInfo>();
 
-            Games.Clear();
-
-            var allGames = await LoadGamesFromJsonAsync().ConfigureAwait(false);
+            // Load games from JSON (this happens on background thread due to ConfigureAwait(false))
+            var allGames = await LoadGamesFromJsonAsync();
 
             if (allGames == null)
                 allGames = new List<GameInfo>();
@@ -512,6 +521,9 @@ namespace N64RecompLauncher.Services
                 .Where(game => game != null && (!game.IsExperimental || settings.ShowExperimentalGames))
                 .Where(game => game != null && !settings.HiddenGames.Contains(game.Name))
                 .ToList();
+
+            // Clear and add on the current synchronization context
+            Games.Clear();
 
             foreach (var game in filteredGames)
             {
