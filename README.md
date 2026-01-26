@@ -85,7 +85,7 @@ Each game entry requires the following properties:
             "folderName": "AnotherGame",
             "platformOverride": "custom-asset-name",
             "customDefaultIconUrl": "link/to/an/image.png"
-        },
+        }
     ],
     "experimental": [
         {
@@ -96,7 +96,7 @@ Each game entry requires the following properties:
             "folderName": "ExperimentalGame",
             "platformOverride": "UniqueFileName",
             "customDefaultIconUrl": "link/to/a/different/image.jpg"
-        },
+        }
     ],
     "custom": []
 }
