@@ -920,7 +920,7 @@ namespace N64RecompLauncher.Models
                        assetNameLower.Contains("win32") ||
                        assetNameLower.Contains("win-") ||
                        assetNameLower.Contains("-win") ||
-                       assetNameLower.Contains("x64") && !assetNameLower.Contains("linux") && !assetNameLower.Contains("macos");
+                       assetNameLower.Contains("x64") && !assetNameLower.Contains("linux") && !assetNameLower.Contains("macos") && !assetNameLower.Contains("flatpak");
             }
 
             // macOS patterns
