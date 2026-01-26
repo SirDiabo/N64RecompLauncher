@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -318,13 +319,99 @@ namespace N64RecompLauncher
                 try
                 {
                     await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+
+                    // Check if multiple executables need selection
+                    if (game.Status == GameStatus.Installed && game.HasMultipleExecutables && string.IsNullOrEmpty(game.SelectedExecutable))
+                    {
+                        if (button != null)
+                        {
+                            ShowExecutableSelectionMenu(button, game);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _ = ShowMessageBoxAsync($"Failed to perform action for {game.Name}: {ex.Message}", "Action Error");
+                    await ShowMessageBoxAsync($"Failed to perform action for {game.Name}: {ex.Message}", "Action Error");
                 }
             }
             UpdateContinueButtonState();
+        }
+
+        private void ShowExecutableSelectionMenu(Button sourceButton, GameInfo game)
+        {
+            if (game.AvailableExecutables == null || game.AvailableExecutables.Count == 0)
+                return;
+
+            var contextMenu = new ContextMenu();
+
+            // Add header
+            var headerItem = new MenuItem
+            {
+                Header = "Select executable to launch:",
+                IsEnabled = false,
+                FontWeight = FontWeight.Bold
+            };
+            contextMenu.Items.Add(headerItem);
+            contextMenu.Items.Add(new Separator());
+
+            // Add executable options
+            foreach (var exe in game.AvailableExecutables)
+            {
+                var displayName = Path.GetFileName(exe);
+                var menuItem = new MenuItem
+                {
+                    Header = displayName,
+                    Tag = exe
+                };
+
+                menuItem.Click += async (s, e) =>
+                {
+                    var selectedExe = (s as MenuItem)?.Tag as string;
+                    game.SelectedExecutable = selectedExe;
+                    try
+                    {
+                        await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowMessageBoxAsync($"Failed to launch {game.Name}: {ex.Message}", "Launch Error");
+                    }
+                };
+
+                contextMenu.Items.Add(menuItem);
+            }
+
+            contextMenu.Items.Add(new Separator());
+
+            // Add cancel option
+            var cancelItem = new MenuItem
+            {
+                Header = "Cancel"
+            };
+            cancelItem.Click += (s, e) =>
+            {
+                game.SelectedExecutable = null;
+            };
+            contextMenu.Items.Add(cancelItem);
+
+            // Attach to button and open
+            sourceButton.ContextMenu = contextMenu;
+            contextMenu.PlacementTarget = sourceButton;
+            contextMenu.Placement = PlacementMode.Bottom;
+
+            // Focus first executable item when opened
+            contextMenu.Opened += (s, e) =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    var firstExecutableItem = contextMenu.Items.OfType<MenuItem>()
+                        .Skip(1)
+                        .FirstOrDefault(item => item is MenuItem mi && mi.IsEnabled);
+                    firstExecutableItem?.Focus();
+                }, DispatcherPriority.Loaded);
+            };
+
+            contextMenu.Open(sourceButton);
         }
 
         private void OptionsButton_Click(object sender, RoutedEventArgs e)

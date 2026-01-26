@@ -135,6 +135,36 @@ namespace N64RecompLauncher.Models
             }
         }
 
+        private List<string>? _availableExecutables;
+        public List<string>? AvailableExecutables
+        {
+            get => _availableExecutables;
+            set
+            {
+                if (_availableExecutables != value)
+                {
+                    _availableExecutables = value;
+                    DispatchPropertyChanged();
+                }
+            }
+        }
+
+        private string? _selectedExecutable;
+        public string? SelectedExecutable
+        {
+            get => _selectedExecutable;
+            set
+            {
+                if (_selectedExecutable != value)
+                {
+                    _selectedExecutable = value;
+                    DispatchPropertyChanged();
+                }
+            }
+        }
+
+        public bool HasMultipleExecutables => AvailableExecutables?.Count > 1;
+
         public bool IsInstalled
         {
             get
@@ -1436,51 +1466,76 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                string? executablePath = null;
+                // Find all available executables
+                var executables = new List<string>();
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    var exeFiles = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories);
-                    executablePath = exeFiles.FirstOrDefault();
+                    executables = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories).ToList();
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
                     var appBundles = Directory.GetDirectories(gamePath, "*.app", SearchOption.AllDirectories);
-                    if (appBundles.Length > 0)
-                    {
-                        executablePath = appBundles[0];
-                    }
-                    else
-                    {
-                        executablePath = FindExecutableInPath(gamePath);
-                    }
+                    executables.AddRange(appBundles);
+
+                    // Also add non-app executables
+                    executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories)
+                        .Where(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024));
                 }
                 else // Linux
                 {
-                    executablePath = FindExecutableInPath(gamePath);
+                    executables = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories)
+                        .Where(f =>
+                        {
+                            if (f.Contains('.') && (f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".so", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                return false;
+                            }
+                            try
+                            {
+                                return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
+                            }
+                            catch { return false; }
+                        })
+                        .ToList();
                 }
 
-                // Check for launch.bat if no executable found
-                if (string.IsNullOrEmpty(executablePath))
+                // Check for launch.bat
+                var launchBatPath = Path.Combine(gamePath, "launch.bat");
+                if (File.Exists(launchBatPath) && !executables.Contains(launchBatPath))
                 {
-                    var launchBatPath = Path.Combine(gamePath, "launch.bat");
-                    if (File.Exists(launchBatPath))
-                    {
-                        executablePath = launchBatPath;
-                    }
+                    executables.Add(launchBatPath);
                 }
 
-                if (string.IsNullOrEmpty(executablePath))
+                if (executables.Count == 0)
                 {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        await ShowMessageBoxAsync(
-                            $"No executable found for {Name} in:\n{gamePath}\n\n" +
-                            $"The game may not have installed correctly.",
-                            "Executable Not Found");
-                    });
+                    await ShowMessageBoxAsync(
+                        $"No executable found for {Name} in:\n{gamePath}\n\nThe game may not have installed correctly.",
+                        "Executable Not Found");
                     return;
                 }
+
+                // Store executables for potential UI display
+                AvailableExecutables = executables;
+
+                string? executablePath = null;
+
+                // If multiple executables and no selection made, trigger selection UI
+                if (executables.Count > 1 && string.IsNullOrEmpty(SelectedExecutable))
+                {
+                    // Signal to UI that selection is needed
+                    OnPropertyChanged(nameof(HasMultipleExecutables));
+                    OnPropertyChanged(nameof(AvailableExecutables));
+                    return;
+                }
+
+                // Use selected executable or default to first one
+                executablePath = !string.IsNullOrEmpty(SelectedExecutable) && executables.Contains(SelectedExecutable)
+                    ? SelectedExecutable
+                    : executables[0];
 
                 // Make executable on Unix systems
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
