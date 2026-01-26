@@ -858,6 +858,7 @@
 							BorderBrush="#1a1a1c"
 							BorderThickness="1,0,0,0"
 							IsVisible="False"
+							Opacity="0.97"
 							ZIndex="10">
 					<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 						<StackPanel Margin="30,30,30,30" x:Name="SettingsContent">

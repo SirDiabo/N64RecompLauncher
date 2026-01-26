@@ -84,6 +84,7 @@ namespace N64RecompLauncher.Models
         public string? ImageRes { get; set; }
         public string? FolderName { get; set; }
         public string? PlatformOverride { get; set; }
+        public string? CustomDefaultIconUrl { get; set; }
         public bool IsExperimental { get; set; }
         public bool IsCustom { get; set; }
         private string? _customIconPath { get; set; }
@@ -112,12 +113,7 @@ namespace N64RecompLauncher.Models
                     return CustomIconPath;
                 }
 
-                if (string.IsNullOrEmpty(Repository) || string.IsNullOrEmpty(Branch) || string.IsNullOrEmpty(ImageRes))
-                {
-                    return "/Assets/DefaultGame.png";
-                }
-
-                return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+                return DefaultIconUrl;
             }
         }
 
@@ -125,6 +121,11 @@ namespace N64RecompLauncher.Models
         {
             get
             {
+                if (!string.IsNullOrEmpty(CustomDefaultIconUrl))
+                {
+                    return CustomDefaultIconUrl;
+                }
+
                 if (string.IsNullOrEmpty(Repository) || string.IsNullOrEmpty(Branch) || string.IsNullOrEmpty(ImageRes))
                 {
                     return "/Assets/DefaultGame.png";
@@ -491,34 +492,6 @@ namespace N64RecompLauncher.Models
                 {
                     CustomIconPath = iconPath;
                     break;
-                }
-            }
-        }
-
-        private void RemoveAllCachedIcons(string cacheDirectory)
-        {
-            if (string.IsNullOrEmpty(FolderName))
-                return;
-
-            var customIconsDir = Path.Combine(cacheDirectory, "CustomIcons");
-            if (!Directory.Exists(customIconsDir))
-                return;
-
-            var possibleExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico" };
-            foreach (var ext in possibleExtensions)
-            {
-                var fileName = $"{FolderName}_custom{ext}";
-                var iconPath = Path.Combine(customIconsDir, fileName);
-                if (File.Exists(iconPath))
-                {
-                    try
-                    {
-                        TryDeleteFileWithRetry(iconPath, maxRetries: 3, delayMs: 100);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Warning: Failed to delete cached icon {iconPath}: {ex.Message}");
-                    }
                 }
             }
         }
