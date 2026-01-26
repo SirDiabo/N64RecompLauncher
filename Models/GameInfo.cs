@@ -1433,6 +1433,16 @@ namespace N64RecompLauncher.Models
                     executablePath = FindExecutableInPath(gamePath);
                 }
 
+                // Check for launch.bat if no executable found
+                if (string.IsNullOrEmpty(executablePath))
+                {
+                    var launchBatPath = Path.Combine(gamePath, "launch.bat");
+                    if (File.Exists(launchBatPath))
+                    {
+                        executablePath = launchBatPath;
+                    }
+                }
+
                 if (string.IsNullOrEmpty(executablePath))
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>

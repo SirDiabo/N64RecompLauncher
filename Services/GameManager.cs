@@ -520,6 +520,27 @@ namespace N64RecompLauncher.Services
             imageRes = "512",
             folderName = "fgsfdsfgs.perfect_dark",
             platformOverride = (string?)null },
+
+        new { name = "SM64 CoopDX",
+            repository = "coop-deluxe/sm64coopdx",
+            branch = "main",
+            imageRes = "512",
+            folderName = "coop-deluxe.sm64coopdx",
+            platformOverride = (string?)null },
+
+        new { name = "LoD: Severed Chains",
+            repository = "Legend-of-Dragoon-Modding/Severed-Chains",
+            branch = "main",
+            imageRes = "512",
+            folderName = "Legend-of-Dragoon-Modding.Severed-Chains",
+            platformOverride = (string?)null },
+
+        new { name = "REDRIVER 2",
+            repository = "OpenDriver2/REDRIVER2",
+            branch = "master",
+            imageRes = "512",
+            folderName = "OpenDriver2.REDRIVER2",
+            platformOverride = "Win32" },
     };
 
             return (standard, experimental, custom);
