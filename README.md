@@ -75,7 +75,7 @@ Each game entry requires the following properties:
             "imageRes": "512",
             "folderName": "ExampleGame",
             "platformOverride": null,
-            "customDefaultIconUrl": null,
+            "customDefaultIconUrl": null
         },
         {
             "name": "Another Game",
@@ -84,7 +84,7 @@ Each game entry requires the following properties:
             "imageRes": "256",
             "folderName": "AnotherGame",
             "platformOverride": "custom-asset-name",
-            "customDefaultIconUrl": "link/to/an/image.png",
+            "customDefaultIconUrl": "link/to/an/image.png"
         },
     ],
     "experimental": [
@@ -95,7 +95,7 @@ Each game entry requires the following properties:
             "imageRes": "128",
             "folderName": "ExperimentalGame",
             "platformOverride": "UniqueFileName",
-            "customDefaultIconUrl": "link/to/a/different/image.jpg",
+            "customDefaultIconUrl": "link/to/a/different/image.jpg"
         },
     ],
     "custom": []
