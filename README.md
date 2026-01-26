@@ -84,7 +84,7 @@ Each game entry requires the following properties:
             "imageRes": "256",
             "folderName": "AnotherGame",
             "platformOverride": "custom-asset-name",
-            "customDefaultIconUrl": link/to/an/image.png,
+            "customDefaultIconUrl": "link/to/an/image.png",
         },
     ],
     "experimental": [
@@ -94,8 +94,8 @@ Each game entry requires the following properties:
             "branch": "experimental",
             "imageRes": "128",
             "folderName": "ExperimentalGame",
-            "platformOverride": UniqueFileName,
-            "customDefaultIconUrl": link/to/a/different/image.jpg,
+            "platformOverride": "UniqueFileName",
+            "customDefaultIconUrl": "link/to/a/different/image.jpg",
         },
     ],
     "custom": []
