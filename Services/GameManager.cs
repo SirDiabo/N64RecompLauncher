@@ -93,7 +93,121 @@ namespace N64RecompLauncher.Services
 
             LoadVersionString();
 
+            _ = ValidateAndFixGamesJsonAsync();
+
             Games = new ObservableCollection<GameInfo>();
+        }
+
+        private async Task ValidateAndFixGamesJsonAsync()
+        {
+            try
+            {
+                if (!File.Exists(_gamesConfigPath))
+                {
+                    System.Diagnostics.Debug.WriteLine("games.json does not exist, skipping integrity check");
+                    return;
+                }
+
+                string json = await File.ReadAllTextAsync(_gamesConfigPath);
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+
+                bool needsFix = false;
+                var fixedData = new
+                {
+                    standard = ValidateAndFixGameSection(root, "standard", ref needsFix),
+                    experimental = ValidateAndFixGameSection(root, "experimental", ref needsFix),
+                    custom = ValidateAndFixGameSection(root, "custom", ref needsFix)
+                };
+
+                if (needsFix)
+                {
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    string fixedJson = JsonSerializer.Serialize(fixedData, options);
+                    await File.WriteAllTextAsync(_gamesConfigPath, fixedJson);
+                    System.Diagnostics.Debug.WriteLine("games.json integrity check: Fixed missing or invalid properties");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("games.json integrity check: No issues found");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error during games.json integrity check: {ex.Message}");
+            }
+        }
+
+        private List<Dictionary<string, object?>> ValidateAndFixGameSection(JsonElement root, string sectionName, ref bool needsFix)
+        {
+            var fixedGames = new List<Dictionary<string, object?>>();
+
+            if (!root.TryGetProperty(sectionName, out var sectionArray))
+            {
+                return fixedGames;
+            }
+
+            foreach (var gameElement in sectionArray.EnumerateArray())
+            {
+                var gameDict = new Dictionary<string, object?>();
+                bool gameNeedsFix = false;
+
+                // Required properties with defaults
+                var requiredProps = new Dictionary<string, object?>
+                {
+                    { "name", string.Empty },
+                    { "repository", string.Empty },
+                    { "branch", "main" },
+                    { "imageRes", "512" },
+                    { "folderName", string.Empty },
+                    { "platformOverride", null },
+                    { "customDefaultIconUrl", null }
+                };
+
+                // Copy existing properties
+                foreach (var prop in gameElement.EnumerateObject())
+                {
+                    gameDict[prop.Name] = prop.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => prop.Value.GetString(),
+                        JsonValueKind.Null => null,
+                        _ => prop.Value.GetRawText()
+                    };
+                }
+
+                // Check for missing or invalid properties
+                foreach (var requiredProp in requiredProps)
+                {
+                    if (!gameDict.ContainsKey(requiredProp.Key))
+                    {
+                        gameDict[requiredProp.Key] = requiredProp.Value;
+                        gameNeedsFix = true;
+                        System.Diagnostics.Debug.WriteLine($"Fixed missing property '{requiredProp.Key}' in {sectionName} game");
+                    }
+                    else if (gameDict[requiredProp.Key] is string str && string.IsNullOrWhiteSpace(str) &&
+                             requiredProp.Value is string defaultStr && !string.IsNullOrWhiteSpace(defaultStr))
+                    {
+                        // Fix empty required string properties (except those that can be null)
+                        if (requiredProp.Key == "name" || requiredProp.Key == "repository" || requiredProp.Key == "folderName")
+                        {
+                            // Don't fix these as empty - they indicate invalid game entry
+                            continue;
+                        }
+                        gameDict[requiredProp.Key] = requiredProp.Value;
+                        gameNeedsFix = true;
+                        System.Diagnostics.Debug.WriteLine($"Fixed empty property '{requiredProp.Key}' in {sectionName} game");
+                    }
+                }
+
+                if (gameNeedsFix)
+                {
+                    needsFix = true;
+                }
+
+                fixedGames.Add(gameDict);
+            }
+
+            return fixedGames;
         }
 
         private void LoadVersionString()
