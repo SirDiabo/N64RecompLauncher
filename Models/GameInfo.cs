@@ -1471,20 +1471,20 @@ namespace N64RecompLauncher.Models
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    executables = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories).ToList();
+                    executables = Directory.GetFiles(gamePath, "*.exe", SearchOption.TopDirectoryOnly).ToList();
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    var appBundles = Directory.GetDirectories(gamePath, "*.app", SearchOption.AllDirectories);
+                    var appBundles = Directory.GetDirectories(gamePath, "*.app", SearchOption.TopDirectoryOnly);
                     executables.AddRange(appBundles);
 
                     // Also add non-app executables
-                    executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories)
+                    executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
                         .Where(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024));
                 }
                 else // Linux
                 {
-                    executables = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories)
+                    executables = Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
                         .Where(f =>
                         {
                             if (f.Contains('.') && (f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
@@ -1582,51 +1582,6 @@ namespace N64RecompLauncher.Models
                     await ShowMessageBoxAsync($"Error launching {Name}: {ex.Message}", "Launch Error");
                 });
             }
-        }
-
-        private string? FindExecutableInPath(string gamePath)
-        {
-            var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories);
-
-            // First pass: look for files matching game name or "recomp"
-            foreach (var file in allFiles)
-            {
-                var fileName = Path.GetFileName(file);
-                if (string.IsNullOrEmpty(fileName)) continue;
-
-                // Skip non-executable extensions
-                if (fileName.Contains('.') &&
-                    (fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(".cfg", StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(".ini", StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(".log", StringComparison.OrdinalIgnoreCase)))
-                {
-                    continue;
-                }
-
-                if (fileName.Contains("Recompiled", StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrEmpty(Name) && fileName.Contains(Name.Replace(" ", ""), StringComparison.OrdinalIgnoreCase)))
-                {
-                    return file;
-                }
-            }
-
-            // Second pass: look for any file without extension that's large enough
-            return allFiles.FirstOrDefault(f =>
-            {
-                try
-                {
-                    return !Path.GetFileName(f).Contains('.') && new FileInfo(f).Length > 1024;
-                }
-                catch
-                {
-                    return false;
-                }
-            });
         }
 
         private async Task MakeExecutableAsync(string executablePath)
