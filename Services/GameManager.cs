@@ -699,6 +699,14 @@ namespace N64RecompLauncher.Services
             folderName = "OpenDriver2.REDRIVER2",
             platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/ca0739bf1344242a820fe79d0ac17d65.png" },
+
+        new { name = "Super Mario World",
+            repository = "snesrev/smw",
+            branch = "main",
+            imageRes = "512",
+            folderName = "snesrev.smw",
+            platformOverride = "smw_0.1",
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/5ba01c0e82cd96577309302faf900a0d/32/1024x1024.png" },
     };
 
             return (standard, experimental, custom);
