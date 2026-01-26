@@ -61,7 +61,7 @@ Each game entry requires the following properties:
 - **`imageRes`** - The filename of the icon PNG located in the repository's `/icons` directory (e.g., `512` for `512.png`)
 - **`folderName`** - The folder name where the game will be downloaded and installed
 - **`platformOverride`** - *(Optional)* Specifies a custom asset name if the release assets don't contain standard version numbers or platform identifiers. Leave as `null` if not needed
-- **`customDefaultIconUrl`** *(Optional)* Overwrites the default Icon of each game. If left blank it will use the default recomp /blob/dev/icons/`imageRes`.png, or be blank if not found
+- **`customDefaultIconUrl`** *(Optional)* Overwrites the default Icon of each game. If left blank it will use the default recomp /blob/dev/icons/"imageRes".png, or be blank if not found. Leave as `null` if not needed
 
 #### Example Configuration
 
