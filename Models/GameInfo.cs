@@ -910,56 +910,121 @@ namespace N64RecompLauncher.Models
 
         private static bool MatchesPlatform(string assetName, string platformIdentifier)
         {
+            if (string.IsNullOrWhiteSpace(assetName) || string.IsNullOrWhiteSpace(platformIdentifier))
+            {
+                System.Diagnostics.Debug.WriteLine("Invalid input: assetName or platformIdentifier is null/empty");
+                return false;
+            }
+
             var assetNameLower = assetName.ToLowerInvariant();
+            var platformLower = platformIdentifier.ToLowerInvariant();
 
-            // Windows patterns
-            if (platformIdentifier.Contains("Windows", StringComparison.OrdinalIgnoreCase))
+            System.Diagnostics.Debug.WriteLine($"Checking asset: {assetName}");
+            System.Diagnostics.Debug.WriteLine($"Platform identifier: {platformIdentifier}");
+
+            // Windows detection
+            if (platformLower.Contains("windows"))
             {
-                return assetNameLower.Contains("windows") ||
-                       assetNameLower.Contains("win64") ||
-                       assetNameLower.Contains("win32") ||
-                       assetNameLower.Contains("win-") ||
-                       assetNameLower.Contains("-win") ||
-                       assetNameLower.Contains("x64") && !assetNameLower.Contains("linux") && !assetNameLower.Contains("macos") && !assetNameLower.Contains("flatpak");
-            }
+                System.Diagnostics.Debug.WriteLine("Checking Windows patterns...");
 
-            // macOS patterns
-            if (platformIdentifier.Contains("macOS", StringComparison.OrdinalIgnoreCase))
-            {
-                return assetNameLower.Contains("macos") ||
-                       assetNameLower.Contains("mac") ||
-                       assetNameLower.Contains("osx") ||
-                       assetNameLower.Contains("darwin") ||
-                       assetNameLower.Contains("apple");
-            }
-
-            // Linux patterns
-            if (platformIdentifier.Contains("Linux", StringComparison.OrdinalIgnoreCase))
-            {
-                var hasLinux = assetNameLower.Contains("linux");
-
-                if (platformIdentifier.Contains("ARM64", StringComparison.OrdinalIgnoreCase))
+                // Exclude Non-Windows indicators
+                if (HasAnyOf(assetNameLower, "linux", "macos", "flatpak", "osx", "darwin", "apple", ".deb", ".rpm", ".appimage", ".dmg", ".pkg"))
                 {
-                    return hasLinux && (assetNameLower.Contains("arm64") ||
-                                       assetNameLower.Contains("aarch64") ||
-                                       assetNameLower.Contains("arm"));
+                    System.Diagnostics.Debug.WriteLine("Excluded: contains non-Windows platform marker");
+                    return false;
                 }
 
-                if (platformIdentifier.Contains("Flatpak", StringComparison.OrdinalIgnoreCase))
-                {
-                    return assetNameLower.Contains("flatpak");
-                }
+                // Positive Windows indicators
+                bool isWindows = HasAnyOf(assetNameLower,
+                    "windows", "win64", "win32", "win-x64", "win-x86",
+                    "-win.", "_win.", ".exe", ".msi", "msvc", "mingw") ||
+                    
+                    System.Text.RegularExpressions.Regex.IsMatch(assetNameLower, @"[_-]win[_-]|[_-]win\d|^win[_-]");
 
-                // Linux X64
-                return hasLinux && (assetNameLower.Contains("x64") ||
-                                   assetNameLower.Contains("lin") ||
-                                   assetNameLower.Contains("x86_64") ||
-                                   assetNameLower.Contains("amd64") ||
-                                   (!assetNameLower.Contains("arm") && !assetNameLower.Contains("flatpak")));
+                System.Diagnostics.Debug.WriteLine($"Windows match result: {isWindows}");
+                return isWindows;
             }
 
-            // Fallback to original behavior
-            return assetName.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase);
+            // macOS detection
+            if (platformLower.Contains("macos") || platformLower.Contains("mac"))
+            {
+                System.Diagnostics.Debug.WriteLine("Checking macOS patterns...");
+
+                // Exclude non-macOS
+                if (HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe", ".msi"))
+                {
+                    System.Diagnostics.Debug.WriteLine("Excluded: contains non-macOS platform marker");
+                    return false;
+                }
+
+                bool isMac = HasAnyOf(assetNameLower, "macos", "osx", "darwin", ".dmg", ".pkg") ||
+                             (assetNameLower.Contains("mac") && !assetNameLower.Contains("machin"));
+
+                System.Diagnostics.Debug.WriteLine($"macOS match result: {isMac}");
+                return isMac;
+            }
+
+            // Linux detection
+            if (platformLower.Contains("linux"))
+            {
+                System.Diagnostics.Debug.WriteLine("Checking Linux patterns...");
+
+                // Exclude non-Linux
+                if (HasAnyOf(assetNameLower, "windows", "win32", "win64", "macos", "osx", "darwin", ".exe", ".msi", ".dmg"))
+                {
+                    System.Diagnostics.Debug.WriteLine("Excluded: contains non-Linux platform marker");
+                    return false;
+                }
+
+                bool hasLinux = HasAnyOf(assetNameLower, "linux", ".appimage", ".deb", ".rpm", "tar.gz", "tar.xz");
+
+                if (!hasLinux)
+                {
+                    System.Diagnostics.Debug.WriteLine("No Linux markers found");
+                    return false;
+                }
+
+                // ARM64 Linux specific
+                if (platformLower.Contains("arm64") || platformLower.Contains("arm") || platformLower.Contains("aarch64"))
+                {
+                    bool isArm = HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "arm-");
+                    System.Diagnostics.Debug.WriteLine($"Linux ARM64 match result: {isArm}");
+                    return isArm;
+                }
+
+                // Flatpak specific
+                if (platformLower.Contains("flatpak"))
+                {
+                    bool isFlatpak = assetNameLower.Contains("flatpak") || assetNameLower.Contains(".flatpakref");
+                    System.Diagnostics.Debug.WriteLine($"Flatpak match result: {isFlatpak}");
+                    return isFlatpak;
+                }
+
+                // Linux x64
+                bool isLinuxX64 = HasAnyOf(assetNameLower, "x64", "x86_64", "amd64", "x86-64") &&
+                                 !HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "flatpak", "arm-");
+
+                System.Diagnostics.Debug.WriteLine($"Linux x64 match result: {isLinuxX64}");
+                return isLinuxX64;
+            }
+
+            // Fallback
+            System.Diagnostics.Debug.WriteLine("Using fallback substring match");
+            bool fallbackMatch = assetNameLower.Contains(platformLower);
+            System.Diagnostics.Debug.WriteLine($"Fallback match result: {fallbackMatch}");
+            return fallbackMatch;
+        }
+
+        private static bool HasAnyOf(string input, params string[] substrings)
+        {
+            foreach (var substring in substrings)
+            {
+                if (input.Contains(substring))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private async Task RefreshGameList()
