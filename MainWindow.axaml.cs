@@ -292,6 +292,14 @@ namespace N64RecompLauncher
 
         public void CloseLauncher_Click(object sender, RoutedEventArgs e)
         {
+            // Close settings panel if open
+            if (isSettingsPanelOpen && SettingsPanel != null)
+            {
+                isSettingsPanelOpen = false;
+                SettingsPanel.IsVisible = false;
+                return;
+            }
+
             Close();
         }
 
