@@ -199,6 +199,19 @@ namespace N64RecompLauncher.Services
                     }
                 }
 
+                // Remove unnecessary platform overrides
+                if (gameDict.ContainsKey("platformOverride") && gameDict["platformOverride"] is string platformOverride)
+                {
+                    var unnecessaryOverrides = new[] { "Windows", "Win64", "Win32", "macOS", "Linux", "Linux-X64", "Linux-ARM64", "Linux-Flatpak-X64" };
+
+                    if (unnecessaryOverrides.Any(o => platformOverride.Equals(o, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        gameDict["platformOverride"] = null;
+                        gameNeedsFix = true;
+                        System.Diagnostics.Debug.WriteLine($"Removed unnecessary platformOverride '{platformOverride}' from {gameDict.GetValueOrDefault("name", "unknown")} in {sectionName}");
+                    }
+                }
+
                 if (gameNeedsFix)
                 {
                     needsFix = true;
@@ -596,7 +609,7 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.shipofharkinian",
-            platformOverride = "Win64",
+            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/d1cd0a8c9b28f58703a097d5a25534e3/32/256x256.png" },
 
         new { name = "Mario Kart 64 (SpaghettiKart)",
@@ -612,7 +625,7 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.2ship2harkinian",
-            platformOverride = "Win64",
+            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/6c7dbdd98cd70f67f102524761f3b4d2/24/256x256.png" },
 
         new { name = "Super Mario 64 (Ghostship)",
@@ -620,7 +633,7 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.ghostship",
-            platformOverride = "Win64",
+            platformOverride = (string?)null,
             customDefaultIconUrl = "https://github.com/HarbourMasters/Ghostship/blob/develop/port/textures/icons/g2ShipIcon.png?raw=true" },
 
         new { name = "Sonic Unleashed Recompiled",
@@ -652,7 +665,7 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "WipeOut Phantom Edition",
-            platformOverride = "wipeout-x64-release",
+            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9fcb5252180dc29b22976c5c63b322e7.png" },
 
         new { name = "Perfect Dark",
@@ -684,7 +697,7 @@ namespace N64RecompLauncher.Services
             branch = "master",
             imageRes = "512",
             folderName = "OpenDriver2.REDRIVER2",
-            platformOverride = "Win32",
+            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/ca0739bf1344242a820fe79d0ac17d65.png" },
     };
 

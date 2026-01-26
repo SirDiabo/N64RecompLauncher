@@ -790,7 +790,7 @@ namespace N64RecompLauncher.Models
                 // Find the appropriate asset for the platform
                 var asset = latestRelease.assets?.FirstOrDefault(a =>
                     (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
-                    (string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase)));
+                    (string.IsNullOrEmpty(PlatformOverride) && MatchesPlatform(a.name, platformIdentifier)));
 
                 // If no asset found, show error and return
                 if (asset == null)
@@ -876,6 +876,60 @@ namespace N64RecompLauncher.Models
                 });
                 Status = GameStatus.NotInstalled;
             }
+        }
+
+        private static bool MatchesPlatform(string assetName, string platformIdentifier)
+        {
+            var assetNameLower = assetName.ToLowerInvariant();
+
+            // Windows patterns
+            if (platformIdentifier.Contains("Windows", StringComparison.OrdinalIgnoreCase))
+            {
+                return assetNameLower.Contains("windows") ||
+                       assetNameLower.Contains("win64") ||
+                       assetNameLower.Contains("win32") ||
+                       assetNameLower.Contains("win-") ||
+                       assetNameLower.Contains("-win") ||
+                       assetNameLower.Contains("x64") && !assetNameLower.Contains("linux") && !assetNameLower.Contains("macos");
+            }
+
+            // macOS patterns
+            if (platformIdentifier.Contains("macOS", StringComparison.OrdinalIgnoreCase))
+            {
+                return assetNameLower.Contains("macos") ||
+                       assetNameLower.Contains("mac") ||
+                       assetNameLower.Contains("osx") ||
+                       assetNameLower.Contains("darwin") ||
+                       assetNameLower.Contains("apple");
+            }
+
+            // Linux patterns
+            if (platformIdentifier.Contains("Linux", StringComparison.OrdinalIgnoreCase))
+            {
+                var hasLinux = assetNameLower.Contains("linux");
+
+                if (platformIdentifier.Contains("ARM64", StringComparison.OrdinalIgnoreCase))
+                {
+                    return hasLinux && (assetNameLower.Contains("arm64") ||
+                                       assetNameLower.Contains("aarch64") ||
+                                       assetNameLower.Contains("arm"));
+                }
+
+                if (platformIdentifier.Contains("Flatpak", StringComparison.OrdinalIgnoreCase))
+                {
+                    return assetNameLower.Contains("flatpak");
+                }
+
+                // Linux X64
+                return hasLinux && (assetNameLower.Contains("x64") ||
+                                   assetNameLower.Contains("lin") ||
+                                   assetNameLower.Contains("x86_64") ||
+                                   assetNameLower.Contains("amd64") ||
+                                   (!assetNameLower.Contains("arm") && !assetNameLower.Contains("flatpak")));
+            }
+
+            // Fallback to original behavior
+            return assetName.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task RefreshGameList()
