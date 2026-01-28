@@ -23,12 +23,63 @@ namespace N64RecompLauncher.Models
         public DateTime LastChecked { get; set; }
         public string ETag { get; set; } = string.Empty;
         public GitHubRelease? CachedRelease { get; set; }
+        public DateTime LastUpdateCheck { get; set; }
     }
 
     public static class GitHubApiCache
     {
         private static readonly ConcurrentDictionary<string, GameVersionCache> _cache = new();
-        private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(20);
+        private static readonly TimeSpan CacheExpiry = TimeSpan.FromHours(24);
+        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
+        private static string? _cacheFilePath;
+
+        public static void Initialize(string cacheDirectory)
+        {
+            _cacheFilePath = Path.Combine(cacheDirectory, "version_cache.json");
+            LoadFromDisk();
+        }
+
+        // Load cache from disk
+        private static void LoadFromDisk()
+        {
+            if (string.IsNullOrEmpty(_cacheFilePath) || !File.Exists(_cacheFilePath))
+                return;
+
+            try
+            {
+                var json = File.ReadAllText(_cacheFilePath);
+                var diskCache = JsonSerializer.Deserialize<Dictionary<string, GameVersionCache>>(json);
+                if (diskCache != null)
+                {
+                    foreach (var kvp in diskCache)
+                    {
+                        _cache.TryAdd(kvp.Key, kvp.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load version cache: {ex.Message}");
+            }
+        }
+
+        // Save cache to disk
+        private static void SaveToDisk()
+        {
+            if (string.IsNullOrEmpty(_cacheFilePath))
+                return;
+
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var json = JsonSerializer.Serialize(_cache.ToDictionary(k => k.Key, v => v.Value), options);
+                File.WriteAllText(_cacheFilePath, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save version cache: {ex.Message}");
+            }
+        }
 
         public static bool TryGetCachedVersion(string repository, out GameVersionCache? cache)
         {
@@ -44,6 +95,15 @@ namespace N64RecompLauncher.Models
             return false;
         }
 
+        // Check if update check is needed
+        public static bool NeedsUpdateCheck(string repository)
+        {
+            if (!_cache.TryGetValue(repository, out var cache))
+                return true;
+
+            return DateTime.UtcNow - cache.LastUpdateCheck >= UpdateCheckInterval;
+        }
+
         public static void SetCache(string repository, string version, string etag, GitHubRelease? release = null)
         {
             _cache.AddOrUpdate(repository,
@@ -51,6 +111,7 @@ namespace N64RecompLauncher.Models
                 {
                     Version = version,
                     LastChecked = DateTime.UtcNow,
+                    LastUpdateCheck = DateTime.UtcNow,
                     ETag = etag,
                     CachedRelease = release
                 },
@@ -58,9 +119,12 @@ namespace N64RecompLauncher.Models
                 {
                     Version = version,
                     LastChecked = DateTime.UtcNow,
+                    LastUpdateCheck = DateTime.UtcNow,
                     ETag = etag ?? old.ETag,
                     CachedRelease = release ?? old.CachedRelease
                 });
+
+            SaveToDisk();
         }
 
         public static string GetETag(string repository)
@@ -352,7 +416,7 @@ namespace N64RecompLauncher.Models
             });
         }
 
-        public async Task CheckStatusAsync(HttpClient httpClient, string gamesFolder)
+        public async Task CheckStatusAsync(HttpClient httpClient, string gamesFolder, bool forceUpdateCheck = false)
         {
             if (string.IsNullOrEmpty(FolderName))
             {
@@ -398,7 +462,17 @@ namespace N64RecompLauncher.Models
                     InstalledVersion = "";
                 }
 
-                await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
+                // Only check for updates if forced or needed
+                if (forceUpdateCheck || GitHubApiCache.NeedsUpdateCheck(Repository))
+                {
+                    await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
+                }
+                else if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
+                {
+                    // Skip API call, use Cache
+                    LatestVersion = cache.Version;
+                    _cachedRelease = cache.CachedRelease;
+                }
 
                 if (!string.IsNullOrEmpty(LatestVersion) &&
                     !string.IsNullOrEmpty(InstalledVersion) &&
@@ -586,19 +660,25 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
+                // Check if we need to update first
+                if (!GitHubApiCache.NeedsUpdateCheck(Repository))
                 {
-                    LatestVersion = cache.Version;
-                    _cachedRelease = cache.CachedRelease;
-
-                    if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
-                        InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
+                    // Use cached data without making API call
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cachedData) && cachedData != null)
                     {
-                        Status = GameStatus.UpdateAvailable;
+                        LatestVersion = cachedData.Version;
+                        _cachedRelease = cachedData.CachedRelease;
+
+                        if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
+                            InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
+                        {
+                            Status = GameStatus.UpdateAvailable;
+                        }
                     }
-                    return;
+                    return; // no API call needed
                 }
 
+                // Only reach here if update check is needed
                 var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
                 var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
 
@@ -623,6 +703,7 @@ namespace N64RecompLauncher.Models
                         LatestVersion = existingCache.Version;
                         _cachedRelease = existingCache.CachedRelease;
 
+                        // Update the LastUpdateCheck timestamp even though content hasn't changed
                         GitHubApiCache.SetCache(Repository, existingCache.Version, existingCache.ETag, existingCache.CachedRelease);
                     }
                     return;
@@ -639,7 +720,6 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                // Try to find the latest release
                 var latestRelease = releases.FirstOrDefault(r => !r.prerelease);
                 if (latestRelease != null && !string.IsNullOrWhiteSpace(latestRelease.tag_name))
                 {
@@ -657,9 +737,7 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                // If no latest release found, check for a pre-release
                 var prerelease = releases.FirstOrDefault(r => r.prerelease);
-
                 if (prerelease != null && !string.IsNullOrWhiteSpace(prerelease.tag_name))
                 {
                     LatestVersion = prerelease.tag_name;

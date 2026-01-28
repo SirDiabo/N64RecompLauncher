@@ -68,7 +68,6 @@ namespace N64RecompLauncher.Services
                 _settings = new AppSettings();
             }
 
-            // Initialize games folder with null check
             if (!string.IsNullOrEmpty(_settings?.GamesPath))
             {
                 _gamesFolder = _settings.GamesPath;
@@ -85,6 +84,7 @@ namespace N64RecompLauncher.Services
             {
                 Directory.CreateDirectory(_gamesFolder);
                 Directory.CreateDirectory(_cacheFolder);
+                GitHubApiCache.Initialize(_cacheFolder);
             }
             catch (Exception ex)
             {
@@ -92,10 +92,13 @@ namespace N64RecompLauncher.Services
             }
 
             LoadVersionString();
-
             _ = ValidateAndFixGamesJsonAsync();
-
             Games = new ObservableCollection<GameInfo>();
+        }
+
+        public async Task CheckAllUpdatesAsync()
+        {
+            await LoadGamesAsync(forceUpdateCheck: true);
         }
 
         private async Task ValidateAndFixGamesJsonAsync()
@@ -767,14 +770,13 @@ namespace N64RecompLauncher.Services
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public async Task LoadGamesAsync()
+        public async Task LoadGamesAsync(bool forceUpdateCheck = false)
         {
             var settings = AppSettings.Load();
 
             if (Games == null)
                 Games = new ObservableCollection<GameInfo>();
 
-            // Load games from JSON (this happens on background thread due to ConfigureAwait(false))
             var allGames = await LoadGamesFromJsonAsync();
 
             if (allGames == null)
@@ -786,7 +788,6 @@ namespace N64RecompLauncher.Services
                 .Where(game => game != null && !settings.HiddenGames.Contains(game.Name))
                 .ToList();
 
-            // Clear and add on the current synchronization context
             Games.Clear();
 
             foreach (var game in filteredGames)
@@ -826,11 +827,22 @@ namespace N64RecompLauncher.Services
                 }
             }
 
+            if (!forceUpdateCheck)
+            {
+                int cachedCount = Games.Count(g => !GitHubApiCache.NeedsUpdateCheck(g.Repository));
+                int apiCallCount = Games.Count - cachedCount;
+                System.Diagnostics.Debug.WriteLine($"LoadGamesAsync: {cachedCount} games using cache, {apiCallCount} will check for updates");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadGamesAsync: Force update check for all {Games.Count} games");
+            }
+
             await Task.WhenAll(Games.Where(game => game != null).Select(async game =>
             {
                 try
                 {
-                    await game.CheckStatusAsync(_httpClient, _gamesFolder);
+                    await game.CheckStatusAsync(_httpClient, _gamesFolder, forceUpdateCheck);
                 }
                 catch (Exception ex)
                 {

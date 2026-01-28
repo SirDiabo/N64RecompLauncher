@@ -715,11 +715,30 @@ namespace N64RecompLauncher
             }
         }
 
-        private void CheckforUpdates_Click(object sender, RoutedEventArgs e)
+        private async void CheckforUpdates_Click(object sender, RoutedEventArgs e)
         {
-            if (_app != null)
+            try
             {
-                _app.OnFrameworkInitializationCompleted();
+                var button = sender as Button;
+                if (button != null)
+                {
+                    button.IsEnabled = false;
+                    button.Content = "Checking...";
+                }
+
+                await _gameManager.CheckAllUpdatesAsync();
+
+                if (button != null)
+                {
+                    button.IsEnabled = true;
+                    button.Content = "Check for Updates";
+                }
+
+                await ShowMessageBoxAsync("Update check completed!", "Updates");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to check for updates: {ex.Message}", "Error");
             }
         }
 
