@@ -521,7 +521,21 @@ namespace N64RecompLauncher.Models
                     TryDeleteFileWithRetry(CustomIconPath, maxRetries: 3, delayMs: 100);
                 }
 
-                File.Copy(sourcePath, destinationPath, true);
+                using (var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var destStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    sourceStream.CopyTo(destStream);
+                }
+
+                if (File.Exists(destinationPath))
+                {
+                    var attributes = File.GetAttributes(destinationPath);
+                    if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+                    {
+                        File.SetAttributes(destinationPath, attributes & ~FileAttributes.ReadOnly);
+                    }
+                }
+
                 CustomIconPath = destinationPath;
 
                 OnPropertyChanged(nameof(CustomIconPath));
@@ -594,6 +608,19 @@ namespace N64RecompLauncher.Models
                 var iconPath = Path.Combine(customIconsDir, fileName);
                 if (File.Exists(iconPath))
                 {
+                    try
+                    {
+                        var attributes = File.GetAttributes(iconPath);
+                        if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+                        {
+                            File.SetAttributes(iconPath, attributes & ~FileAttributes.ReadOnly);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to check/modify file attributes for {iconPath}: {ex.Message}");
+                    }
+
                     CustomIconPath = iconPath;
                     break;
                 }
@@ -620,10 +647,14 @@ namespace N64RecompLauncher.Models
                         var attributes = File.GetAttributes(filePath);
                         if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
                         {
-                            File.SetAttributes(filePath, attributes & ~FileAttributes.ReadOnly);
+                            File.SetAttributes(filePath, FileAttributes.Normal);
                         }
 
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+
                         File.Delete(filePath);
+                        System.Diagnostics.Debug.WriteLine($"Successfully deleted file: {filePath}");
                         return;
                     }
                     else
@@ -633,8 +664,8 @@ namespace N64RecompLauncher.Models
                 }
                 catch (IOException ex) when (i < maxRetries - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1} failed to delete {filePath}: {ex.Message}");
-                    System.Threading.Thread.Sleep(delayMs);
+                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1}/{maxRetries} failed to delete {filePath}: {ex.Message}");
+                    System.Threading.Thread.Sleep(delayMs * (i + 1));
 
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
@@ -642,8 +673,15 @@ namespace N64RecompLauncher.Models
                 }
                 catch (UnauthorizedAccessException ex) when (i < maxRetries - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1} failed to delete {filePath}: {ex.Message}");
-                    System.Threading.Thread.Sleep(delayMs);
+                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1}/{maxRetries} - Access denied for {filePath}: {ex.Message}");
+
+                    try
+                    {
+                        File.SetAttributes(filePath, FileAttributes.Normal);
+                    }
+                    catch { }
+
+                    System.Threading.Thread.Sleep(delayMs * (i + 1));
                 }
             }
 
