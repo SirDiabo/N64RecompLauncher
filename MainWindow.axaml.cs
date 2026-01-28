@@ -18,6 +18,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection.Metadata.Ecma335;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace N64RecompLauncher
@@ -41,14 +42,6 @@ namespace N64RecompLauncher
                     _settings.StartFullscreen = value;
                     OnPropertyChanged(nameof(IsFullscreen));
                 }
-            }
-        }
-        public string FullScreen
-            {
-            get => _settings.StartFullscreen ? "Fullscreen" : "Normal";
-            set
-            {
-                OnPropertyChanged(nameof(FullScreen));
             }
         }
         private bool _showExperimentalGames;
@@ -157,6 +150,12 @@ namespace N64RecompLauncher
             LoadCurrentPlatform();
             UpdateSettingsUI();
 
+            // Apply fullscreen from settings immediately
+            if (_settings.StartFullscreen)
+            {
+                WindowState = WindowState.FullScreen;
+            }
+
             _inputService = new InputService(this);
             _inputService.OnConfirm += HandleConfirmAction;
             _inputService.OnCancel += HandleCancelAction;
@@ -213,8 +212,29 @@ namespace N64RecompLauncher
             try
             {
                 string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                string versionFilePath = Path.Combine(currentAppDirectory, "version.txt");
+                string updateCheckFilePath = Path.Combine(currentAppDirectory, "update_check.json");
 
+                if (File.Exists(updateCheckFilePath))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(updateCheckFilePath);
+                        var updateInfo = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                        if (updateInfo != null && updateInfo.TryGetValue("CurrentVersion", out var versionElement))
+                        {
+                            currentVersionString = versionElement.GetString() ?? "v0.0";
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to parse update_check.json: {ex.Message}");
+                        // Fall through to version.txt check
+                    }
+                }
+
+                // Fallback to version.txt
+                string versionFilePath = Path.Combine(currentAppDirectory, "version.txt");
                 if (File.Exists(versionFilePath))
                 {
                     currentVersionString = File.ReadAllText(versionFilePath).Trim();
@@ -309,12 +329,10 @@ namespace N64RecompLauncher
             if (IsFullscreen)
             {
                 WindowState = WindowState.FullScreen;
-                FullScreen = "Fullscreen";
             }
             else
             {
                 WindowState = WindowState.Normal;
-                FullScreen = "Normal";
             }
         }
 
@@ -336,13 +354,14 @@ namespace N64RecompLauncher
                             ShowExecutableSelectionMenu(button, game);
                         }
                     }
+
+                    UpdateContinueButtonState();
                 }
                 catch (Exception ex)
                 {
                     await ShowMessageBoxAsync($"Failed to perform action for {game.Name}: {ex.Message}", "Action Error");
                 }
             }
-            UpdateContinueButtonState();
         }
 
         private void ShowExecutableSelectionMenu(Button sourceButton, GameInfo game)
@@ -720,31 +739,71 @@ namespace N64RecompLauncher
             try
             {
                 var button = sender as Button;
+                bool wasEnabled = button?.IsEnabled ?? true;
+                string originalContent = string.Empty;
+
                 if (button != null)
                 {
+                    // Store original content
+                    if (button.Content is StackPanel panel)
+                    {
+                        originalContent = "original_stackpanel";
+                    }
+
                     button.IsEnabled = false;
-                    button.Content = "Checking launcher...";
+
+                    // Create a temporary text block for status
+                    var statusText = new TextBlock
+                    {
+                        Text = "Checking launcher...",
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    button.Content = statusText;
                 }
 
-                // Check for app updates first
+                // Check for app updates
                 if (_app != null)
                 {
                     await _app.CheckForAppUpdatesManually();
                 }
 
-                // If app update is available and user chose to update, the app will restart
-                // Otherwise, continue to check game updates
-                if (button != null)
+                // Update status text
+                if (button?.Content is TextBlock textBlock)
                 {
-                    button.Content = "Checking games...";
+                    textBlock.Text = "Checking games...";
                 }
 
+                // Check game updates
                 await _gameManager.CheckAllUpdatesAsync();
 
+                // Restore original button state
                 if (button != null)
                 {
                     button.IsEnabled = true;
-                    button.Content = "Check for Updates";
+
+                    // Restore original content
+                    button.Content = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Children =
+                {
+                    new Image
+                    {
+                        Width = 32,
+                        Height = 32,
+                        Source = new Avalonia.Media.Imaging.Bitmap(
+                            Avalonia.Platform.AssetLoader.Open(
+                                new Uri("avares://N64RecompLauncher/Assets/CheckForUpdates.png"))),
+                        Margin = new Thickness(0, 0, 12, 0)
+                    },
+                    new TextBlock
+                    {
+                        Text = "Check for Updates",
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                }
+                    };
                 }
 
                 await ShowMessageBoxAsync("Update check completed!", "Updates");
@@ -755,7 +814,29 @@ namespace N64RecompLauncher
                 if (button != null)
                 {
                     button.IsEnabled = true;
-                    button.Content = "Check for Updates";
+
+                    // Restore original content on error
+                    button.Content = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Children =
+                {
+                    new Image
+                    {
+                        Width = 32,
+                        Height = 32,
+                        Source = new Avalonia.Media.Imaging.Bitmap(
+                            Avalonia.Platform.AssetLoader.Open(
+                                new Uri("avares://N64RecompLauncher/Assets/CheckForUpdates.png"))),
+                        Margin = new Thickness(0, 0, 12, 0)
+                    },
+                    new TextBlock
+                    {
+                        Text = "Check for Updates",
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                }
+                    };
                 }
                 await ShowMessageBoxAsync($"Failed to check for updates: {ex.Message}", "Error");
             }

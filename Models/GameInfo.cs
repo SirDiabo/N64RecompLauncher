@@ -956,7 +956,6 @@ namespace N64RecompLauncher.Models
                         Status = GameStatus.Installed;
                         InstalledVersion = existingVersion;
                         LatestVersion = latestRelease.tag_name;
-                        await RefreshGameList();
                         return;
                     }
                 }
@@ -1020,9 +1019,9 @@ namespace N64RecompLauncher.Models
                 // Refresh game list
                 if (GameManager != null)
                 {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        await GameManager.LoadGamesAsync();
+                        GameManager.OnPropertyChanged(nameof(GameManager.Games));
                     });
                 }
             }
@@ -1169,17 +1168,6 @@ namespace N64RecompLauncher.Models
                 }
             }
             return false;
-        }
-
-        private async Task RefreshGameList()
-        {
-            if (GameManager != null)
-            {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await GameManager.LoadGamesAsync();
-                });
-            }
         }
 
         static async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
@@ -1778,9 +1766,9 @@ namespace N64RecompLauncher.Models
 
                 if (GameManager != null)
                 {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        await GameManager.LoadGamesAsync();
+                        GameManager.OnPropertyChanged(nameof(GameManager.Games));
                     });
                 }
             }

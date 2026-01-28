@@ -7,7 +7,7 @@
         Title="N64Recomp Launcher"
 		Width="1280" Height="720"
         Background="#0e0e10"
-		WindowState="{Binding FullScreen}"
+		WindowState="Normal"
         WindowStartupLocation="CenterScreen">
 
 	<Window.Resources>

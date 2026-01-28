@@ -65,6 +65,70 @@ public class App : Application, INotifyPropertyChanged
         public bool UpdateAvailable { get; set; }
     }
 
+    private class ProgressWindow : Window
+    {
+        private readonly TextBlock _statusText;
+        private readonly ProgressBar _progressBar;
+        private readonly TextBlock _percentText;
+
+        public ProgressWindow()
+        {
+            Title = "Updating Launcher";
+            Width = 450;
+            Height = 180;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            CanResize = false;
+
+            var panel = new StackPanel
+            {
+                Margin = new Thickness(30),
+                Spacing = 15
+            };
+
+            _statusText = new TextBlock
+            {
+                Text = "Preparing download...",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Colors.White),
+                TextAlignment = TextAlignment.Center
+            };
+
+            _progressBar = new ProgressBar
+            {
+                Height = 24,
+                Minimum = 0,
+                Maximum = 100,
+                Value = 0
+            };
+
+            _percentText = new TextBlock
+            {
+                Text = "0%",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Colors.LightGray),
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, -5, 0, 0)
+            };
+
+            panel.Children.Add(_statusText);
+            panel.Children.Add(_progressBar);
+            panel.Children.Add(_percentText);
+
+            Content = panel;
+            Background = new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1a));
+        }
+
+        public void UpdateProgress(double percentage, string status)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                _progressBar.Value = percentage;
+                _percentText.Text = $"{percentage:F1}%";
+                _statusText.Text = status;
+            });
+        }
+    }
+
     private static bool _hasCheckedForAppUpdates = false;
     private static readonly object _updateLock = new object();
     private const string Repository = "SirDiabo/N64RecompLauncher";
@@ -109,23 +173,35 @@ public class App : Application, INotifyPropertyChanged
     private async Task CheckForUpdatesAndApplyAsync(bool isManualCheck = false)
     {
         string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string versionFilePath = Path.Combine(currentAppDirectory, VersionFileName);
         string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
-        string currentVersionString = "0.0";
-
-        if (File.Exists(versionFilePath))
-        {
-            try
-            {
-                currentVersionString = (await File.ReadAllTextAsync(versionFilePath).ConfigureAwait(false)).Trim();
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine($"Error reading current version from {VersionFileName}: {ex.Message}");
-            }
-        }
 
         UpdateCheckInfo updateCheckInfo = await LoadUpdateCheckInfo(updateCheckFilePath);
+        string currentVersionString = updateCheckInfo.CurrentVersion;
+
+        // get it from version.txt if it exists
+        if (string.IsNullOrEmpty(currentVersionString))
+        {
+            string versionFilePath = Path.Combine(currentAppDirectory, VersionFileName);
+            if (File.Exists(versionFilePath))
+            {
+                try
+                {
+                    currentVersionString = (await File.ReadAllTextAsync(versionFilePath).ConfigureAwait(false))?.Trim() ?? "0.0";
+                }
+                catch
+                {
+                    currentVersionString = "0.0";
+                }
+            }
+            else
+            {
+                currentVersionString = "0.0";
+            }
+
+            // Store it in update check info
+            updateCheckInfo.CurrentVersion = currentVersionString;
+            await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+        }
 
         // Skip check if not manual and recently checked
         if (!isManualCheck && ShouldSkipUpdateCheck(updateCheckInfo, currentVersionString))
@@ -138,13 +214,48 @@ public class App : Application, INotifyPropertyChanged
             {
                 Trace.WriteLine($"Cached app update available: {updateCheckInfo.LastKnownVersion}");
 
-                if (isManualCheck)
+                // Prompt user about available update
+                await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    var result = await ShowMessageBoxWithChoiceAsync(
+                        $"Launcher update {updateCheckInfo.LastKnownVersion} is available!\n\nWould you like to update now?",
+                        "Update Available");
+
+                    if (result)
                     {
-                        await ShowMessageBoxAsync($"Update {updateCheckInfo.LastKnownVersion} is available for the launcher.", "Update Available");
-                    });
-                }
+                        using (var httpClient = new HttpClient())
+                        {
+                            httpClient.Timeout = DownloadTimeout;
+                            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("N64RecompLauncher-Updater");
+
+                            var settings = AppSettings.Load();
+                            if (!string.IsNullOrEmpty(settings?.GitHubApiToken))
+                            {
+                                httpClient.DefaultRequestHeaders.Authorization =
+                                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", settings.GitHubApiToken);
+                            }
+
+                            try
+                            {
+                                string apiUrl = $"https://api.github.com/repos/{Repository}/releases/latest";
+                                var response = await httpClient.GetAsync(apiUrl);
+                                response.EnsureSuccessStatusCode();
+
+                                string releaseResponse = await response.Content.ReadAsStringAsync();
+                                GitHubRelease? latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
+
+                                if (latestRelease != null)
+                                {
+                                    await DownloadAndApplyUpdate(latestRelease, AppDomain.CurrentDomain.BaseDirectory, updateCheckInfo);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                await ShowMessageBoxAsync($"Failed to download update: {ex.Message}", "Update Error");
+                            }
+                        }
+                    }
+                });
             }
 
             return;
@@ -219,6 +330,29 @@ public class App : Application, INotifyPropertyChanged
 
                 updateCheckInfo.LastKnownVersion = latestRelease.tag_name;
 
+                if (currentVersionString == "0" || currentVersionString == "0.0" || currentVersionString == "v0.0")
+                {
+                    Trace.WriteLine($"Current version is '{currentVersionString}' - forcing update to {latestRelease.tag_name}");
+                    updateCheckInfo.UpdateAvailable = true;
+                    await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+
+                    if (isManualCheck)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            var result = await ShowMessageBoxWithChoiceAsync(
+                                $"Launcher update {latestRelease.tag_name} is available!\n\nWould you like to update now?",
+                                "Update Available");
+
+                            if (result)
+                            {
+                                await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, updateCheckInfo);
+                            }
+                        });
+                    }
+                    return;
+                }
+
                 if (!IsNewerVersion(latestRelease.tag_name, currentVersionString))
                 {
                     Trace.WriteLine($"Current launcher version {currentVersionString} is up to date or newer than {latestRelease.tag_name}. No update needed.");
@@ -239,7 +373,6 @@ public class App : Application, INotifyPropertyChanged
                 updateCheckInfo.UpdateAvailable = true;
                 await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
-                // Prompt user to download and apply update
                 if (isManualCheck)
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -250,14 +383,9 @@ public class App : Application, INotifyPropertyChanged
 
                         if (result)
                         {
-                            await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, versionFilePath);
+                            await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, updateCheckInfo);
                         }
                     });
-                }
-                else
-                {
-                    // Automatic check - just notify, don't auto-download
-                    Trace.WriteLine($"App update {latestRelease.tag_name} is available (automatic check)");
                 }
             }
             catch (HttpRequestException httpEx)
@@ -465,18 +593,70 @@ public class App : Application, INotifyPropertyChanged
     {
         try
         {
-            Version current = new Version(currentVersion.TrimStart('v'));
-            Version latest = new Version(latestVersion.TrimStart('v'));
-            return latest.CompareTo(current) > 0;
+            string normalizedLatest = NormalizeVersionString(latestVersion);
+            string normalizedCurrent = NormalizeVersionString(currentVersion);
+
+            Trace.WriteLine($"Comparing versions - Latest: '{latestVersion}' ({normalizedLatest}) vs Current: '{currentVersion}' ({normalizedCurrent})");
+
+            Version current = new Version(normalizedCurrent);
+            Version latest = new Version(normalizedLatest);
+
+            bool isNewer = latest.CompareTo(current) > 0;
+            Trace.WriteLine($"IsNewerVersion result: {isNewer}");
+
+            return isNewer;
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"Error comparing versions '{latestVersion}' vs '{currentVersion}': {ex.Message}");
-            return false;
+
+            bool shouldUpdate = !latestVersion.TrimStart('v', 'V').Equals(currentVersion.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase);
+            Trace.WriteLine($"Version parsing failed, using string comparison: {shouldUpdate}");
+            return shouldUpdate;
         }
     }
 
-    private async Task DownloadAndApplyUpdate(GitHubRelease latestRelease, string currentAppDirectory, string versionFilePath)
+    private string NormalizeVersionString(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return "0.0.0.0";
+
+        version = version.TrimStart('v', 'V').Trim();
+
+        if (version == "0")
+            return "0.0.0.0";
+
+        var parts = version.Split('.');
+        var validParts = new List<string>();
+
+        foreach (var part in parts)
+        {
+            if (int.TryParse(part.Trim(), out int number))
+            {
+                validParts.Add(number.ToString());
+            }
+        }
+
+        while (validParts.Count < 2)
+        {
+            validParts.Add("0");
+        }
+
+        if (validParts.Count == 2)
+        {
+            return $"{validParts[0]}.{validParts[1]}";
+        }
+        else if (validParts.Count == 3)
+        {
+            return $"{validParts[0]}.{validParts[1]}.{validParts[2]}";
+        }
+        else
+        {
+            return $"{validParts[0]}.{validParts[1]}.{validParts[2]}.{validParts[3]}";
+        }
+    }
+
+    private async Task DownloadAndApplyUpdate(GitHubRelease latestRelease, string currentAppDirectory, UpdateCheckInfo updateCheckInfo)
     {
         string platformIdentifier = GetPlatformIdentifier();
         var asset = latestRelease.assets.FirstOrDefault(a =>
@@ -519,6 +699,17 @@ public class App : Application, INotifyPropertyChanged
             return;
         }
 
+        ProgressWindow? progressWindow = null;
+
+        await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
+            {
+                progressWindow = new ProgressWindow();
+                _ = progressWindow.ShowDialog(desktop.MainWindow);
+            }
+        });
+
         using (var httpClient = new HttpClient())
         {
             httpClient.Timeout = DownloadTimeout;
@@ -526,14 +717,37 @@ public class App : Application, INotifyPropertyChanged
             string tempDownloadPath = Path.Combine(Path.GetTempPath(), asset.name);
             try
             {
-                using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
+                progressWindow?.UpdateProgress(0, "Downloading update...");
+
+                using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url, HttpCompletionOption.ResponseHeadersRead))
                 {
                     downloadResponse.EnsureSuccessStatusCode();
-                    using (var fs = new FileStream(tempDownloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
+
+                    var totalBytes = downloadResponse.Content.Headers.ContentLength ?? 0;
+                    var canReportProgress = totalBytes > 0;
+
+                    using var contentStream = await downloadResponse.Content.ReadAsStreamAsync();
+                    using var fs = new FileStream(tempDownloadPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+
+                    var buffer = new byte[8192];
+                    long totalRead = 0;
+                    int bytesRead;
+
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                     {
-                        await downloadResponse.Content.CopyToAsync(fs);
+                        await fs.WriteAsync(buffer, 0, bytesRead);
+                        totalRead += bytesRead;
+
+                        if (canReportProgress)
+                        {
+                            var percentage = (double)totalRead / totalBytes * 100;
+                            progressWindow?.UpdateProgress(percentage, $"Downloading update... ({totalRead / 1024 / 1024:F1} MB / {totalBytes / 1024 / 1024:F1} MB)");
+                        }
                     }
                 }
+
+                progressWindow?.UpdateProgress(100, "Download complete. Extracting...");
+                await Task.Delay(500); // Brief pause so user can see 100%
 
                 string tempUpdateFolder = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_temp_update");
                 if (Directory.Exists(tempUpdateFolder))
@@ -570,6 +784,10 @@ public class App : Application, INotifyPropertyChanged
                     }
                     else
                     {
+                        progressWindow?.UpdateProgress(0, "Error: Unsupported archive format");
+                        await Task.Delay(2000);
+                        await Dispatcher.UIThread.InvokeAsync(() => progressWindow?.Close());
+
                         await Dispatcher.UIThread.InvokeAsync(async () =>
                         {
                             await ShowMessageBoxAsync($"Unsupported archive format: {asset.name}",
@@ -580,6 +798,10 @@ public class App : Application, INotifyPropertyChanged
                 }
                 catch (Exception ex)
                 {
+                    progressWindow?.UpdateProgress(0, "Error during extraction");
+                    await Task.Delay(2000);
+                    await Dispatcher.UIThread.InvokeAsync(() => progressWindow?.Close());
+
                     await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
                         await ShowMessageBoxAsync($"Failed to extract update archive: {ex.Message}",
@@ -588,8 +810,12 @@ public class App : Application, INotifyPropertyChanged
                     return;
                 }
 
+                progressWindow?.UpdateProgress(100, "Validating update...");
+
                 if (!ValidateUpdateFiles(tempUpdateFolder))
                 {
+                    await Dispatcher.UIThread.InvokeAsync(() => progressWindow?.Close());
+
                     await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
                         await ShowMessageBoxAsync("Downloaded update appears to be corrupted or incomplete.",
@@ -597,10 +823,18 @@ public class App : Application, INotifyPropertyChanged
                     });
                     return;
                 }
-                await CreateAndRunUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath);
+
+                progressWindow?.UpdateProgress(100, "Preparing to install...");
+                await Task.Delay(500);
+
+                await Dispatcher.UIThread.InvokeAsync(() => progressWindow?.Close());
+
+                await CreateAndRunUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, updateCheckInfo);
             }
             catch (TaskCanceledException)
             {
+                await Dispatcher.UIThread.InvokeAsync(() => progressWindow?.Close());
+
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
                     await ShowMessageBoxAsync("Update download timed out. Please check your internet connection.",
@@ -609,6 +843,8 @@ public class App : Application, INotifyPropertyChanged
             }
             catch (Exception ex)
             {
+                await Dispatcher.UIThread.InvokeAsync(() => progressWindow?.Close());
+
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
                     await ShowMessageBoxAsync($"Error downloading update: {ex.Message}",
@@ -713,24 +949,25 @@ public class App : Application, INotifyPropertyChanged
         }
     }
 
-    private async Task CreateAndRunUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, string versionFilePath)
+    private async Task CreateAndRunUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo)
     {
         string applicationExecutable = Process.GetCurrentProcess().MainModule.FileName;
         string backupDir = Path.Combine(currentAppDirectory, "backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            await CreateWindowsUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath, applicationExecutable, backupDir);
+            await CreateWindowsUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, updateCheckInfo, applicationExecutable, backupDir);
         }
         else
         {
-            await CreateUnixUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, versionFilePath, applicationExecutable, backupDir);
+            await CreateUnixUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, updateCheckInfo, applicationExecutable, backupDir);
         }
     }
 
-    private async Task CreateWindowsUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, string versionFilePath, string applicationExecutable, string backupDir)
+    private async Task CreateWindowsUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo, string applicationExecutable, string backupDir)
     {
         string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
+        string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
 
         string scriptContent = $@"@echo off
 echo N64RecompLauncher Updater - Version {latestRelease.tag_name}
@@ -768,8 +1005,8 @@ if errorlevel 1 (
     goto cleanup
 )
 
-echo Updating version file...
-echo {latestRelease.tag_name} > ""{versionFilePath}""
+echo Updating version info...
+echo {{""CurrentVersion"":""{latestRelease.tag_name}"",""LastCheckTime"":""{DateTime.UtcNow:o}"",""LastKnownVersion"":""{latestRelease.tag_name}"",""ETag"":"""",""UpdateAvailable"":false}} > ""{updateCheckFilePath}""
 
 echo Update completed successfully!
 echo Deleting backup...
@@ -803,10 +1040,11 @@ del ""%~f0""
         }
     }
 
-    private async Task CreateUnixUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, string versionFilePath, string applicationExecutable, string backupDir)
+    private async Task CreateUnixUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo, string applicationExecutable, string backupDir)
     {
         string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.sh");
         string executableName = Path.GetFileName(applicationExecutable);
+        string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
 
         bool isMacAppBundle = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
                              Directory.GetDirectories(tempUpdateFolder, "*.app", SearchOption.TopDirectoryOnly).Any();
@@ -843,8 +1081,10 @@ else
     exit 1
 fi
 
-echo ""Updating version file...""
-echo ""{latestRelease.tag_name}"" > ""{versionFilePath}""
+echo ""Updating version info...""
+cat > ""{updateCheckFilePath}"" << 'EOF'
+{{""CurrentVersion"":""{latestRelease.tag_name}"",""LastCheckTime"":""{DateTime.UtcNow:o}"",""LastKnownVersion"":""{latestRelease.tag_name}"",""ETag"":"""",""UpdateAvailable"":false}}
+EOF
 
 echo ""Update completed successfully!""
 echo ""Deleting backup...""

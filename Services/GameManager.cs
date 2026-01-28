@@ -765,7 +765,7 @@ namespace N64RecompLauncher.Services
             return Games.FirstOrDefault(predicate: g => g.FolderName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
         }
 
-        protected void OnPropertyChanged(string propertyName)
+        public void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
