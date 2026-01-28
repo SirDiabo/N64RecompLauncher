@@ -1023,17 +1023,16 @@ namespace N64RecompLauncher
                         game.Status = GameStatus.Installing;
                         game.IsLoading = true;
 
-                        Directory.Delete(gamePath, true);
+                        await Task.Run(() => Directory.Delete(gamePath, true));
 
+                        game.IsLoading = false;
                         await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder);
+
+                        UpdateContinueButtonState();
                     }
                     else
                     {
                         await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder);
-                    }
-                    if (_gameManager != null)
-                    {
-                        await _gameManager.LoadGamesAsync();
                     }
                 }
                 catch (Exception ex)

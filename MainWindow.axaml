@@ -141,6 +141,21 @@
 								</Button.ContextMenu>
 							</Button>
 						</StackPanel>
+						<!-- Progress Bar -->
+						<Border Grid.ColumnSpan="2"
+								VerticalAlignment="Bottom"
+								Height="4"
+								CornerRadius="0,0,12,12"
+								ClipToBounds="True"
+								IsVisible="{Binding IsDownloading}">
+							<ProgressBar Value="{Binding DownloadProgress}"
+										 Minimum="0"
+										 Maximum="100"
+										 Height="4"
+										 Background="Transparent"
+										 Foreground="{Binding ProgressBarColor}"
+										 BorderThickness="0"/>
+						</Border>
 					</Grid>
 				</Grid>
 			</Border>
@@ -210,6 +225,21 @@
 								</ContextMenu>
 							</Button.ContextMenu>
 						</Button>
+
+						<!-- Progress Bar -->
+						<Border VerticalAlignment="Bottom"
+								Height="4"
+								CornerRadius="0,0,12,12"
+								ClipToBounds="True"
+								IsVisible="{Binding IsDownloading}">
+							<ProgressBar Value="{Binding DownloadProgress}"
+										 Minimum="0"
+										 Maximum="100"
+										 Height="4"
+										 Background="Transparent"
+										 Foreground="{Binding ProgressBarColor}"
+										 BorderThickness="0"/>
+						</Border>
 					</Grid>
 				</Border>
 				
@@ -221,17 +251,18 @@
 					</Grid.ColumnDefinitions>
 					
 					<!-- Download/Launch Button -->
-				<Button Grid.Column="0"
-					Classes="modern-icon"
-					Width="48"
-					Height="48"
-					Margin="0,0,12,0"
-					IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-					Click="GameButton_Click"
-					Tag="{Binding}">
-					<Image Width="48" Source="{Binding ButtonImage}"/>
-				</Button>
 					
+					<Button Grid.Column="0"
+						Classes="modern-icon"
+						Width="48"
+						Height="48"
+						Margin="0,0,12,0"
+						IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+						Click="GameButton_Click"
+						Tag="{Binding}">
+						<Image Width="48" Source="{Binding ButtonImage}"/>
+					</Button>
+        
 					<!-- Game Info -->
 					<StackPanel Grid.Column="1" VerticalAlignment="Center">
 						<TextBlock Text="{Binding Name}"

@@ -369,6 +369,49 @@ namespace N64RecompLauncher.Models
             }
         }
 
+        private double _downloadProgress;
+        public double DownloadProgress
+        {
+            get => _downloadProgress;
+            set
+            {
+                if (_downloadProgress != value)
+                {
+                    _downloadProgress = value;
+                    DispatchPropertyChanged();
+                    DispatchPropertyChanged(nameof(IsDownloading));
+                    DispatchPropertyChanged(nameof(ProgressBarColor));
+                }
+            }
+        }
+
+        public bool IsDownloading => Status == GameStatus.Downloading || Status == GameStatus.Installing;
+
+        public IBrush ProgressBarColor
+        {
+            get
+            {
+                if (Status == GameStatus.UpdateAvailable)
+                {
+                    // Yellow to Green gradient based on progress
+                    var progress = DownloadProgress / 100.0;
+                    byte r = (byte)(255 - (255 - 52) * progress);
+                    byte g = (byte)(149 + (199 - 149) * progress);
+                    byte b = (byte)(0 + (89 - 0) * progress);
+                    return new SolidColorBrush(Color.FromRgb(r, g, b));
+                }
+                else
+                {
+                    // Blue to Green gradient based on progress
+                    var progress = DownloadProgress / 100.0;
+                    byte r = (byte)(0 + (52 - 0) * progress);
+                    byte g = (byte)(122 + (199 - 122) * progress);
+                    byte b = (byte)(255 - (255 - 89) * progress);
+                    return new SolidColorBrush(Color.FromRgb(r, g, b));
+                }
+            }
+        }
+
         public void SetGameManager(GameManager gameManager)
         {
             GameManager = gameManager;
@@ -905,6 +948,7 @@ namespace N64RecompLauncher.Models
             try
             {
                 Status = GameStatus.Downloading;
+                DownloadProgress = 0;
 
                 // Determine platform identifier
                 string platformIdentifier = GetPlatformIdentifier(settings);
@@ -920,6 +964,7 @@ namespace N64RecompLauncher.Models
                     }
                     else
                     {
+                        DownloadProgress = 5;
                         // Check for the latest release first
                         var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
                         var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
@@ -929,6 +974,7 @@ namespace N64RecompLauncher.Models
                         {
                             await ShowMessageBoxAsync($"No releases found for {Name}.", "No Releases");
                             Status = GameStatus.NotInstalled;
+                            DownloadProgress = 0;
                             return;
                         }
 
@@ -940,12 +986,15 @@ namespace N64RecompLauncher.Models
                         {
                             await ShowMessageBoxAsync($"No valid releases found for {Name}.", "No Releases");
                             Status = GameStatus.NotInstalled;
+                            DownloadProgress = 0;
                             return;
                         }
 
                         GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
                     }
                 }
+
+                DownloadProgress = 10;
 
                 // Check if the installed version is already the latest
                 if (File.Exists(versionFile))
@@ -956,6 +1005,7 @@ namespace N64RecompLauncher.Models
                         Status = GameStatus.Installed;
                         InstalledVersion = existingVersion;
                         LatestVersion = latestRelease.tag_name;
+                        DownloadProgress = 0;
                         return;
                     }
                 }
@@ -976,6 +1026,7 @@ namespace N64RecompLauncher.Models
                             "Platform Not Supported");
                     });
                     Status = GameStatus.NotInstalled;
+                    DownloadProgress = 0;
                     return;
                 }
 
@@ -984,21 +1035,53 @@ namespace N64RecompLauncher.Models
 
                 try
                 {
-                    using (var downloadResponse = await httpClient.GetAsync(asset.browser_download_url))
+                    using (var request = new HttpRequestMessage(HttpMethod.Get, asset.browser_download_url))
                     {
-                        downloadResponse.EnsureSuccessStatusCode();
-                        using var fs = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                        await downloadResponse.Content.CopyToAsync(fs);
+                        using (var downloadResponse = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead))
+                        {
+                            downloadResponse.EnsureSuccessStatusCode();
+
+                            var totalBytes = downloadResponse.Content.Headers.ContentLength ?? 0;
+                            var canReportProgress = totalBytes > 0;
+
+                            using var contentStream = await downloadResponse.Content.ReadAsStreamAsync();
+                            using var fs = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+
+                            var buffer = new byte[8192];
+                            long totalRead = 0;
+                            int bytesRead;
+
+                            while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                            {
+                                await fs.WriteAsync(buffer, 0, bytesRead);
+                                totalRead += bytesRead;
+
+                                if (canReportProgress)
+                                {
+                                    // Progress from 10% to 90% during download
+                                    var downloadPercent = (double)totalRead / totalBytes;
+                                    DownloadProgress = 10 + (downloadPercent * 80);
+                                }
+                            }
+                        }
                     }
+
+                    DownloadProgress = 90;
 
                     // Install or update the game
                     Status = GameStatus.Installing;
+                    DownloadProgress = 95;
+
                     await InstallOrUpdateGame(downloadPath, gamePath, asset.name, latestRelease.tag_name);
+
+                    DownloadProgress = 100;
+                    await Task.Delay(500); // Brief pause to show completion
 
                     // Update status
                     InstalledVersion = latestRelease.tag_name;
                     LatestVersion = latestRelease.tag_name;
                     Status = GameStatus.Installed;
+                    DownloadProgress = 0;
                 }
                 finally
                 {
@@ -1032,6 +1115,7 @@ namespace N64RecompLauncher.Models
                     await ShowMessageBoxAsync($"Network error installing {Name}: {ex.Message}\n\nPlease check your internet connection.", "Network Error");
                 });
                 Status = GameStatus.NotInstalled;
+                DownloadProgress = 0;
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -1040,6 +1124,7 @@ namespace N64RecompLauncher.Models
                     await ShowMessageBoxAsync($"Permission error installing {Name}: {ex.Message}\n\nPlease check folder permissions.", "Permission Error");
                 });
                 Status = GameStatus.NotInstalled;
+                DownloadProgress = 0;
             }
             catch (Exception ex)
             {
@@ -1048,6 +1133,7 @@ namespace N64RecompLauncher.Models
                     await ShowMessageBoxAsync($"Error installing {Name}: {ex.Message}", "Installation Error");
                 });
                 Status = GameStatus.NotInstalled;
+                DownloadProgress = 0;
             }
         }
 
