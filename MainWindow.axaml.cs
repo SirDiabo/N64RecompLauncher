@@ -723,7 +723,20 @@ namespace N64RecompLauncher
                 if (button != null)
                 {
                     button.IsEnabled = false;
-                    button.Content = "Checking...";
+                    button.Content = "Checking launcher...";
+                }
+
+                // Check for app updates first
+                if (_app != null)
+                {
+                    await _app.CheckForAppUpdatesManually();
+                }
+
+                // If app update is available and user chose to update, the app will restart
+                // Otherwise, continue to check game updates
+                if (button != null)
+                {
+                    button.Content = "Checking games...";
                 }
 
                 await _gameManager.CheckAllUpdatesAsync();
@@ -738,6 +751,12 @@ namespace N64RecompLauncher
             }
             catch (Exception ex)
             {
+                var button = sender as Button;
+                if (button != null)
+                {
+                    button.IsEnabled = true;
+                    button.Content = "Check for Updates";
+                }
                 await ShowMessageBoxAsync($"Failed to check for updates: {ex.Message}", "Error");
             }
         }

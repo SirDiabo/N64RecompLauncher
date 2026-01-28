@@ -65,6 +65,8 @@ public class App : Application, INotifyPropertyChanged
         public bool UpdateAvailable { get; set; }
     }
 
+    private static bool _hasCheckedForAppUpdates = false;
+    private static readonly object _updateLock = new object();
     private const string Repository = "SirDiabo/N64RecompLauncher";
     private const string VersionFileName = "version.txt";
     private const string UpdateCheckFileName = "update_check.json";
@@ -81,18 +83,30 @@ public class App : Application, INotifyPropertyChanged
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            desktop.MainWindow = new MainWindow
+            {
+                DataContext = this
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
 
-        Task.Run(async () =>
+        lock (_updateLock)
         {
-            await CheckForUpdatesAndApplyAsync();
-        });
+            if (!_hasCheckedForAppUpdates)
+            {
+                _hasCheckedForAppUpdates = true;
+                Task.Run(async () => await CheckForUpdatesAndApplyAsync(isManualCheck: false));
+            }
+        }
     }
 
-    private async Task CheckForUpdatesAndApplyAsync()
+    public async Task CheckForAppUpdatesManually()
+    {
+        await CheckForUpdatesAndApplyAsync(isManualCheck: true);
+    }
+
+    private async Task CheckForUpdatesAndApplyAsync(bool isManualCheck = false)
     {
         string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
         string versionFilePath = Path.Combine(currentAppDirectory, VersionFileName);
@@ -113,22 +127,24 @@ public class App : Application, INotifyPropertyChanged
 
         UpdateCheckInfo updateCheckInfo = await LoadUpdateCheckInfo(updateCheckFilePath);
 
-        if (ShouldSkipUpdateCheck(updateCheckInfo, currentVersionString))
+        // Skip check if not manual and recently checked
+        if (!isManualCheck && ShouldSkipUpdateCheck(updateCheckInfo, currentVersionString))
         {
-            Trace.WriteLine($"Skipping update check - last checked {updateCheckInfo.LastCheckTime}, current version {currentVersionString}");
+            Trace.WriteLine($"Skipping app update check - last checked {updateCheckInfo.LastCheckTime}, current version {currentVersionString}");
 
             if (updateCheckInfo.UpdateAvailable &&
                 !string.IsNullOrEmpty(updateCheckInfo.LastKnownVersion) &&
                 IsNewerVersion(updateCheckInfo.LastKnownVersion, currentVersionString))
             {
-                Trace.WriteLine($"Cached update available: {updateCheckInfo.LastKnownVersion}");
-                var cachedRelease = new GitHubRelease
-                {
-                    tag_name = updateCheckInfo.LastKnownVersion,
-                    assets = new GitHubAsset[0]
-                };
+                Trace.WriteLine($"Cached app update available: {updateCheckInfo.LastKnownVersion}");
 
-                Trace.WriteLine($"Update {updateCheckInfo.LastKnownVersion} is available (cached info)");
+                if (isManualCheck)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await ShowMessageBoxAsync($"Update {updateCheckInfo.LastKnownVersion} is available for the launcher.", "Update Available");
+                    });
+                }
             }
 
             return;
@@ -142,7 +158,7 @@ public class App : Application, INotifyPropertyChanged
             var settings = AppSettings.Load();
             if (!string.IsNullOrEmpty(settings?.GitHubApiToken))
             {
-                httpClient.DefaultRequestHeaders.Authorization = 
+                httpClient.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", settings.GitHubApiToken);
             }
 
@@ -161,9 +177,17 @@ public class App : Application, INotifyPropertyChanged
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
                 {
-                    Trace.WriteLine("No updates available (304 Not Modified)");
+                    Trace.WriteLine("No app updates available (304 Not Modified)");
                     updateCheckInfo.UpdateAvailable = false;
                     await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+
+                    if (isManualCheck)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            await ShowMessageBoxAsync("Launcher is up to date!", "No Updates");
+                        });
+                    }
                     return;
                 }
 
@@ -182,6 +206,14 @@ public class App : Application, INotifyPropertyChanged
                     Trace.WriteLine("No valid latest release information found on GitHub.");
                     updateCheckInfo.UpdateAvailable = false;
                     await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+
+                    if (isManualCheck)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            await ShowMessageBoxAsync("Could not find launcher update information.", "No Updates");
+                        });
+                    }
                     return;
                 }
 
@@ -189,59 +221,140 @@ public class App : Application, INotifyPropertyChanged
 
                 if (!IsNewerVersion(latestRelease.tag_name, currentVersionString))
                 {
-                    Trace.WriteLine($"Current version {currentVersionString} is up to date or newer than {latestRelease.tag_name}. No update needed.");
+                    Trace.WriteLine($"Current launcher version {currentVersionString} is up to date or newer than {latestRelease.tag_name}. No update needed.");
                     updateCheckInfo.UpdateAvailable = false;
                     await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+
+                    if (isManualCheck)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            await ShowMessageBoxAsync($"Launcher is up to date! (v{currentVersionString})", "No Updates");
+                        });
+                    }
                     return;
                 }
 
-                Trace.WriteLine($"Newer version {latestRelease.tag_name} available. Current version is {currentVersionString}.");
+                Trace.WriteLine($"Newer launcher version {latestRelease.tag_name} available. Current version is {currentVersionString}.");
                 updateCheckInfo.UpdateAvailable = true;
                 await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
-                await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, versionFilePath);
+                // Prompt user to download and apply update
+                if (isManualCheck)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        var result = await ShowMessageBoxWithChoiceAsync(
+                            $"Launcher update {latestRelease.tag_name} is available!\n\nWould you like to update now?",
+                            "Update Available");
+
+                        if (result)
+                        {
+                            await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, versionFilePath);
+                        }
+                    });
+                }
+                else
+                {
+                    // Automatic check - just notify, don't auto-download
+                    Trace.WriteLine($"App update {latestRelease.tag_name} is available (automatic check)");
+                }
             }
             catch (HttpRequestException httpEx)
             {
                 await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
-                await Dispatcher.UIThread.InvokeAsync(async () =>
+                if (isManualCheck)
                 {
-                    await ShowMessageBoxAsync($"Could not check for updates (Network Error): {httpEx.Message}",
-                        "Update Check Failed");
-                });
-            }
-            catch (JsonException jsonEx)
-            {
-                await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
-
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await ShowMessageBoxAsync($"Could not parse GitHub release information: {jsonEx.Message}",
-                        "Update Check Failed");
-                });
-            }
-            catch (TaskCanceledException)
-            {
-                await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
-
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await ShowMessageBoxAsync("Update check timed out. Please check your internet connection.",
-                        "Update Check Failed");
-                });
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await ShowMessageBoxAsync($"Could not check for launcher updates (Network Error): {httpEx.Message}",
+                            "Update Check Failed");
+                    });
+                }
             }
             catch (Exception ex)
             {
                 await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
 
-                await Dispatcher.UIThread.InvokeAsync(async () =>
+                if (isManualCheck)
                 {
-                    await ShowMessageBoxAsync($"An error occurred during update: {ex.Message}",
-                        "Update Failed");
-                });
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        await ShowMessageBoxAsync($"An error occurred during launcher update check: {ex.Message}",
+                            "Update Check Failed");
+                    });
+                }
             }
         }
+    }
+
+    private async Task<bool> ShowMessageBoxWithChoiceAsync(string message, string title)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+            desktop.MainWindow != null)
+        {
+            bool result = false;
+            var messageBox = new Window
+            {
+                Title = title,
+                Width = 450,
+                Height = 170,
+                WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner,
+                Content = new StackPanel
+                {
+                    Margin = new Thickness(20),
+                    Children =
+                {
+                    new TextBlock
+                    {
+                        Text = message,
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 0, 0, 20)
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Children =
+                        {
+                            new Button
+                            {
+                                Content = "Yes",
+                                Margin = new Thickness(0, 0, 10, 0),
+                                MinWidth = 80
+                            },
+                            new Button
+                            {
+                                Content = "No",
+                                MinWidth = 80
+                            }
+                        }
+                    }
+                }
+                }
+            };
+
+            var buttonPanel = ((StackPanel)messageBox.Content).Children[1] as StackPanel;
+            var yesButton = buttonPanel.Children[0] as Button;
+            var noButton = buttonPanel.Children[1] as Button;
+
+            yesButton.Click += (s, e) =>
+            {
+                result = true;
+                messageBox.Close();
+            };
+
+            noButton.Click += (s, e) =>
+            {
+                result = false;
+                messageBox.Close();
+            };
+
+            await messageBox.ShowDialog(desktop.MainWindow);
+            return result;
+        }
+        return false;
     }
 
     private async Task ShowMessageBoxAsync(string message, string title)

@@ -30,7 +30,8 @@ namespace N64RecompLauncher.Models
     {
         private static readonly ConcurrentDictionary<string, GameVersionCache> _cache = new();
         private static readonly TimeSpan CacheExpiry = TimeSpan.FromHours(24);
-        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(24);
+        private static readonly TimeSpan InstalledGameUpdateInterval = TimeSpan.FromHours(6);
+        private static readonly TimeSpan NotInstalledGameUpdateInterval = TimeSpan.FromHours(24);
         private static string? _cacheFilePath;
 
         public static void Initialize(string cacheDirectory)
@@ -96,12 +97,13 @@ namespace N64RecompLauncher.Models
         }
 
         // Check if update check is needed
-        public static bool NeedsUpdateCheck(string repository)
+        public static bool NeedsUpdateCheck(string repository, bool isInstalledGame = true)
         {
             if (!_cache.TryGetValue(repository, out var cache))
                 return true;
 
-            return DateTime.UtcNow - cache.LastUpdateCheck >= UpdateCheckInterval;
+            var interval = isInstalledGame ? InstalledGameUpdateInterval : NotInstalledGameUpdateInterval;
+            return DateTime.UtcNow - cache.LastUpdateCheck >= interval;
         }
 
         public static void SetCache(string repository, string version, string etag, GitHubRelease? release = null)
@@ -435,6 +437,7 @@ namespace N64RecompLauncher.Models
                 bool directoryExists = Directory.Exists(gamePath);
                 bool versionFileExists = File.Exists(versionFile);
 
+                bool isInstalled = false;
                 if (directoryExists)
                 {
                     if (versionFileExists)
@@ -449,11 +452,13 @@ namespace N64RecompLauncher.Models
                         }
 
                         Status = GameStatus.Installed;
+                        isInstalled = true;
                     }
                     else
                     {
                         Status = GameStatus.Installed;
                         InstalledVersion = "Unknown";
+                        isInstalled = true;
                     }
                 }
                 else
@@ -462,16 +467,39 @@ namespace N64RecompLauncher.Models
                     InstalledVersion = "";
                 }
 
-                // Only check for updates if forced or needed
-                if (forceUpdateCheck || GitHubApiCache.NeedsUpdateCheck(Repository))
+                // Different update check logic for installed vs not-installed games
+                if (forceUpdateCheck)
                 {
+                    // Force check - always check
                     await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
                 }
-                else if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
+                else if (isInstalled)
                 {
-                    // Skip API call, use Cache
-                    LatestVersion = cache.Version;
-                    _cachedRelease = cache.CachedRelease;
+                    // Installed games: check if needs update (more frequent - every 6 hours by default)
+                    if (GitHubApiCache.NeedsUpdateCheck(Repository, isInstalledGame: true))
+                    {
+                        await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
+                    }
+                    else if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
+                    {
+                        // Use cached data
+                        LatestVersion = cache.Version;
+                        _cachedRelease = cache.CachedRelease;
+                    }
+                }
+                else
+                {
+                    // Not-installed games: check less frequently (once per day)
+                    if (GitHubApiCache.NeedsUpdateCheck(Repository, isInstalledGame: false))
+                    {
+                        await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
+                    }
+                    else if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
+                    {
+                        // Use cached data
+                        LatestVersion = cache.Version;
+                        _cachedRelease = cache.CachedRelease;
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(LatestVersion) &&

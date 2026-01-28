@@ -829,7 +829,8 @@ namespace N64RecompLauncher.Services
 
             if (!forceUpdateCheck)
             {
-                int cachedCount = Games.Count(g => !GitHubApiCache.NeedsUpdateCheck(g.Repository));
+                int cachedCount = Games.Count(g => !GitHubApiCache.NeedsUpdateCheck(g.Repository,
+                    Directory.Exists(Path.Combine(_gamesFolder, g.FolderName ?? ""))));
                 int apiCallCount = Games.Count - cachedCount;
                 System.Diagnostics.Debug.WriteLine($"LoadGamesAsync: {cachedCount} games using cache, {apiCallCount} will check for updates");
             }
