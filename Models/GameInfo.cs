@@ -1537,6 +1537,13 @@ namespace N64RecompLauncher.Models
                 if (Directory.GetFiles(path, "*.x86_64", SearchOption.TopDirectoryOnly).Any())
                     return true;
 
+                // Check for ARM files
+                if (Directory.GetFiles(path, "*.arm64", SearchOption.TopDirectoryOnly).Any())
+                    return true;
+
+                if (Directory.GetFiles(path, "*.aarch64", SearchOption.TopDirectoryOnly).Any())
+                    return true;
+
                 return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
                     .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
             }
@@ -1579,7 +1586,9 @@ namespace N64RecompLauncher.Models
 
                             // Also check for common executable patterns on Linux
                             if (name.EndsWith(".x86_64", StringComparison.OrdinalIgnoreCase) ||
-                                name.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase))
+                                name.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase) ||
+                                name.EndsWith(".arm64", StringComparison.OrdinalIgnoreCase) ||
+                                name.EndsWith(".aarch64", StringComparison.OrdinalIgnoreCase))
                                 return true;
 
                             if (!Path.HasExtension(name))
@@ -1934,7 +1943,13 @@ namespace N64RecompLauncher.Models
 
                     // Also add non-app executables
                     executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
-                        .Where(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024));
+                        .Where(f => {
+                            try
+                            {
+                                return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
+                            }
+                            catch { return false; }
+                        }));
                 }
                 else // Linux
                 {
@@ -1942,18 +1957,26 @@ namespace N64RecompLauncher.Models
                     var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
                     executables.AddRange(appImages);
 
-                    // Check for .x86_64 files (common Linux executable naming)
+                    // Check for .x86_64 files
                     var x86_64Files = Directory.GetFiles(gamePath, "*.x86_64", SearchOption.TopDirectoryOnly);
                     executables.AddRange(x86_64Files);
 
-                    // Then add other executables (excluding common non-executable extensions)
+                    // Check for .arm64 and .aarch64 files
+                    var arm64Files = Directory.GetFiles(gamePath, "*.arm64", SearchOption.TopDirectoryOnly);
+                    executables.AddRange(arm64Files);
+
+                    var aarch64Files = Directory.GetFiles(gamePath, "*.aarch64", SearchOption.TopDirectoryOnly);
+                    executables.AddRange(aarch64Files);
+
+                    // Then add other executables
                     executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
                         .Where(f =>
                         {
                             var fileName = Path.GetFileName(f).ToLowerInvariant();
 
-                            // Skip if already added as appimage or x86_64
-                            if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64"))
+                            // Skip if already added
+                            if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64") ||
+                                fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64"))
                                 return false;
 
                             if (fileName.EndsWith(".txt") ||
@@ -2163,29 +2186,28 @@ namespace N64RecompLauncher.Models
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 return false;
 
-            // Check for wine
-            if (IsCommandAvailable("wine"))
+            if (IsCommandAvailable("wine") || IsCommandAvailable("wine64"))
                 return true;
 
-            // Check for wine64
-            if (IsCommandAvailable("wine64"))
-                return true;
-
-            // Check for proton (Steam Proton locations)
-            var protonPaths = new[]
+            // Check for Proton
+            var steamPaths = new[]
             {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 9.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 8.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 7.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 9.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 8.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 7.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common"),
             };
 
-            foreach (var path in protonPaths)
+            foreach (var steamPath in steamPaths)
             {
-                if (File.Exists(path))
-                    return true;
+                if (Directory.Exists(steamPath))
+                {
+                    var protonDirs = Directory.GetDirectories(steamPath, "Proton*", SearchOption.TopDirectoryOnly);
+                    foreach (var protonDir in protonDirs)
+                    {
+                        var protonExe = Path.Combine(protonDir, "proton");
+                        if (File.Exists(protonExe))
+                            return true;
+                    }
+                }
             }
 
             return false;
@@ -2224,20 +2246,28 @@ namespace N64RecompLauncher.Models
                 return "wine";
 
             // Check for Proton
-            var protonPaths = new[]
+            var steamPaths = new[]
             {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 9.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 8.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 7.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 9.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 8.0/proton"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 7.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common"),
             };
 
-            foreach (var path in protonPaths)
+            foreach (var steamPath in steamPaths)
             {
-                if (File.Exists(path))
-                    return path;
+                if (Directory.Exists(steamPath))
+                {
+                    // Get latest Proton version
+                    var protonDirs = Directory.GetDirectories(steamPath, "Proton*", SearchOption.TopDirectoryOnly)
+                        .OrderByDescending(d => d)
+                        .ToList();
+
+                    foreach (var protonDir in protonDirs)
+                    {
+                        var protonExe = Path.Combine(protonDir, "proton");
+                        if (File.Exists(protonExe))
+                            return protonExe;
+                    }
+                }
             }
 
             return null;

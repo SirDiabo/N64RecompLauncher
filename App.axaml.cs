@@ -1177,9 +1177,9 @@ rm -- ""$0""
             var arch = RuntimeInformation.OSArchitecture;
             return arch switch
             {
-                Architecture.Arm64 => "ARM64",
+                Architecture.Arm64 => "Linux-ARM64",
                 Architecture.X64 => Environment.GetEnvironmentVariable("FLATPAK_ID") != null
-                    ? "X64-Flatpak"
+                    ? "Linux-Flatpak-X64"
                     : "Linux-X64",
                 _ => "Linux-X64"
             };
