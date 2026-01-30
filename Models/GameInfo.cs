@@ -1514,10 +1514,17 @@ namespace N64RecompLauncher.Models
             {
                 var relative = Path.GetRelativePath(sourceDir, file);
                 var destFile = Path.Combine(destDir, relative);
+
+                if (File.Exists(destFile))
+                {
+                    Debug.WriteLine($"Skipping duplicate file: {destFile}");
+                    continue;
+                }
+
                 var destParent = Path.GetDirectoryName(destFile);
                 if (!string.IsNullOrEmpty(destParent))
                     Directory.CreateDirectory(destParent);
-                File.Copy(file, destFile, true);
+                File.Copy(file, destFile, overwrite: false);
             }
         }
 
