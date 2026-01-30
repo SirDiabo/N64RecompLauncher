@@ -1352,13 +1352,23 @@ namespace N64RecompLauncher.Models
                     return isFlatpak;
                 }
 
-                // Linux x64 - just "linux" without x64 indicators
-                bool isLinuxX64 = (HasAnyOf(assetNameLower, "x64", "x86_64", "amd64", "x86-64") ||
-                                  (assetNameLower.Contains("linux") && !HasAnyOf(assetNameLower, "x64", "x86_64", "amd64", "x86-64", "arm64", "aarch64", "armv7", "armhf", "arm-"))) &&
-                                 !HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "flatpak", "arm-");
+                // Linux x64 - prioritize x86_64/x64/amd64, exclude i686/i386
+                if (!platformLower.Contains("arm"))
+                {
+                    // Exclude 32-bit builds
+                    if (HasAnyOf(assetNameLower, "i686", "i386", "i586", "x86-linux", "-i686-"))
+                    {
+                        System.Diagnostics.Debug.WriteLine("Excluded: 32-bit Linux build");
+                        return false;
+                    }
 
-                System.Diagnostics.Debug.WriteLine($"Linux x64 match result: {isLinuxX64}");
-                return isLinuxX64;
+                    // Must have x64 indicators for 64-bit Linux
+                    bool isLinuxX64 = HasAnyOf(assetNameLower, "x86_64", "x64", "amd64", "x86-64") &&
+                                     !HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "flatpak", "arm-");
+
+                    System.Diagnostics.Debug.WriteLine($"Linux x64 match result: {isLinuxX64}");
+                    return isLinuxX64;
+                }
             }
 
             // Fallback
@@ -1953,13 +1963,12 @@ namespace N64RecompLauncher.Models
                 }
                 else // Linux
                 {
-                    // First check for .appimage files
-                    var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
-                    executables.AddRange(appImages);
-
-                    // Check for .x86_64 files
                     var x86_64Files = Directory.GetFiles(gamePath, "*.x86_64", SearchOption.TopDirectoryOnly);
                     executables.AddRange(x86_64Files);
+
+                    // Check for .appimage files
+                    var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
+                    executables.AddRange(appImages);
 
                     // Check for .arm64 and .aarch64 files
                     var arm64Files = Directory.GetFiles(gamePath, "*.arm64", SearchOption.TopDirectoryOnly);
@@ -1976,13 +1985,9 @@ namespace N64RecompLauncher.Models
 
                             // Skip if already added
                             if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64") ||
-                                fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64"))
-                                return false;
-
-                            if (fileName.EndsWith(".txt") ||
-                                fileName.EndsWith(".dll") ||
-                                fileName.EndsWith(".so") ||
-                                fileName.EndsWith(".json"))
+                                fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64") ||
+                                fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
+                                fileName.EndsWith(".so") || fileName.EndsWith(".json"))
                             {
                                 return false;
                             }
