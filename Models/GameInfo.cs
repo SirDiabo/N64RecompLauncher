@@ -895,6 +895,23 @@ namespace N64RecompLauncher.Models
             {
                 case GameStatus.NotInstalled:
                 case GameStatus.UpdateAvailable:
+                    // Check if this will be a Windows download on Linux
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && await WillDownloadWindowsVersion(httpClient, settings))
+                    {
+                        if (!IsWineOrProtonAvailable())
+                        {
+                            await ShowMessageBoxAsync(
+                                "This game requires Wine or Proton to run, but neither was detected on your system.\n\n" +
+                                "Please install Wine or Steam (which includes Proton) to run Windows games on Linux.",
+                                "Wine/Proton Not Found");
+                            return;
+                        }
+
+                        bool shouldContinue = await ShowWineDownloadWarning();
+                        if (!shouldContinue)
+                            return;
+                    }
+
                     await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease(), settings);
 
                     if (File.Exists(portableFilePath))
@@ -923,6 +940,112 @@ namespace N64RecompLauncher.Models
 
                     Launch(gamesFolder);
                     break;
+            }
+        }
+
+        private static async Task<bool> ShowWineDownloadWarning()
+        {
+            bool userChoice = false;
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var messageBox = new Window
+                    {
+                        Title = "Wine/Proton Required",
+                        Width = 500,
+                        Height = 200,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Content = new StackPanel
+                        {
+                            Margin = new Thickness(20),
+                            Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = "This game requires Wine/Proton to run. Wine/Proton was detected on your system and will be used to launch the game.\n\nWant to download?",
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(0, 0, 0, 20)
+                        },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Spacing = 10,
+                            Children =
+                            {
+                                new Button { Content = "Yes", Width = 100 },
+                                new Button { Content = "No", Width = 100 }
+                            }
+                        }
+                    }
+                        }
+                    };
+
+                    var buttonPanel = ((StackPanel)messageBox.Content).Children[1] as StackPanel;
+                    var yesButton = buttonPanel.Children[0] as Button;
+                    var noButton = buttonPanel.Children[1] as Button;
+
+                    yesButton.Click += (s, e) => { userChoice = true; messageBox.Close(); };
+                    noButton.Click += (s, e) => { userChoice = false; messageBox.Close(); };
+
+                    await messageBox.ShowDialog(desktop.MainWindow);
+                }
+            });
+
+            return userChoice;
+        }
+
+        private async Task<bool> WillDownloadWindowsVersion(HttpClient httpClient, AppSettings settings)
+        {
+            try
+            {
+                var latestRelease = GetLatestRelease();
+
+                if (latestRelease == null)
+                {
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache?.CachedRelease != null)
+                    {
+                        latestRelease = cache.CachedRelease;
+                    }
+                    else
+                    {
+                        var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
+                        var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
+                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
+
+                        if (deserializedReleases == null || !deserializedReleases.Any())
+                            return false;
+
+                        latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
+                                        deserializedReleases.FirstOrDefault(r => r.prerelease);
+                    }
+                }
+
+                if (latestRelease?.assets == null)
+                    return false;
+
+                string platformIdentifier = GetPlatformIdentifier(settings);
+
+                // Check if there's a Linux version
+                var linuxAsset = latestRelease.assets.FirstOrDefault(a =>
+                    (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
+                    (string.IsNullOrEmpty(PlatformOverride) && MatchesPlatform(a.name, platformIdentifier)));
+
+                if (linuxAsset != null)
+                    return false; // Linux version found
+
+                // Check if there's a Windows version
+                var windowsAsset = latestRelease.assets.FirstOrDefault(a =>
+                    MatchesPlatform(a.name, "Windows"));
+
+                return windowsAsset != null; // Will download Windows version
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -1760,6 +1883,7 @@ namespace N64RecompLauncher.Models
 
                 // Find all available executables
                 var executables = new List<string>();
+                bool needsWine = false;
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
@@ -1776,15 +1900,15 @@ namespace N64RecompLauncher.Models
                 }
                 else // Linux
                 {
-                    // Check for .appimage files
+                    // First check for .appimage files
                     var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
                     executables.AddRange(appImages);
 
-                    // Check for .x86_64 files
+                    // Check for .x86_64 files (common Linux executable naming)
                     var x86_64Files = Directory.GetFiles(gamePath, "*.x86_64", SearchOption.TopDirectoryOnly);
                     executables.AddRange(x86_64Files);
 
-                    // Then add other executables
+                    // Then add other executables (excluding common non-executable extensions)
                     executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
                         .Where(f =>
                         {
@@ -1807,6 +1931,27 @@ namespace N64RecompLauncher.Models
                             }
                             catch { return false; }
                         }));
+
+                    // Check if only Windows .exe files were found
+                    if (executables.Count == 0)
+                    {
+                        var exeFiles = Directory.GetFiles(gamePath, "*.exe", SearchOption.TopDirectoryOnly);
+                        if (exeFiles.Length > 0)
+                        {
+                            if (!IsWineOrProtonAvailable())
+                            {
+                                await ShowMessageBoxAsync(
+                                    "Only a Windows .exe file was found, which requires Wine or Proton.\n\n" +
+                                    "Please install Wine or Steam (which includes Proton) to run this game.",
+                                    "Wine/Proton Not Found");
+                                return;
+                            }
+
+                            // Use Wine/Proton to run the .exe
+                            executables.AddRange(exeFiles);
+                            needsWine = true;
+                        }
+                    }
                 }
 
                 // Check for launch.bat
@@ -1845,7 +1990,7 @@ namespace N64RecompLauncher.Models
 
                 // Make executable on Unix systems
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
-                    !executablePath.EndsWith(".app"))
+                    !executablePath.EndsWith(".app") && !needsWine)
                 {
                     await MakeExecutableAsync(executablePath);
                 }
@@ -1859,6 +2004,32 @@ namespace N64RecompLauncher.Models
                     startInfo.Arguments = $"\"{executablePath}\"";
                     startInfo.UseShellExecute = false;
                     startInfo.WorkingDirectory = gamePath;
+                }
+                else if (needsWine && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    // Use Wine/Proton to launch
+                    var wineCommand = GetWineCommand();
+                    if (wineCommand == null)
+                    {
+                        await ShowMessageBoxAsync("Wine/Proton was detected earlier but is no longer available.", "Wine/Proton Error");
+                        return;
+                    }
+
+                    if (wineCommand.Contains("proton"))
+                    {
+                        // Proton usage
+                        startInfo.FileName = wineCommand;
+                        startInfo.Arguments = $"run \"{executablePath}\"";
+                    }
+                    else
+                    {
+                        // Wine usage
+                        startInfo.FileName = wineCommand;
+                        startInfo.Arguments = $"\"{executablePath}\"";
+                    }
+
+                    startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath) ?? gamePath;
+                    startInfo.UseShellExecute = false;
                 }
                 else
                 {
@@ -1947,6 +2118,91 @@ namespace N64RecompLauncher.Models
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to update LastPlayed.txt for {Name}: {ex.Message}");
             }
+        }
+
+        private static bool IsWineOrProtonAvailable()
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return false;
+
+            // Check for wine
+            if (IsCommandAvailable("wine"))
+                return true;
+
+            // Check for wine64
+            if (IsCommandAvailable("wine64"))
+                return true;
+
+            // Check for proton (Steam Proton locations)
+            var protonPaths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 9.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 8.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 7.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 9.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 8.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 7.0/proton"),
+            };
+
+            foreach (var path in protonPaths)
+            {
+                if (File.Exists(path))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsCommandAvailable(string command)
+        {
+            try
+            {
+                var process = new ProcessStartInfo
+                {
+                    FileName = "which",
+                    Arguments = command,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                using var proc = Process.Start(process);
+                if (proc != null)
+                {
+                    proc.WaitForExit();
+                    return proc.ExitCode == 0;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        private static string? GetWineCommand()
+        {
+            if (IsCommandAvailable("wine64"))
+                return "wine64";
+            if (IsCommandAvailable("wine"))
+                return "wine";
+
+            // Check for Proton
+            var protonPaths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 9.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 8.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common/Proton 7.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 9.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 8.0/proton"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common/Proton 7.0/proton"),
+            };
+
+            foreach (var path in protonPaths)
+            {
+                if (File.Exists(path))
+                    return path;
+            }
+
+            return null;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
