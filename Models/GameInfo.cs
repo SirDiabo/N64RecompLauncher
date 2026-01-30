@@ -1157,7 +1157,7 @@ namespace N64RecompLauncher.Models
                 System.Diagnostics.Debug.WriteLine("Checking Windows patterns...");
 
                 // Exclude Non-Windows indicators
-                if (HasAnyOf(assetNameLower, "linux", "macos", "flatpak", "osx", "darwin", "apple", ".deb", ".rpm", ".appimage", ".dmg", ".pkg"))
+                if (HasAnyOf(assetNameLower, "linux", "macos", "flatpak", "osx", "darwin", "apple", ".deb", ".rpm", ".appimage", ".dmg", ".pkg", "switch"))
                 {
                     System.Diagnostics.Debug.WriteLine("Excluded: contains non-Windows platform marker");
                     return false;
@@ -1180,7 +1180,7 @@ namespace N64RecompLauncher.Models
                 System.Diagnostics.Debug.WriteLine("Checking macOS patterns...");
 
                 // Exclude non-macOS
-                if (HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe", ".msi"))
+                if (HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe", ".msi", "switch"))
                 {
                     System.Diagnostics.Debug.WriteLine("Excluded: contains non-macOS platform marker");
                     return false;
@@ -1199,7 +1199,7 @@ namespace N64RecompLauncher.Models
                 System.Diagnostics.Debug.WriteLine("Checking Linux patterns...");
 
                 // Exclude non-Linux
-                if (HasAnyOf(assetNameLower, "windows", "win32", "win64", "macos", "osx", "darwin", ".exe", ".msi", ".dmg"))
+                if (HasAnyOf(assetNameLower, "windows", "win32", "win64", "macos", "osx", "darwin", ".exe", ".msi", ".dmg", "switch"))
                 {
                     System.Diagnostics.Debug.WriteLine("Excluded: contains non-Linux platform marker");
                     return false;
@@ -1229,8 +1229,9 @@ namespace N64RecompLauncher.Models
                     return isFlatpak;
                 }
 
-                // Linux x64
-                bool isLinuxX64 = HasAnyOf(assetNameLower, "x64", "x86_64", "amd64", "x86-64") &&
+                // Linux x64 - just "linux" without x64 indicators
+                bool isLinuxX64 = (HasAnyOf(assetNameLower, "x64", "x86_64", "amd64", "x86-64") ||
+                                  (assetNameLower.Contains("linux") && !HasAnyOf(assetNameLower, "x64", "x86_64", "amd64", "x86-64", "arm64", "aarch64", "armv7", "armhf", "arm-"))) &&
                                  !HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "flatpak", "arm-");
 
                 System.Diagnostics.Debug.WriteLine($"Linux x64 match result: {isLinuxX64}");
