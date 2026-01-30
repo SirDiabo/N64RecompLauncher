@@ -689,16 +689,6 @@ public class App : Application, INotifyPropertyChanged
             return;
         }
 
-        if (drive.AvailableFreeSpace < 500 * 1024 * 1024)
-        {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                await ShowMessageBoxAsync($"Insufficient disk space for update. At least 500MB required.",
-                    "Update Error");
-            });
-            return;
-        }
-
         ProgressWindow? progressWindow = null;
 
         await Dispatcher.UIThread.InvokeAsync(async () =>
