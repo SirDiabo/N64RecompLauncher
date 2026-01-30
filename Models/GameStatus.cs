@@ -4,5 +4,6 @@ public enum GameStatus
     Installed,
     UpdateAvailable,
     Downloading,
-    Installing
+    Installing,
+    Updating
 }

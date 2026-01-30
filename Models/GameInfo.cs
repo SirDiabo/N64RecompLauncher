@@ -385,13 +385,13 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        public bool IsDownloading => Status == GameStatus.Downloading || Status == GameStatus.Installing;
+        public bool IsDownloading => Status == GameStatus.Downloading || Status == GameStatus.Installing || Status == GameStatus.Updating;
 
         public IBrush ProgressBarColor
         {
             get
             {
-                if (Status == GameStatus.UpdateAvailable)
+                if (Status == GameStatus.Updating)
                 {
                     // Yellow to Green gradient based on progress
                     var progress = DownloadProgress / 100.0;
@@ -912,7 +912,7 @@ namespace N64RecompLauncher.Models
                             return;
                     }
 
-                    await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease(), settings);
+                    await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease(), settings, _status);
 
                     if (File.Exists(portableFilePath))
                     {
@@ -1054,7 +1054,7 @@ namespace N64RecompLauncher.Models
             return _cachedRelease;
         }
 
-        private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease, AppSettings settings)
+        private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease, AppSettings settings, GameStatus status)
         {
             if (string.IsNullOrEmpty(FolderName))
             {
@@ -1070,7 +1070,7 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                Status = GameStatus.Downloading;
+                Status = (status == GameStatus.UpdateAvailable) ? GameStatus.Updating : GameStatus.Downloading;
                 DownloadProgress = 0;
 
                 // Determine platform identifier
