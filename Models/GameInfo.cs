@@ -900,16 +900,16 @@ namespace N64RecompLauncher.Models
                     {
                         if (!IsWineOrProtonAvailable())
                         {
-                            await ShowMessageBoxAsync(
-                                "This game requires Wine or Proton to run, but neither was detected on your system.\n\n" +
-                                "Please install Wine or Steam (which includes Proton) to run Windows games on Linux.",
-                                "Wine/Proton Not Found");
-                            return;
+                            bool shouldContinueAnyway = await ShowWineNotFoundWarning();
+                            if (!shouldContinueAnyway)
+                                return;
                         }
-
-                        bool shouldContinue = await ShowWineDownloadWarning();
-                        if (!shouldContinue)
-                            return;
+                        else
+                        {
+                            bool shouldContinue = await ShowWineDownloadWarning();
+                            if (!shouldContinue)
+                                return;
+                        }
                     }
 
                     await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease(), settings, _status);
@@ -941,6 +941,63 @@ namespace N64RecompLauncher.Models
                     Launch(gamesFolder);
                     break;
             }
+        }
+
+        private static async Task<bool> ShowWineNotFoundWarning()
+        {
+            bool userChoice = false;
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var messageBox = new Window
+                    {
+                        Title = "Wine/Proton Not Found",
+                        Width = 500,
+                        Height = 220,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Content = new StackPanel
+                        {
+                            Margin = new Thickness(20),
+                            Children =
+            {
+                new TextBlock
+                {
+                    Text = "This game requires Wine or Proton to run, but neither was detected on your system.\n\n" +
+                           "Please install Wine or Steam (which includes Proton) to run Windows games on Linux.\n\n" +
+                           "Do you want to download anyway? The game will not launch without Wine/Proton.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 20)
+                },
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Spacing = 10,
+                    Children =
+                    {
+                        new Button { Content = "Download Anyway", Width = 140 },
+                        new Button { Content = "Cancel", Width = 100 }
+                    }
+                }
+            }
+                        }
+                    };
+
+                    var buttonPanel = ((StackPanel)messageBox.Content).Children[1] as StackPanel;
+                    var yesButton = buttonPanel.Children[0] as Button;
+                    var noButton = buttonPanel.Children[1] as Button;
+
+                    yesButton.Click += (s, e) => { userChoice = true; messageBox.Close(); };
+                    noButton.Click += (s, e) => { userChoice = false; messageBox.Close(); };
+
+                    await messageBox.ShowDialog(desktop.MainWindow);
+                }
+            });
+
+            return userChoice;
         }
 
         private static async Task<bool> ShowWineDownloadWarning()
@@ -1002,6 +1059,12 @@ namespace N64RecompLauncher.Models
         {
             try
             {
+                // If there's a platform override, assume windows
+                if (!string.IsNullOrEmpty(PlatformOverride))
+                {
+                    return true;
+                }
+
                 var latestRelease = GetLatestRelease();
 
                 if (latestRelease == null)
@@ -1031,8 +1094,7 @@ namespace N64RecompLauncher.Models
 
                 // Check if there's a Linux version
                 var linuxAsset = latestRelease.assets.FirstOrDefault(a =>
-                    (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
-                    (string.IsNullOrEmpty(PlatformOverride) && MatchesPlatform(a.name, platformIdentifier)));
+                    MatchesPlatform(a.name, platformIdentifier));
 
                 if (linuxAsset != null)
                     return false; // Linux version found
@@ -1138,7 +1200,23 @@ namespace N64RecompLauncher.Models
                     (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
                     (string.IsNullOrEmpty(PlatformOverride) && MatchesPlatform(a.name, platformIdentifier)));
 
-                // If no asset found, show error and return
+                // If no asset found for Linux, try Windows version with Wine/Proton
+                if (asset == null && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    asset = latestRelease.assets?.FirstOrDefault(a => MatchesPlatform(a.name, "Windows"));
+
+                    if (asset != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"No native Linux build found, using Windows build: {asset.name}");
+                    }
+                }
+
+                if (asset != null && !string.IsNullOrEmpty(PlatformOverride) && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Using platformOverride asset on Linux (likely Windows-only): {asset.name}");
+                }
+
+                // If still no asset found, show error and return
                 if (asset == null)
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>

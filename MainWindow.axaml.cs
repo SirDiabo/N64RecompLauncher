@@ -1107,11 +1107,11 @@ namespace N64RecompLauncher
                 }
                 else if (OperatingSystem.IsLinux())
                 {
-                    Process.Start("xdg-open", url);
+                    Process.Start("xdg-open", $"\"{url}\"");
                 }
                 else if (OperatingSystem.IsMacOS())
                 {
-                    Process.Start("open", url);
+                    Process.Start("open", $"\"{url}\"");
                 }
             }
             catch (Exception ex)
