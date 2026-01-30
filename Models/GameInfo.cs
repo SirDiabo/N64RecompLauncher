@@ -1406,7 +1406,12 @@ namespace N64RecompLauncher.Models
             }
             else // Linux
             {
+                // Check for .appimage files
                 if (Directory.GetFiles(path, "*.appimage", SearchOption.TopDirectoryOnly).Any())
+                    return true;
+
+                // Check for .x86_64 files
+                if (Directory.GetFiles(path, "*.x86_64", SearchOption.TopDirectoryOnly).Any())
                     return true;
 
                 return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
@@ -1775,13 +1780,18 @@ namespace N64RecompLauncher.Models
                     var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
                     executables.AddRange(appImages);
 
+                    // Check for .x86_64 files
+                    var x86_64Files = Directory.GetFiles(gamePath, "*.x86_64", SearchOption.TopDirectoryOnly);
+                    executables.AddRange(x86_64Files);
+
+                    // Then add other executables
                     executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
                         .Where(f =>
                         {
                             var fileName = Path.GetFileName(f).ToLowerInvariant();
 
-                            // Skip if already added as appimage
-                            if (fileName.EndsWith(".appimage"))
+                            // Skip if already added as appimage or x86_64
+                            if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64"))
                                 return false;
 
                             if (fileName.EndsWith(".txt") ||
