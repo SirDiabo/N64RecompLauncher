@@ -372,6 +372,20 @@ public class App : Application, INotifyPropertyChanged
                 Trace.WriteLine($"Newer launcher version {latestRelease.tag_name} available. Current version is {currentVersionString}.");
                 updateCheckInfo.UpdateAvailable = true;
                 await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+                if (!isManualCheck)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        var result = await ShowMessageBoxWithChoiceAsync(
+                            $"Launcher update {latestRelease.tag_name} is available!\n\nWould you like to update now?",
+                            "Update Available");
+
+                        if (result)
+                        {
+                            await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, updateCheckInfo);
+                        }
+                    });
+                }
 
                 if (isManualCheck)
                 {
