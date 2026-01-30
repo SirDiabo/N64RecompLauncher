@@ -128,6 +128,7 @@ namespace N64RecompLauncher
                 }
             }
         }
+        public string InfoTextLength = "*";
 
         public MainWindow()
         {
@@ -334,6 +335,59 @@ namespace N64RecompLauncher
             {
                 WindowState = WindowState.Normal;
             }
+        }
+
+        public void LayoutPreset_Landscape_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.PortraitFrame = false;
+            _settings.IconFill = true;
+            _settings.SlotSize = 200;
+            _settings.IconSize = 200;
+            InfoTextLength = "*";
+            OnSettingChanged();
+            UpdateSettingsUI();
+        }
+
+        public void LayoutPreset_Portrait_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.PortraitFrame = true;
+            _settings.IconFill = true;
+            _settings.SlotSize = 200;
+            _settings.IconSize = 200;
+            _settings.IconMargin = 0;
+            _settings.SlotTextMargin = 0;
+            _settings.IconOpacity = 1.0f;
+            InfoTextLength = "90";
+            OnSettingChanged();
+            UpdateSettingsUI();
+        }
+
+        public void LayoutPreset_Square_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.PortraitFrame = true;
+            _settings.IconFill = true;
+            _settings.SlotSize = 272;
+            _settings.IconSize = 200;
+            _settings.IconMargin = 0;
+            _settings.SlotTextMargin = 0;
+            _settings.IconOpacity = 1.0f;
+            InfoTextLength = "*";
+            OnSettingChanged();
+            UpdateSettingsUI();
+        }
+
+        public void LayoutPreset_List_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.PortraitFrame = false;
+            _settings.IconFill = false;
+            _settings.SlotSize = 120;
+            _settings.IconSize = 116;
+            _settings.IconMargin = 8;
+            _settings.SlotTextMargin = 112;
+            _settings.IconOpacity = 1.0f;
+            InfoTextLength = "*";
+            OnSettingChanged();
+            UpdateSettingsUI();
         }
 
         private async void GameButton_Click(object sender, RoutedEventArgs e)

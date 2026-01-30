@@ -254,6 +254,7 @@
 					
 					<Button Grid.Column="0"
 						Classes="modern-icon"
+						VerticalAlignment="Top"
 						Width="48"
 						Height="48"
 						Margin="0,0,12,0"
@@ -828,12 +829,16 @@
 					    <StackPanel Orientation="Horizontal"
 						       HorizontalAlignment="Right"
 							   VerticalAlignment="Center">
+
+							<!-- Version Text -->
 							<TextBlock Grid.Row="0"
 								   Text="{Binding currentVersionString}"
 								   VerticalAlignment="Center"
 								   HorizontalAlignment="Right"
 								   Foreground="#aaaaaa"
 								   FontSize="14"/>
+
+							<!-- Fullscreen Button -->
 							<Button Classes="modern-icon"
 									Width="32"
 									Margin="10,0,0,0"
@@ -842,6 +847,8 @@
 									   Height="32" 
 									   Source="avares://N64RecompLauncher/Assets/Icons/button_fullscreen.png"/>
 							</Button>
+
+							<!-- Close Button -->
 							<Button Classes="modern-icon"
 									Width="32"
 									Margin="10,0,0,0"
@@ -1020,6 +1027,49 @@
 										   LetterSpacing="1"
 										   HorizontalAlignment="Right"
 										   Margin="0,0,0,15"/>
+
+								<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,16">
+									
+									<!-- Layout Preset: Landscape -->
+									<Button Classes="modern-icon"
+											Width="64"
+											Margin="10,0,0,0"
+											Click="LayoutPreset_Landscape_Click">
+										<Image Width="64"
+											   Height="64"
+											   Source="avares://N64RecompLauncher/Assets/Icons/preset_landscape.png"/>
+									</Button>
+
+									<!-- Layout Preset: Square -->
+									<Button Classes="modern-icon"
+											Width="64"
+											Margin="10,0,0,0"
+											Click="LayoutPreset_Square_Click">
+										<Image Width="64"
+											   Height="64"
+											   Source="avares://N64RecompLauncher/Assets/Icons/preset_square.png"/>
+									</Button>
+
+									<!-- Layout Preset: Portrait -->
+									<Button Classes="modern-icon"
+											Width="64"
+											Margin="10,0,0,0"
+											Click="LayoutPreset_Portrait_Click">
+										<Image Width="64"
+											   Height="64"
+											   Source="avares://N64RecompLauncher/Assets/Icons/preset_portrait.png"/>
+									</Button>
+
+									<!-- Layout Preset: Portrait -->
+									<Button Classes="modern-icon"
+											Width="64"
+											Margin="10,0,64,0"
+											Click="LayoutPreset_List_Click">
+										<Image Width="64"
+											   Height="64"
+											   Source="avares://N64RecompLauncher/Assets/Icons/preset_list.png"/>
+									</Button>
+								</StackPanel>
 
 								<CheckBox x:Name="StartFullscreenCheckBox"
 										   Content="Start in Fullscreen"
