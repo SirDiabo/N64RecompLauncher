@@ -1576,6 +1576,12 @@ namespace N64RecompLauncher.Models
                                 name.Contains("drmario", StringComparison.OrdinalIgnoreCase) ||
                                 name.Contains("drmario64", StringComparison.OrdinalIgnoreCase))
                                 return true;
+
+                            // Also check for common executable patterns on Linux
+                            if (name.EndsWith(".x86_64", StringComparison.OrdinalIgnoreCase) ||
+                                name.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase))
+                                return true;
+
                             if (!Path.HasExtension(name))
                             {
                                 try
@@ -1652,8 +1658,17 @@ namespace N64RecompLauncher.Models
                 {
                     try
                     {
+                        // Wait to ensure all file handles are released
+                        System.Threading.Thread.Sleep(100);
+
+                        // Force delete the directory
+                        var dirInfo = new DirectoryInfo(candidateDir);
+                        SetAttributesNormal(dirInfo);
                         Directory.Delete(candidateDir, true);
 
+                        Debug.WriteLine($"Successfully deleted original folder: {candidateDir}");
+
+                        // Clean up empty directories
                         var parent = Path.GetDirectoryName(candidateDir);
                         while (!string.IsNullOrEmpty(parent) &&
                                !Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.GetFullPath(gamePath).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
@@ -1662,6 +1677,7 @@ namespace N64RecompLauncher.Models
                             {
                                 var nextParent = Path.GetDirectoryName(parent);
                                 Directory.Delete(parent, false);
+                                Debug.WriteLine($"Deleted empty parent directory: {parent}");
                                 parent = nextParent;
                             }
                             else
@@ -1683,6 +1699,28 @@ namespace N64RecompLauncher.Models
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to move subfolder contents to game root: {ex.Message}");
+            }
+        }
+
+        static void SetAttributesNormal(DirectoryInfo dir)
+        {
+            try
+            {
+                foreach (var subDir in dir.GetDirectories())
+                {
+                    SetAttributesNormal(subDir);
+                }
+
+                foreach (var file in dir.GetFiles())
+                {
+                    file.Attributes = FileAttributes.Normal;
+                }
+
+                dir.Attributes = FileAttributes.Normal;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Warning setting file attributes: {ex.Message}");
             }
         }
 
