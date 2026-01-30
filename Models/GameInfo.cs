@@ -1403,8 +1403,11 @@ namespace N64RecompLauncher.Models
                 return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
                     .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
             }
-            else
+            else // Linux
             {
+                if (Directory.GetFiles(path, "*.appimage", SearchOption.TopDirectoryOnly).Any())
+                    return true;
+
                 return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
                     .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
             }
@@ -1767,13 +1770,23 @@ namespace N64RecompLauncher.Models
                 }
                 else // Linux
                 {
-                    executables = Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
+                    // Check for .appimage files
+                    var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
+                    executables.AddRange(appImages);
+
+                    executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
                         .Where(f =>
                         {
-                            if (f.Contains('.') && (f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".so", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
+                            var fileName = Path.GetFileName(f).ToLowerInvariant();
+
+                            // Skip if already added as appimage
+                            if (fileName.EndsWith(".appimage"))
+                                return false;
+
+                            if (fileName.EndsWith(".txt") ||
+                                fileName.EndsWith(".dll") ||
+                                fileName.EndsWith(".so") ||
+                                fileName.EndsWith(".json"))
                             {
                                 return false;
                             }
@@ -1782,8 +1795,7 @@ namespace N64RecompLauncher.Models
                                 return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
                             }
                             catch { return false; }
-                        })
-                        .ToList();
+                        }));
                 }
 
                 // Check for launch.bat
