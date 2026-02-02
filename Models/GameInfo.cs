@@ -1485,7 +1485,7 @@ namespace N64RecompLauncher.Models
                 System.Text.RegularExpressions.Regex.IsMatch(assetNameLower, @"[_-]win[_-]|[_-]win\d|^win[_-]"))
             {
                 // Exclude false positives
-                if (!HasAnyOf(assetNameLower, "linux", "macos", "darwin", ".deb", ".rpm", ".appimage", ".dmg"))
+                if (!HasAnyOf(assetNameLower, "linux", "macos", "darwin", ".deb", ".rpm", ".appimage", ".dmg", "flatpak"))
                 {
                     return "avares://N64RecompLauncher/Assets/Icons/platform_win.png";
                 }
@@ -1496,14 +1496,14 @@ namespace N64RecompLauncher.Models
                 (assetNameLower.Contains("mac") && !assetNameLower.Contains("machin")))
             {
                 // Exclude false positives
-                if (!HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe"))
+                if (!HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe", "flatpak"))
                 {
                     return "avares://N64RecompLauncher/Assets/Icons/platform_mac.png";
                 }
             }
 
             // Check for Linux
-            if (HasAnyOf(assetNameLower, "linux", ".appimage", ".deb", ".rpm", "tar.gz", "tar.xz"))
+            if (HasAnyOf(assetNameLower, "linux", ".appimage", ".deb", ".rpm", "tar.gz", "tar.xz", "flatpak"))
             {
                 // Exclude false positives
                 if (!HasAnyOf(assetNameLower, "windows", "win32", "win64", "macos", "osx", "darwin", ".exe", ".dmg"))
