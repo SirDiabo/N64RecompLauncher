@@ -163,7 +163,6 @@ namespace N64RecompLauncher.Services
                     { "branch", "main" },
                     { "imageRes", "512" },
                     { "folderName", string.Empty },
-                    { "platformOverride", null },
                     { "customDefaultIconUrl", null }
                 };
 
@@ -199,19 +198,6 @@ namespace N64RecompLauncher.Services
                         gameDict[requiredProp.Key] = requiredProp.Value;
                         gameNeedsFix = true;
                         System.Diagnostics.Debug.WriteLine($"Fixed empty property '{requiredProp.Key}' in {sectionName} game");
-                    }
-                }
-
-                // Remove unnecessary platform overrides
-                if (gameDict.ContainsKey("platformOverride") && gameDict["platformOverride"] is string platformOverride)
-                {
-                    var unnecessaryOverrides = new[] { "Windows", "Win64", "Win32", "macOS", "Linux", "Linux-X64", "Linux-ARM64", "Linux-Flatpak-X64" };
-
-                    if (unnecessaryOverrides.Any(o => platformOverride.Equals(o, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        gameDict["platformOverride"] = null;
-                        gameNeedsFix = true;
-                        System.Diagnostics.Debug.WriteLine($"Removed unnecessary platformOverride '{platformOverride}' from {gameDict.GetValueOrDefault("name", "unknown")} in {sectionName}");
                     }
                 }
 
@@ -409,12 +395,6 @@ namespace N64RecompLauncher.Services
                         GameManager = this,
                     };
 
-                    if (gameElement.TryGetProperty("platformOverride", out var overrideElement) &&
-                        overrideElement.ValueKind != JsonValueKind.Null)
-                    {
-                        game.PlatformOverride = overrideElement.GetString();
-                    }
-
                     if (gameElement.TryGetProperty("customDefaultIconUrl", out var customDefaultUrlElement) &&
                     customDefaultUrlElement.ValueKind != JsonValueKind.Null)
                     {
@@ -510,7 +490,6 @@ namespace N64RecompLauncher.Services
             branch = "dev",
             imageRes = "512",
             folderName = "Zelda64Recomp",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
 
         new { name = "Goemon 64",
@@ -518,7 +497,6 @@ namespace N64RecompLauncher.Services
             branch = "dev",
             imageRes = "512",
             folderName = "Goemon64Recomp",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
 
         new { name = "Mario Kart 64",
@@ -526,7 +504,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "MarioKart64Recomp",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
 
         new { name = "Dinosaur Planet",
@@ -534,7 +511,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "64",
             folderName = "DinosaurPlanetRecomp",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
 
         new { name = "Dr. Mario 64",
@@ -542,7 +518,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "DrMario64RecompPlus",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
 
         new { name = "Duke Nukem: Zero Hour",
@@ -550,7 +525,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "DNZHRecomp",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
 
         new { name = "Star Fox 64",
@@ -558,7 +532,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "Starfox64Recomp",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
 
         new  { name = "Banjo 64",
@@ -566,7 +539,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "app",
             folderName = "BanjoRecomp",
-            platformOverride = (string?)null,
             customDefaultIconUrl = (string?)null },
     };
 
@@ -577,7 +549,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "ChameleonTwistRecomp",
-            platformOverride = "ChameleonTwistJPRecompiled",
             customDefaultIconUrl = (string?)null },
 
         new { name = "Mega Man 64",
@@ -585,7 +556,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "MegaMan64Recomp",
-            platformOverride = "MegaMan64Recompiled",
             customDefaultIconUrl = (string?)null },
 
         new { name = "Quest 64",
@@ -593,7 +563,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "Quest64Recomp",
-            platformOverride = "Quest64Recompiled",
             customDefaultIconUrl = (string?)null },
     };
 
@@ -604,7 +573,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "harbourmasters.starship",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/dc2ee2a5add7154447a4644326e33386/32/256x256.png" },
 
         new { name = "Zelda OoT (Ship of Harkinian)",
@@ -612,7 +580,6 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.shipofharkinian",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/d1cd0a8c9b28f58703a097d5a25534e3/32/256x256.png" },
 
         new { name = "Mario Kart 64 (SpaghettiKart)",
@@ -620,7 +587,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "harbourmasters.spaghettikkart",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/5e5e0bd5ad7c2ca72b0c5ff8b6debbba.png" },
 
         new { name = "Zelda MM (2 Ship 2 Harkinian)",
@@ -628,7 +594,6 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.2ship2harkinian",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/6c7dbdd98cd70f67f102524761f3b4d2/24/256x256.png" },
 
         new { name = "Super Mario 64 (Ghostship)",
@@ -636,7 +601,6 @@ namespace N64RecompLauncher.Services
             branch = "develop",
             imageRes = "512",
             folderName = "harbourmasters.ghostship",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://github.com/HarbourMasters/Ghostship/blob/develop/port/textures/icons/g2ShipIcon.png?raw=true" },
 
         new { name = "Sonic Unleashed Recompiled",
@@ -644,7 +608,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "Sonic Unleashed Recompiled",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/63a99723ebb3af94d52b474c3b21dbe1/24/512x512.png" },
 
         new { name = "Super Metroid Launcher",
@@ -652,7 +615,6 @@ namespace N64RecompLauncher.Services
             branch = "master",
             imageRes = "512",
             folderName = "RadzPrower.Super-Metroid-Launcher",
-            platformOverride = "Super_Metroid_Launcher",
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/26e3dcb90aa10011db5b660c463f325f/32/256x256.png" },
 
         new { name = "Zelda: ALttP (Zelda 3 Launcher)",
@@ -660,7 +622,6 @@ namespace N64RecompLauncher.Services
             branch = "master",
             imageRes = "512",
             folderName = "RadzPrower.Zelda-3-Launcher",
-            platformOverride = "Zelda_3_Launcher",
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/1b39a10cc39ee53e5b2fdc1eda1eb5da.png" },
 
         new { name = "WipeOut Phantom Edition",
@@ -668,7 +629,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "WipeOut Phantom Edition",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9fcb5252180dc29b22976c5c63b322e7.png" },
 
         new { name = "Perfect Dark",
@@ -676,7 +636,6 @@ namespace N64RecompLauncher.Services
             branch = "port",
             imageRes = "512",
             folderName = "fgsfdsfgs.perfect_dark",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/64314c17210c549a854f1f1c7adce8b6/32/256x256.png" },
 
         new { name = "SM64 CoopDX",
@@ -684,7 +643,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "coop-deluxe.sm64coopdx",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/e3dd863ef4277e82f712a5bd8fefe7d7.png" },
 
         new { name = "LoD: Severed Chains",
@@ -692,7 +650,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "Legend-of-Dragoon-Modding.Severed-Chains",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/ddc2c94d27d2c6d46b33acf21b21a641.png" },
 
         new { name = "REDRIVER 2",
@@ -700,7 +657,6 @@ namespace N64RecompLauncher.Services
             branch = "master",
             imageRes = "512",
             folderName = "OpenDriver2.REDRIVER2",
-            platformOverride = (string?)null,
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/ca0739bf1344242a820fe79d0ac17d65.png" },
 
         new { name = "Super Mario World",
@@ -708,7 +664,6 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "snesrev.smw",
-            platformOverride = "smw_0.1",
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/5ba01c0e82cd96577309302faf900a0d/32/1024x1024.png" },
     };
 
@@ -869,7 +824,6 @@ namespace N64RecompLauncher.Services
                             g.Branch,
                             g.ImageRes,
                             g.FolderName,
-                            g.PlatformOverride,
                             g.CustomDefaultIconUrl
                         }).ToList(),
                     experimental = allGames
@@ -881,7 +835,6 @@ namespace N64RecompLauncher.Services
                             g.Branch,
                             g.ImageRes,
                             g.FolderName,
-                            g.PlatformOverride,
                             g.CustomDefaultIconUrl
                         }).ToList(),
                     custom = Array.Empty<object>()

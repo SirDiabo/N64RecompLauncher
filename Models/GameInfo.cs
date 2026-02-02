@@ -149,7 +149,6 @@ namespace N64RecompLauncher.Models
         public string? Branch { get; set; }
         public string? ImageRes { get; set; }
         public string? FolderName { get; set; }
-        public string? PlatformOverride { get; set; }
         public string? CustomDefaultIconUrl { get; set; }
         public bool IsExperimental { get; set; }
         public bool IsCustom { get; set; }
@@ -895,8 +894,8 @@ namespace N64RecompLauncher.Models
             {
                 case GameStatus.NotInstalled:
                 case GameStatus.UpdateAvailable:
-                    // Check if this will be a Windows download on Linux
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && await WillDownloadWindowsVersion(httpClient, settings))
+                    var willDownloadWindows = await WillDownloadWindowsVersionBasedOnSelection(httpClient, settings);
+                    if (willDownloadWindows && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     {
                         if (!IsWineOrProtonAvailable())
                         {
@@ -940,6 +939,55 @@ namespace N64RecompLauncher.Models
 
                     Launch(gamesFolder);
                     break;
+            }
+        }
+
+        private async Task<bool> WillDownloadWindowsVersionBasedOnSelection(HttpClient httpClient, AppSettings settings)
+        {
+            // This is only called on Linux to check if Wine warning is needed
+            // Since we let user choose, we can't know in advance, so we check if Windows assets exist
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return false;
+
+            try
+            {
+                var latestRelease = GetLatestRelease();
+
+                if (latestRelease == null)
+                {
+                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache?.CachedRelease != null)
+                    {
+                        latestRelease = cache.CachedRelease;
+                    }
+                    else
+                    {
+                        var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
+                        var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
+                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
+
+                        if (deserializedReleases == null || !deserializedReleases.Any())
+                            return false;
+
+                        latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
+                                        deserializedReleases.FirstOrDefault(r => r.prerelease);
+                    }
+                }
+
+                if (latestRelease?.assets == null)
+                    return false;
+
+                string platformIdentifier = GetPlatformIdentifier(settings);
+
+                // Check if there's a Linux version
+                var linuxAsset = latestRelease.assets.FirstOrDefault(a =>
+                    MatchesPlatform(a.name, platformIdentifier));
+
+                // If no Linux version found, assume Windows download is possible
+                return linuxAsset == null;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -1055,62 +1103,6 @@ namespace N64RecompLauncher.Models
             return userChoice;
         }
 
-        private async Task<bool> WillDownloadWindowsVersion(HttpClient httpClient, AppSettings settings)
-        {
-            try
-            {
-                // If there's a platform override, assume windows
-                if (!string.IsNullOrEmpty(PlatformOverride))
-                {
-                    return true;
-                }
-
-                var latestRelease = GetLatestRelease();
-
-                if (latestRelease == null)
-                {
-                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache?.CachedRelease != null)
-                    {
-                        latestRelease = cache.CachedRelease;
-                    }
-                    else
-                    {
-                        var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
-                        var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
-                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
-
-                        if (deserializedReleases == null || !deserializedReleases.Any())
-                            return false;
-
-                        latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
-                                        deserializedReleases.FirstOrDefault(r => r.prerelease);
-                    }
-                }
-
-                if (latestRelease?.assets == null)
-                    return false;
-
-                string platformIdentifier = GetPlatformIdentifier(settings);
-
-                // Check if there's a Linux version
-                var linuxAsset = latestRelease.assets.FirstOrDefault(a =>
-                    MatchesPlatform(a.name, platformIdentifier));
-
-                if (linuxAsset != null)
-                    return false; // Linux version found
-
-                // Check if there's a Windows version
-                var windowsAsset = latestRelease.assets.FirstOrDefault(a =>
-                    MatchesPlatform(a.name, "Windows"));
-
-                return windowsAsset != null; // Will download Windows version
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         private GitHubRelease? GetLatestRelease()
         {
             return _cachedRelease;
@@ -1150,7 +1142,6 @@ namespace N64RecompLauncher.Models
                     else
                     {
                         DownloadProgress = 5;
-                        // Check for the latest release first
                         var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
                         var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
                         var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
@@ -1163,7 +1154,6 @@ namespace N64RecompLauncher.Models
                             return;
                         }
 
-                        // Prioritize latest releases
                         latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
                                         deserializedReleases.FirstOrDefault(r => r.prerelease);
 
@@ -1195,40 +1185,35 @@ namespace N64RecompLauncher.Models
                     }
                 }
 
-                // Find the appropriate asset for the platform
-                var asset = latestRelease.assets?.FirstOrDefault(a =>
-                    (!string.IsNullOrEmpty(PlatformOverride) && a.name.Contains(PlatformOverride, StringComparison.OrdinalIgnoreCase)) ||
-                    (string.IsNullOrEmpty(PlatformOverride) && MatchesPlatform(a.name, platformIdentifier)));
+                // Get all available assets
+                var availableAssets = latestRelease.assets?.ToList() ?? new List<GitHubAsset>();
 
-                // If no asset found for Linux, try Windows version with Wine/Proton
-                if (asset == null && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                if (availableAssets.Count == 0)
                 {
-                    asset = latestRelease.assets?.FirstOrDefault(a => MatchesPlatform(a.name, "Windows"));
-
-                    if (asset != null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"No native Linux build found, using Windows build: {asset.name}");
-                    }
-                }
-
-                if (asset != null && !string.IsNullOrEmpty(PlatformOverride) && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    System.Diagnostics.Debug.WriteLine($"Using platformOverride asset on Linux (likely Windows-only): {asset.name}");
-                }
-
-                // If still no asset found, show error and return
-                if (asset == null)
-                {
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        await ShowMessageBoxAsync(
-                            $"No compatible download found for {Name} on platform '{platformIdentifier}'.\n\n" +
-                            $"Available assets: {string.Join(", ", latestRelease.assets?.Select(a => a.name) ?? new[] { "none" })}",
-                            "Platform Not Supported");
-                    });
+                    await ShowMessageBoxAsync($"No download files found for {Name}.", "No Assets");
                     Status = GameStatus.NotInstalled;
                     DownloadProgress = 0;
                     return;
+                }
+
+                GitHubAsset? asset = null;
+
+                // If multiple assets, show selection menu
+                if (availableAssets.Count > 1)
+                {
+                    asset = await ShowAssetSelectionMenu(availableAssets, platformIdentifier);
+
+                    if (asset == null)
+                    {
+                        // User cancelled
+                        Status = GameStatus.NotInstalled;
+                        DownloadProgress = 0;
+                        return;
+                    }
+                }
+                else
+                {
+                    asset = availableAssets[0];
                 }
 
                 // Download the asset
@@ -1336,6 +1321,198 @@ namespace N64RecompLauncher.Models
                 Status = GameStatus.NotInstalled;
                 DownloadProgress = 0;
             }
+        }
+
+        private async Task<GitHubAsset?> ShowAssetSelectionMenu(List<GitHubAsset> assets, string platformIdentifier)
+        {
+            GitHubAsset? selectedAsset = null;
+            var tcs = new TaskCompletionSource<GitHubAsset?>();
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var window = new Window
+                    {
+                        Title = "Select Download File",
+                        Width = 600,
+                        Height = 400,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Content = new StackPanel
+                        {
+                            Margin = new Thickness(20),
+                            Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = $"Multiple download files found for {Name}.\nPlease select which file to download:",
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(0, 0, 0, 15),
+                            FontSize = 14
+                        },
+                        new ScrollViewer
+                        {
+                            Height = 250,
+                            Content = new StackPanel
+                            {
+                                Spacing = 8
+                            }
+                        },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Spacing = 10,
+                            Margin = new Thickness(0, 15, 0, 0),
+                            Children =
+                            {
+                                new Button { Content = "Cancel", Width = 100 }
+                            }
+                        }
+                    }
+                        }
+                    };
+
+                    var scrollViewer = ((StackPanel)window.Content).Children[1] as ScrollViewer;
+                    var assetList = scrollViewer.Content as StackPanel;
+                    var buttonPanel = ((StackPanel)window.Content).Children[2] as StackPanel;
+                    var cancelButton = buttonPanel.Children[0] as Button;
+
+                    // Find the preferred asset based on platform detection
+                    var preferredAsset = assets.FirstOrDefault(a => MatchesPlatform(a.name, platformIdentifier));
+
+                    // Sort assets: preferred first, then alphabetically
+                    var sortedAssets = assets.OrderByDescending(a => a == preferredAsset)
+                                            .ThenBy(a => a.name)
+                                            .ToList();
+
+                    // Create menu items for each asset
+                    foreach (var asset in sortedAssets)
+                    {
+                        bool isPreferred = asset == preferredAsset;
+
+                        // Determine platform icon
+                        string? iconPath = GetPlatformIcon(asset.name);
+
+                        // Create a grid for icon + text layout
+                        var contentGrid = new Grid
+                        {
+                            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                            HorizontalAlignment = HorizontalAlignment.Stretch
+                        };
+
+                        // Add icon if detected
+                        if (!string.IsNullOrEmpty(iconPath))
+                        {
+                            var icon = new Avalonia.Controls.Image
+                            {
+                                Source = new Avalonia.Media.Imaging.Bitmap(
+                                    Avalonia.Platform.AssetLoader.Open(new Uri(iconPath))),
+                                Width = 20,
+                                Height = 20,
+                                Margin = new Thickness(0, 0, 10, 0),
+                                VerticalAlignment = VerticalAlignment.Center
+                            };
+                            Grid.SetColumn(icon, 0);
+                            contentGrid.Children.Add(icon);
+                        }
+
+                        // Add filename text
+                        var displayName = asset.name + (isPreferred ? " (Recommended)" : "");
+                        var textBlock = new TextBlock
+                        {
+                            Text = displayName,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            TextTrimming = TextTrimming.CharacterEllipsis
+                        };
+                        Grid.SetColumn(textBlock, 1);
+                        contentGrid.Children.Add(textBlock);
+
+                        var button = new Button
+                        {
+                            Content = contentGrid,
+                            Tag = asset,
+                            HorizontalAlignment = HorizontalAlignment.Stretch,
+                            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                            Padding = new Thickness(12, 10, 12, 10),
+                            Margin = new Thickness(0, 0, 0, 0)
+                        };
+
+                        if (isPreferred)
+                        {
+                            button.Classes.Add("accent");
+                        }
+
+                        button.Click += (s, e) =>
+                        {
+                            selectedAsset = (s as Button)?.Tag as GitHubAsset;
+                            tcs.TrySetResult(selectedAsset);
+                            window.Close();
+                        };
+
+                        assetList.Children.Add(button);
+                    }
+
+                    window.Closing += (s, e) =>
+                    {
+                        tcs.TrySetResult(null);
+                    };
+
+                    cancelButton.Click += (s, e) =>
+                    {
+                        tcs.TrySetResult(null);
+                        window.Close();
+                    };
+
+                    await window.ShowDialog(desktop.MainWindow);
+                }
+                else
+                {
+                    tcs.TrySetResult(null);
+                }
+            });
+
+            return await tcs.Task;
+        }
+
+        private static string? GetPlatformIcon(string assetName)
+        {
+            var assetNameLower = assetName.ToLowerInvariant();
+
+            // Check for Windows
+            if (HasAnyOf(assetNameLower, "windows", "win64", "win32", "win-x64", "win-x86", "-win.", "_win.", ".exe", ".msi") ||
+                System.Text.RegularExpressions.Regex.IsMatch(assetNameLower, @"[_-]win[_-]|[_-]win\d|^win[_-]"))
+            {
+                // Exclude false positives
+                if (!HasAnyOf(assetNameLower, "linux", "macos", "darwin", ".deb", ".rpm", ".appimage", ".dmg"))
+                {
+                    return "avares://N64RecompLauncher/Assets/Icons/platform_win.png";
+                }
+            }
+
+            // Check for macOS
+            if (HasAnyOf(assetNameLower, "macos", "osx", "darwin", ".dmg", ".pkg") ||
+                (assetNameLower.Contains("mac") && !assetNameLower.Contains("machin")))
+            {
+                // Exclude false positives
+                if (!HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe"))
+                {
+                    return "avares://N64RecompLauncher/Assets/Icons/platform_mac.png";
+                }
+            }
+
+            // Check for Linux
+            if (HasAnyOf(assetNameLower, "linux", ".appimage", ".deb", ".rpm", "tar.gz", "tar.xz"))
+            {
+                // Exclude false positives
+                if (!HasAnyOf(assetNameLower, "windows", "win32", "win64", "macos", "osx", "darwin", ".exe", ".dmg"))
+                {
+                    return "avares://N64RecompLauncher/Assets/Icons/platform_lin.png";
+                }
+            }
+
+            return null; // No platform detected
         }
 
         private static bool MatchesPlatform(string assetName, string platformIdentifier)

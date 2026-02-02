@@ -60,7 +60,6 @@ Each game entry requires the following properties:
 - **`branch`** - The branch to fetch the game icon from (e.g., `main`, `dev`)
 - **`imageRes`** - The filename of the icon PNG located in the repository's `/icons` directory (e.g., `512` for `512.png`)
 - **`folderName`** - The folder name where the game will be downloaded and installed
-- **`platformOverride`** - *(Optional)* Specifies a custom asset name if the release assets don't contain standard version numbers or platform identifiers. Leave as `null` if not needed
 - **`customDefaultIconUrl`** *(Optional)* Overwrites the default Icon of each game. If left blank it will use the default recomp /blob/dev/icons/"imageRes".png, or be blank if not found. Leave as `null` if not needed
 
 #### Example Configuration
@@ -74,7 +73,6 @@ Each game entry requires the following properties:
             "branch": "main",
             "imageRes": "512",
             "folderName": "ExampleGame",
-            "platformOverride": null,
             "customDefaultIconUrl": null
         },
         {
@@ -83,7 +81,6 @@ Each game entry requires the following properties:
             "branch": "dev",
             "imageRes": "256",
             "folderName": "AnotherGame",
-            "platformOverride": "custom-asset-name",
             "customDefaultIconUrl": "link/to/an/image.png"
         }
     ],
@@ -94,7 +91,6 @@ Each game entry requires the following properties:
             "branch": "experimental",
             "imageRes": "128",
             "folderName": "ExperimentalGame",
-            "platformOverride": "UniqueFileName",
             "customDefaultIconUrl": "link/to/a/different/image.jpg"
         }
     ],
