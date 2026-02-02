@@ -244,52 +244,55 @@
 				</Border>
 				
 				<!-- Info Bar Below Card -->
-				<Grid Margin="10,0,10,20">
-					<Grid.ColumnDefinitions>
-						<ColumnDefinition Width="Auto"/>
-						<ColumnDefinition Width="*"/>
-					</Grid.ColumnDefinitions>
-					
-					<!-- Download/Launch Button -->
-					
-					<Button Grid.Column="0"
-						Classes="modern-icon"
-						VerticalAlignment="Top"
-						Width="48"
-						Height="48"
-						Margin="0,0,12,0"
-						IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
-						Click="GameButton_Click"
-						Tag="{Binding}">
-						<Image Width="48" Source="{Binding ButtonImage}"/>
-					</Button>
-        
-					<!-- Game Info -->
-					<StackPanel Grid.Column="1" VerticalAlignment="Center">
-						<TextBlock Text="{Binding Name}"
-								   FontSize="14"
-								   FontWeight="Bold"
-								   Foreground="#FFFFFF"
-								   TextAlignment="Left"
-								   TextWrapping="Wrap"
-								   Margin="0,0,0,4"/>
+				<Grid>
+					<Grid.Width>
+						<MultiBinding Converter="{StaticResource GridWidthMultiConverter}">
+							<Binding ElementName="SlotSizeSlider" Path="Value"/>
+							<Binding ElementName="PortraitCheckBox" Path="IsChecked"/>
+						</MultiBinding>
+					</Grid.Width>
+					<Grid Margin="10,0,10,20">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="48"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+		
+						<!-- Download/Launch Button -->
+						<Button Grid.Column="0"
+							Classes="modern-icon"
+							VerticalAlignment="Top"
+							Width="48"
+							Height="48"
+							Margin="0,0,12,0"
+							IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+							Click="GameButton_Click"
+							Tag="{Binding}">
+							<Image Width="48" Source="{Binding ButtonImage}"/>
+						</Button>
 
-						<TextBlock Text="{Binding StatusText}"
-								   FontSize="11"
-								   Foreground="#B8B8B8"
-								   TextAlignment="Left"
-								   Margin="0,0,0,2"/>
+						<!-- Game Info -->
+						<StackPanel Grid.Column="1" VerticalAlignment="Center">
+							<TextBlock Text="{Binding Name}"
+									   FontSize="14"
+									   FontWeight="Bold"
+									   Foreground="#FFFFFF"
+									   TextAlignment="Left"
+									   TextWrapping="Wrap"
+									   Margin="0,0,0,4"/>
 
-						<StackPanel Orientation="Horizontal">
-							<TextBlock Text="Latest: "
-									   FontSize="10"
-									   Foreground="#8B8B8B"/>
-							
-							<TextBlock Text="{Binding LatestVersion}"
-									   FontSize="10"
-									   Foreground="#B8B8B8"/>
+							<TextBlock Text="{Binding StatusText}"
+									   FontSize="11"
+									   Foreground="#B8B8B8"
+									   TextAlignment="Left"
+									   TextWrapping="Wrap"
+									   Margin="0,0,0,2"/>
+
+							<TextBlock FontSize="10" Foreground="#8B8B8B" TextWrapping="Wrap" TextAlignment="Left">
+								<Run Text="Latest: "/>
+								<Run Text="{Binding LatestVersion}" Foreground="#B8B8B8"/>
+							</TextBlock>
 						</StackPanel>
-					</StackPanel>
+					</Grid>
 				</Grid>
 			</StackPanel>
 		</DataTemplate>
