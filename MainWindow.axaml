@@ -819,12 +819,12 @@
 			<Border Grid.Row="0" 
 					Background="#0e0e10" 
 					BorderBrush="#1a1a1c" 
-					BorderThickness="0,0,0,1" 
-					Padding="30,20"
+					BorderThickness="0,0,0,1"
 					ZIndex="1">
 				<Grid VerticalAlignment="Top">
 					<TextBlock Text="Library"
-							   FontSize="28"
+							   FontSize="24"
+							   Margin="15,0,0,0"
 							   FontWeight="Bold"
 							   Foreground="#FFFFFF"
 							   VerticalAlignment="Center"/>
@@ -842,21 +842,21 @@
 
 							<!-- Fullscreen Button -->
 							<Button Classes="modern-icon"
-									Width="32"
+									Width="28"
 									Margin="10,0,0,0"
 									Click="ToggleFullscreen_Click">
-								<Image Width="32" 
-									   Height="32" 
+								<Image Width="28" 
+									   Height="28" 
 									   Source="avares://N64RecompLauncher/Assets/Icons/button_fullscreen.png"/>
 							</Button>
 
 							<!-- Close Button -->
 							<Button Classes="modern-icon"
-									Width="32"
-									Margin="10,0,0,0"
+									Width="28"
+									Margin="10,0,10,0"
 									Click="CloseLauncher_Click">
-								<Image Width="32" 
-									   Height="32" 
+								<Image Width="28" 
+									   Height="28" 
 									   Source="avares://N64RecompLauncher/Assets/Icons/button_close.png"/>
 							</Button>
 						</StackPanel>
