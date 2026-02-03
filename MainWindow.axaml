@@ -776,13 +776,12 @@
 							Width="216"
 							Height="44"
 							HorizontalAlignment="Left"
-							Margin="0,0,0,8"
-							Click="GithubButton_Click">
+							Click="DiscordButton_Click">
 						<StackPanel Orientation="Horizontal" Margin="12,0">
 							<Image Width="32" Height="32" 
-								   Source="avares://N64RecompLauncher/Assets/Github.png"
+								   Source="avares://N64RecompLauncher/Assets/Discord.png"
 								   Margin="0,0,12,0"/>
-							<TextBlock Text="GitHub" 
+							<TextBlock Text="Discord" 
 									   Foreground="#8B8B8B"
 									   FontSize="14"
 									   FontWeight="Medium"
@@ -793,12 +792,12 @@
 							Width="216"
 							Height="44"
 							HorizontalAlignment="Left"
-							Click="DiscordButton_Click">
+							Click="GithubButton_Click">
 						<StackPanel Orientation="Horizontal" Margin="12,0">
 							<Image Width="32" Height="32" 
-								   Source="avares://N64RecompLauncher/Assets/Discord.png"
+								   Source="avares://N64RecompLauncher/Assets/Github.png"
 								   Margin="0,0,12,0"/>
-							<TextBlock Text="Discord" 
+							<TextBlock Text="GitHub" 
 									   Foreground="#8B8B8B"
 									   FontSize="14"
 									   FontWeight="Medium"

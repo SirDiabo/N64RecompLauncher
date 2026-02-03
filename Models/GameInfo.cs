@@ -1360,15 +1360,7 @@ namespace N64RecompLauncher.Models
                     // Check if it's a rate limit error
                     if (ex.Message.Contains("403") || ex.Message.ToLower().Contains("rate limit"))
                     {
-                        await ShowMessageBoxAsync(
-                            $"GitHub API rate limit exceeded.\n\n" +
-                            $"GitHub limits anonymous requests to 60 per hour. The limit resets one hour after depletion.\n\n" +
-                            $"To avoid this, add a GitHub API token in Settings:\n" +
-                            $"1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)\n" +
-                            $"2. Generate new token (no special permissions needed)\n" +
-                            $"3. Paste the token in the launcher Settings\n\n" +
-                            $"Note: Do not share your token with anyone!",
-                            "Rate Limit Exceeded");
+                        await ShowRateLimitErrorAsync();
                     }
                     else
                     {
@@ -1396,6 +1388,135 @@ namespace N64RecompLauncher.Models
                 Status = GameStatus.NotInstalled;
                 DownloadProgress = 0;
             }
+        }
+
+        private static async Task ShowRateLimitErrorAsync()
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var hyperlinkText = new TextBlock
+                    {
+                        Text = "https://github.com/settings/tokens",
+                        Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 255)),
+                        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(10, 0, 0, 0)
+                    };
+
+                    // Add click handler to hyperlink
+                    hyperlinkText.PointerPressed += (s, e) =>
+                    {
+                        try
+                        {
+                            var url = "https://github.com/settings/tokens";
+                            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                            {
+                                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                            }
+                            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                            {
+                                Process.Start("xdg-open", url);
+                            }
+                            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                            {
+                                Process.Start("open", url);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to open URL: {ex.Message}");
+                        }
+                    };
+
+                    var okButton = new Button
+                    {
+                        Content = "OK",
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, 10, 0, 0),
+                        MinWidth = 100
+                    };
+
+                    var messageBox = new Window
+                    {
+                        Title = "Rate Limit Exceeded",
+                        Width = 600,
+                        Height = 450,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Content = new ScrollViewer
+                        {
+                            Content = new StackPanel
+                            {
+                                Margin = new Thickness(20),
+                                Spacing = 15,
+                                Children =
+                        {
+                            new TextBlock
+                            {
+                                Text = "GitHub API rate limit exceeded.",
+                                FontWeight = FontWeight.Bold,
+                                FontSize = 16,
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            new TextBlock
+                            {
+                                Text = "GitHub limits anonymous requests to 60 per hour. The limit resets one hour after depletion.",
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            new TextBlock
+                            {
+                                Text = "To avoid this, add a GitHub API token in Settings:",
+                                FontWeight = FontWeight.SemiBold,
+                                TextWrapping = TextWrapping.Wrap,
+                                Margin = new Thickness(0, 10, 0, 0)
+                            },
+                            new TextBlock
+                            {
+                                Text = "1. Click the link below to create a token:",
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            hyperlinkText,
+                            new TextBlock
+                            {
+                                Text = "2. Click 'Generate new token (classic)'",
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            new TextBlock
+                            {
+                                Text = "3. Give it a name (no special permissions needed)",
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            new TextBlock
+                            {
+                                Text = "4. Click 'Generate token' at the bottom",
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            new TextBlock
+                            {
+                                Text = "5. Copy the token and paste it in the launcher Settings",
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            new TextBlock
+                            {
+                                Text = "⚠️ Do not share your token with anyone!",
+                                Foreground = new SolidColorBrush(Color.FromRgb(255, 149, 0)),
+                                FontWeight = FontWeight.Bold,
+                                TextWrapping = TextWrapping.Wrap,
+                                Margin = new Thickness(0, 10, 0, 0)
+                            },
+                            okButton
+                        }
+                            }
+                        }
+                    };
+
+                    okButton.Click += (s, e) => messageBox.Close();
+
+                    await messageBox.ShowDialog(desktop.MainWindow);
+                }
+            });
         }
 
         public static string? GetPlatformIcon(string assetName)
