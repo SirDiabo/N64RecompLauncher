@@ -358,12 +358,20 @@ namespace N64RecompLauncher.Models
                     _ => "avares://N64RecompLauncher/Assets/Icons/button_loading.png"
                 };
 
-                _buttonImageCache = new Avalonia.Media.Imaging.Bitmap(
-                    Avalonia.Platform.AssetLoader.Open(new Uri(imagePath)));
+                // Only create new bitmap if image path changed
+                if (_buttonImageCache == null || _lastImagePath != imagePath)
+                {
+                    _buttonImageCache?.Dispose();
+                    _buttonImageCache = new Avalonia.Media.Imaging.Bitmap(
+                        Avalonia.Platform.AssetLoader.Open(new Uri(imagePath)));
+                    _lastImagePath = imagePath;
+                }
 
                 return _buttonImageCache;
             }
         }
+
+        private string? _lastImagePath;
 
         public IBrush ButtonColor
         {
@@ -992,7 +1000,17 @@ namespace N64RecompLauncher.Models
                     else
                     {
                         var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
-                        var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
+
+                        var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
+                        var token = GetGitHubApiToken();
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        }
+
+                        var response = await httpClient.SendAsync(request);
+                        response.EnsureSuccessStatusCode();
+                        var releaseResponse = await response.Content.ReadAsStringAsync();
                         var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
 
                         if (deserializedReleases == null || !deserializedReleases.Any())
@@ -1173,7 +1191,17 @@ namespace N64RecompLauncher.Models
                     {
                         DownloadProgress = 5;
                         var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
-                        var releaseResponse = await httpClient.GetStringAsync(releaseRequestUrl);
+
+                        var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
+                        var token = GetGitHubApiToken();
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        }
+
+                        var response = await httpClient.SendAsync(request);
+                        response.EnsureSuccessStatusCode();
+                        var releaseResponse = await response.Content.ReadAsStringAsync();
                         var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
 
                         if (deserializedReleases == null || !deserializedReleases.Any())
@@ -1297,6 +1325,8 @@ namespace N64RecompLauncher.Models
                     LatestVersion = latestRelease.tag_name;
                     Status = GameStatus.Installed;
                     DownloadProgress = 0;
+                    SelectedDownload = null;
+                    AvailableDownloads = null;
                 }
                 finally
                 {
@@ -1939,7 +1969,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static async void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
+        static void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -2000,7 +2030,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static async void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
+        static void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -2015,6 +2045,7 @@ namespace N64RecompLauncher.Models
                 };
 
                 using var process = Process.Start(startInfo);
+                SelectedExecutable = null;
                 process?.WaitForExit();
 
                 if (process?.ExitCode != 0)

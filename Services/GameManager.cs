@@ -57,6 +57,7 @@ namespace N64RecompLauncher.Services
         {
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "N64Recomp-Launcher/1.0");
+            _httpClient.Timeout = TimeSpan.FromMinutes(30);
 
             try
             {
@@ -384,12 +385,12 @@ namespace N64RecompLauncher.Services
                 {
                     var game = new GameInfo
                     {
-                        Name = gameElement.GetProperty("name").GetString() ?? string.Empty,
-                        Repository = gameElement.GetProperty("repository").GetString() ?? string.Empty,
-                        Branch = gameElement.GetProperty("branch").GetString() ?? "main",
-                        ImageRes = gameElement.GetProperty("imageRes").GetString() ?? "512",
-                        FolderName = gameElement.GetProperty("folderName").GetString() ?? string.Empty,
-                        CustomDefaultIconUrl = gameElement.GetProperty("customDefaultIconUrl").GetString() ?? string.Empty,
+                        Name = (gameElement.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null) ?? string.Empty,
+                        Repository = (gameElement.TryGetProperty("repository", out var repoElement) ? repoElement.GetString() : null) ?? string.Empty,
+                        Branch = (gameElement.TryGetProperty("branch", out var branchElement) ? branchElement.GetString() : null) ?? "main",
+                        ImageRes = (gameElement.TryGetProperty("imageRes", out var imgElement) ? imgElement.GetString() : null) ?? "512",
+                        FolderName = (gameElement.TryGetProperty("folderName", out var folderElement) ? folderElement.GetString() : null) ?? string.Empty,
+                        CustomDefaultIconUrl = string.Empty,
                         IsExperimental = isExperimental,
                         IsCustom = isCustom,
                         GameManager = this,
