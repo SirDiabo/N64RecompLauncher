@@ -697,17 +697,45 @@ namespace N64RecompLauncher.Services
             }
         }
 
-        private void LoadCustomIcons()
+        private async Task LoadCustomAndCachedIconsAsync()
         {
             if (Games == null || string.IsNullOrEmpty(_cacheFolder))
                 return;
 
+            // Load custom covers
             foreach (var game in Games)
             {
                 if (game != null)
                 {
                     game.LoadCustomIcon(_cacheFolder);
                 }
+            }
+
+            // Download/load cached default icons asynchronously
+            var tasks = Games
+                .Where(g => g != null)
+                .Select(g => g.LoadAndCacheDefaultIconAsync(_cacheFolder));
+
+            await Task.WhenAll(tasks);
+        }
+
+        public async Task ClearIconCacheAsync()
+        {
+            try
+            {
+                var iconsDir = Path.Combine(_cacheFolder, "Icons");
+                if (Directory.Exists(iconsDir))
+                {
+                    Directory.Delete(iconsDir, true);
+                    System.Diagnostics.Debug.WriteLine("Icon cache cleared successfully");
+
+                    // Reload icons for all games
+                    await LoadCustomAndCachedIconsAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to clear icon cache: {ex.Message}");
             }
         }
 
@@ -752,7 +780,7 @@ namespace N64RecompLauncher.Services
                     Games.Add(game);
             }
 
-            LoadCustomIcons();
+            await LoadCustomAndCachedIconsAsync();
 
             if (string.IsNullOrEmpty(_gamesFolder))
                 return;

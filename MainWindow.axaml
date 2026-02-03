@@ -989,8 +989,14 @@
 								<Button Classes="options"
 										Content="Clear Custom Game Path"
 										HorizontalAlignment="Stretch"
-										Margin="0,0,0,30"
+										Margin="0,0,0,8"
 										Click="ClearGamePath_Click"/>
+
+								<Button Classes="options"
+										Content="Clear Icon Cache"
+										HorizontalAlignment="Stretch"
+										Margin="0,0,0,30"
+										Click="ClearIconCache_Click"/>
 
 								<TextBlock Text="Target Platform"
 										   FontSize="13"

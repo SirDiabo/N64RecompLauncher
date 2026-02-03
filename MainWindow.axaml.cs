@@ -1642,6 +1642,19 @@ namespace N64RecompLauncher
             }
         }
 
+        private async void ClearIconCache_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await _gameManager.ClearIconCacheAsync();
+                await ShowMessageBoxAsync("Icon cache cleared. Icons will be re-downloaded.", "Cache Cleared");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to clear icon cache: {ex.Message}", "Error");
+            }
+        }
+
         private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
         {
             if (_isProcessingInput || !IsActive)

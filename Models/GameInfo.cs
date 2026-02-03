@@ -167,17 +167,26 @@ namespace N64RecompLauncher.Models
                 }
             }
         }
+        private string? _cachedDefaultIconPath;
         public bool HasCustomIcon => !string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath);
 
         public string IconUrl
         {
             get
             {
+                // custom cover image
                 if (!string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath))
                 {
                     return CustomIconPath;
                 }
 
+                // Cached default icon
+                if (!string.IsNullOrEmpty(_cachedDefaultIconPath) && File.Exists(_cachedDefaultIconPath))
+                {
+                    return _cachedDefaultIconPath;
+                }
+
+                // Direct URL (will download)
                 return DefaultIconUrl;
             }
         }
@@ -733,6 +742,86 @@ namespace N64RecompLauncher.Models
                     break;
                 }
             }
+        }
+
+        public async Task LoadAndCacheDefaultIconAsync(string cacheDirectory)
+        {
+            if (string.IsNullOrEmpty(FolderName))
+                return;
+
+            try
+            {
+                var iconsDir = Path.Combine(cacheDirectory, "Icons");
+                Directory.CreateDirectory(iconsDir);
+
+                var defaultUrl = DefaultIconUrl;
+
+                // Only cache if it's an actual URL (not a local asset path)
+                if (!defaultUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !defaultUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                // Create a safe filename from the URL
+                var urlHash = GetUrlHash(defaultUrl);
+                var extension = Path.GetExtension(defaultUrl);
+
+                // If no extension in URL or it's too long, default to .png
+                if (string.IsNullOrEmpty(extension) || extension.Length > 5 || extension.Contains('?'))
+                    extension = ".png";
+
+                var cachedIconPath = Path.Combine(iconsDir, $"{FolderName}_{urlHash}{extension}");
+
+                // If cached icon exists and is valid, use it
+                if (File.Exists(cachedIconPath))
+                {
+                    try
+                    {
+                        // Verify the file is valid by checking its size
+                        var fileInfo = new FileInfo(cachedIconPath);
+                        if (fileInfo.Length > 0)
+                        {
+                            _cachedDefaultIconPath = cachedIconPath;
+                            OnPropertyChanged(nameof(IconUrl));
+                            System.Diagnostics.Debug.WriteLine($"Using cached icon for {Name}: {cachedIconPath}");
+                            return;
+                        }
+                    }
+                    catch
+                    {
+                        // If file is corrupted, delete it and re-download
+                        try { File.Delete(cachedIconPath); } catch { }
+                    }
+                }
+
+                // Download icon if not cached
+                System.Diagnostics.Debug.WriteLine($"Downloading icon for {Name} from {defaultUrl}");
+
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(10);
+                httpClient.DefaultRequestHeaders.Add("User-Agent", "N64Recomp-Launcher/1.0");
+
+                var iconData = await httpClient.GetByteArrayAsync(defaultUrl);
+
+                // Save to cache
+                await File.WriteAllBytesAsync(cachedIconPath, iconData);
+                _cachedDefaultIconPath = cachedIconPath;
+                OnPropertyChanged(nameof(IconUrl));
+                System.Diagnostics.Debug.WriteLine($"Icon cached for {Name}: {cachedIconPath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to cache icon for {Name}: {ex.Message}");
+                // Fallback to direct URL
+            }
+        }
+
+        private static string GetUrlHash(string url)
+        {
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(url));
+            return Convert.ToHexString(hashBytes).Substring(0, 16).ToLowerInvariant();
         }
 
         private void ClearImageFromMemory()
