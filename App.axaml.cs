@@ -330,29 +330,6 @@ public class App : Application, INotifyPropertyChanged
 
                 updateCheckInfo.LastKnownVersion = latestRelease.tag_name;
 
-                if (currentVersionString == "0" || currentVersionString == "0.0" || currentVersionString == "v0.0")
-                {
-                    Trace.WriteLine($"Current version is '{currentVersionString}' - forcing update to {latestRelease.tag_name}");
-                    updateCheckInfo.UpdateAvailable = true;
-                    await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
-
-                    if (isManualCheck)
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(async () =>
-                        {
-                            var result = await ShowMessageBoxWithChoiceAsync(
-                                $"Launcher update {latestRelease.tag_name} is available!\n\nWould you like to update now?",
-                                "Update Available");
-
-                            if (result)
-                            {
-                                await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, updateCheckInfo);
-                            }
-                        });
-                    }
-                    return;
-                }
-
                 if (!IsNewerVersion(latestRelease.tag_name, currentVersionString))
                 {
                     Trace.WriteLine($"Current launcher version {currentVersionString} is up to date or newer than {latestRelease.tag_name}. No update needed.");
@@ -636,9 +613,6 @@ public class App : Application, INotifyPropertyChanged
             return "0.0.0.0";
 
         version = version.TrimStart('v', 'V').Trim();
-
-        if (version == "0")
-            return "0.0.0.0";
 
         var parts = version.Split('.');
         var validParts = new List<string>();

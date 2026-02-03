@@ -6,7 +6,7 @@
 		xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
         Title="N64Recomp Launcher"
 		Width="1280" Height="720"
-        Background="#0e0e10"
+        Background="{DynamicResource ThemeDarker}"
 		WindowState="Normal"
         WindowStartupLocation="CenterScreen">
 
@@ -15,6 +15,14 @@
 		<local:ThicknessConverter x:Key="ThicknessConverter"/>
 		<local:SlotScaleToGridConverter x:Key="SlotScaleToGridConverter"/>
 		<local:GridWidthMultiConverter x:Key="GridWidthMultiConverter"/>
+
+		<!-- Theme Color Resources -->
+		<SolidColorBrush x:Key="ThemeBase" Color="#18181b"/>
+		<SolidColorBrush x:Key="ThemeLighter" Color="#252527"/>
+		<SolidColorBrush x:Key="ThemeDarker" Color="#0e0e10"/>
+		<SolidColorBrush x:Key="ThemeBorder" Color="#2d2d30"/>
+		<SolidColorBrush x:Key="ThemeText" Color="White"/>
+		<SolidColorBrush x:Key="ThemeTextSecondary" Color="#B8B8B8"/>
 
 		<!-- list view -->
 		<DataTemplate x:Key="ListViewTemplate">
@@ -42,53 +50,21 @@
 							<TextBlock Text="{Binding Name}"
 									   FontSize="22"
 									   FontWeight="Bold"
-									   Foreground="#FFFFFF">
-								<TextBlock.Effect>
-									<DropShadowDirectionEffect
-										Color="Black"
-										BlurRadius="12"
-										ShadowDepth="-2"
-										Opacity="0.9"/>
-								</TextBlock.Effect>
-							</TextBlock>
+									   Foreground="{DynamicResource ThemeText}"/>
 							
 							<TextBlock Text="{Binding StatusText}"
 									   FontSize="13"
-									   Foreground="#B8B8B8"
-									   Margin="0,6,0,0">
-								<TextBlock.Effect>
-									<DropShadowDirectionEffect
-										Color="Black"
-										BlurRadius="12"
-										ShadowDepth="-2"
-										Opacity="1"/>
-								</TextBlock.Effect>
-							</TextBlock>
+									   Foreground="{DynamicResource ThemeTextSecondary}"
+									   Margin="0,6,0,0"/>
 							
 							<StackPanel Orientation="Horizontal">
 								<TextBlock Text="Latest: "
 										   FontSize="12"
-										   Foreground="#8B8B8B">
-									<TextBlock.Effect>
-										<DropShadowDirectionEffect
-											Color="Black"
-											BlurRadius="10"
-											ShadowDepth="-2"
-											Opacity="1"/>
-									</TextBlock.Effect>
-								</TextBlock>
+										   Foreground="{DynamicResource ThemeTextSecondary}"/>
 								
 								<TextBlock Text="{Binding LatestVersion}"
 										   FontSize="12"
-										   Foreground="#B8B8B8">
-									<TextBlock.Effect>
-										<DropShadowDirectionEffect
-											Color="Black"
-											BlurRadius="10"
-											ShadowDepth="-2"
-											Opacity="1"/>
-									</TextBlock.Effect>
-								</TextBlock>
+										   Foreground="{DynamicResource ThemeTextSecondary}"/>
 							</StackPanel>
 						</StackPanel>
 						
@@ -275,21 +251,21 @@
 							<TextBlock Text="{Binding Name}"
 									   FontSize="14"
 									   FontWeight="Bold"
-									   Foreground="#FFFFFF"
+									   Foreground="{DynamicResource ThemeText}"
 									   TextAlignment="Left"
 									   TextWrapping="Wrap"
 									   Margin="0,0,0,4"/>
 
 							<TextBlock Text="{Binding StatusText}"
 									   FontSize="11"
-									   Foreground="#B8B8B8"
+									   Foreground="{DynamicResource ThemeTextSecondary}"
 									   TextAlignment="Left"
 									   TextWrapping="Wrap"
 									   Margin="0,0,0,2"/>
 
-							<TextBlock FontSize="10" Foreground="#8B8B8B" TextWrapping="Wrap" TextAlignment="Left">
+							<TextBlock FontSize="10" Foreground="{DynamicResource ThemeTextSecondary}" TextWrapping="Wrap" TextAlignment="Left">
 								<Run Text="Latest: "/>
-								<Run Text="{Binding LatestVersion}" Foreground="#B8B8B8"/>
+								<Run Text="{Binding LatestVersion}" Foreground="{DynamicResource ThemeTextSecondary}"/>
 							</TextBlock>
 						</StackPanel>
 					</Grid>
@@ -299,316 +275,330 @@
 	</Window.Resources>
 
 	<Window.Styles>
-		<Style Selector="Button.modern">
-			<Setter Property="Background" Value="{Binding ButtonColor}"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="HorizontalContentAlignment" Value="Center"/>
-			<Setter Property="VerticalContentAlignment" Value="Center"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Padding" Value="20,10"/>
-			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="FontWeight" Value="Bold"/>
-			<Setter Property="Cursor" Value="Hand"/>
-			<Setter Property="Template">
-				<ControlTemplate TargetType="Button">
-					<Border Background="{TemplateBinding Background}"
-							CornerRadius="6"
-							Padding="{TemplateBinding Padding}">
-						<ContentPresenter
-							Name="PART_ContentPresenter"
-							Content="{TemplateBinding Content}"
-							ContentTemplate="{TemplateBinding ContentTemplate}"
-							HorizontalAlignment="Center"
-							VerticalAlignment="Center"
-							Foreground="{TemplateBinding Foreground}"
-							FontSize="{TemplateBinding FontSize}"
-							FontWeight="{TemplateBinding FontWeight}"/>
-					</Border>
-				</ControlTemplate>
-			</Setter>
-		</Style>
+	<Style Selector="Button.modern">
+		<Setter Property="Background" Value="{Binding ButtonColor}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+		<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		<Setter Property="VerticalContentAlignment" Value="Center"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="20,10"/>
+		<Setter Property="FontSize" Value="14"/>
+		<Setter Property="FontWeight" Value="Bold"/>
+		<Setter Property="Cursor" Value="Hand"/>
+		<Setter Property="Template">
+			<ControlTemplate TargetType="Button">
+				<Border Background="{TemplateBinding Background}"
+						CornerRadius="6"
+						Padding="{TemplateBinding Padding}">
+					<ContentPresenter
+						Name="PART_ContentPresenter"
+						Content="{TemplateBinding Content}"
+						ContentTemplate="{TemplateBinding ContentTemplate}"
+						HorizontalAlignment="Center"
+						VerticalAlignment="Center"
+						Foreground="{TemplateBinding Foreground}"
+						FontSize="{TemplateBinding FontSize}"
+						FontWeight="{TemplateBinding FontWeight}"/>
+				</Border>
+			</ControlTemplate>
+		</Setter>
+	</Style>
 
-		<Style Selector="Button.modern:pointerover">
-			<Setter Property="Opacity" Value="0.85"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.modern:pointerover">
+		<Setter Property="Opacity" Value="0.85"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.modern:pressed">
-			<Setter Property="Opacity" Value="0.7"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.modern:pressed">
+		<Setter Property="Opacity" Value="0.7"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<!-- Modern Icon Button Style for Grid View -->
-		<Style Selector="Button.modern-icon">
-			<Setter Property="Background" Value="{Binding ButtonColor}"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="HorizontalContentAlignment" Value="Center"/>
-			<Setter Property="VerticalContentAlignment" Value="Center"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="Cursor" Value="Hand"/>
-			<Setter Property="Template">
-				<ControlTemplate TargetType="Button">
-					<Border Background="{TemplateBinding Background}"
-							CornerRadius="8"
-							Padding="{TemplateBinding Padding}">
-						<ContentPresenter
-							Name="PART_ContentPresenter"
-							Content="{TemplateBinding Content}"
-							ContentTemplate="{TemplateBinding ContentTemplate}"
-							HorizontalAlignment="Center"
-							VerticalAlignment="Center"
-							Foreground="{TemplateBinding Foreground}"/>
-					</Border>
-				</ControlTemplate>
-			</Setter>
-		</Style>
+	<!-- Modern Icon Button Style for Grid View -->
+	<Style Selector="Button.modern-icon">
+		<Setter Property="Background" Value="{Binding ButtonColor}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+		<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		<Setter Property="VerticalContentAlignment" Value="Center"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="0"/>
+		<Setter Property="Cursor" Value="Hand"/>
+		<Setter Property="Template">
+			<ControlTemplate TargetType="Button">
+				<Border Background="{TemplateBinding Background}"
+						CornerRadius="8"
+						Padding="{TemplateBinding Padding}">
+					<ContentPresenter
+						Name="PART_ContentPresenter"
+						Content="{TemplateBinding Content}"
+						ContentTemplate="{TemplateBinding ContentTemplate}"
+						HorizontalAlignment="Center"
+						VerticalAlignment="Center"
+						Foreground="{TemplateBinding Foreground}"/>
+				</Border>
+			</ControlTemplate>
+		</Setter>
+	</Style>
 
-		<Style Selector="Button.modern-icon:pointerover">
-			<Setter Property="Opacity" Value="0.85"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.modern-icon:pointerover">
+		<Setter Property="Opacity" Value="0.85"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.modern-icon:pressed">
-			<Setter Property="Opacity" Value="0.7"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.modern-icon:pressed">
+		<Setter Property="Opacity" Value="0.7"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.options">
-			<Setter Property="Background" Value="#1a1a1c"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="HorizontalContentAlignment" Value="Center"/>
-			<Setter Property="VerticalContentAlignment" Value="Center"/>
-			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="BorderBrush" Value="#2d2d30"/>
-			<Setter Property="Padding" Value="10"/>
-			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
-			<Setter Property="Cursor" Value="Hand"/>
-			<Setter Property="Template">
-				<ControlTemplate TargetType="Button">
-					<Border Background="{TemplateBinding Background}"
-							BorderBrush="{TemplateBinding BorderBrush}"
-							BorderThickness="{TemplateBinding BorderThickness}"
-							CornerRadius="6"
-							Padding="{TemplateBinding Padding}">
-						<ContentPresenter
-							Name="PART_ContentPresenter"
-							Content="{TemplateBinding Content}"
-							ContentTemplate="{TemplateBinding ContentTemplate}"
-							HorizontalAlignment="Center"
-							VerticalAlignment="Center"
-							Foreground="{TemplateBinding Foreground}"
-							FontSize="{TemplateBinding FontSize}"
-							FontWeight="{TemplateBinding FontWeight}"/>
-					</Border>
-				</ControlTemplate>
-			</Setter>
-		</Style>
+	<Style Selector="Button.options">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+		<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		<Setter Property="VerticalContentAlignment" Value="Center"/>
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="Padding" Value="10"/>
+		<Setter Property="FontSize" Value="14"/>
+		<Setter Property="FontWeight" Value="SemiBold"/>
+		<Setter Property="Cursor" Value="Hand"/>
+		<Setter Property="Template">
+			<ControlTemplate TargetType="Button">
+				<Border Background="{TemplateBinding Background}"
+						BorderBrush="{TemplateBinding BorderBrush}"
+						BorderThickness="{TemplateBinding BorderThickness}"
+						CornerRadius="6"
+						Padding="{TemplateBinding Padding}">
+					<ContentPresenter
+						Name="PART_ContentPresenter"
+						Content="{TemplateBinding Content}"
+						ContentTemplate="{TemplateBinding ContentTemplate}"
+						HorizontalAlignment="Center"
+						VerticalAlignment="Center"
+						Foreground="{TemplateBinding Foreground}"
+						FontSize="{TemplateBinding FontSize}"
+						FontWeight="{TemplateBinding FontWeight}"/>
+				</Border>
+			</ControlTemplate>
+		</Setter>
+	</Style>
 
-		<Style Selector="Button.options:pointerover">
-			<Setter Property="Background" Value="#252527"/>
-			<Setter Property="BorderBrush" Value="#3d3d40"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.options:pointerover">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.options:pressed">
-			<Setter Property="Background" Value="#1a1a1c"/>
-			<Setter Property="BorderBrush" Value="#2d2d30"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.options:pressed">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<!-- Grid Options Button Style -->
-		<Style Selector="Button.options-grid">
-			<Setter Property="Background" Value="#1a1a1cDD"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="HorizontalContentAlignment" Value="Center"/>
-			<Setter Property="VerticalContentAlignment" Value="Center"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
-			<Setter Property="Cursor" Value="Hand"/>
-			<Setter Property="Opacity" Value="0"/>
-			<Setter Property="Template">
-				<ControlTemplate TargetType="Button">
-					<Border Background="{TemplateBinding Background}"
-							CornerRadius="8"
-							Padding="{TemplateBinding Padding}">
-						<ContentPresenter
-							Name="PART_ContentPresenter"
-							Content="{TemplateBinding Content}"
-							ContentTemplate="{TemplateBinding ContentTemplate}"
-							HorizontalAlignment="Center"
-							VerticalAlignment="Center"
-							Foreground="{TemplateBinding Foreground}"
-							FontSize="{TemplateBinding FontSize}"
-							FontWeight="{TemplateBinding FontWeight}"/>
-					</Border>
-				</ControlTemplate>
-			</Setter>
-		</Style>
+	<!-- Grid Options Button Style -->
+	<Style Selector="Button.options-grid">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+		<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		<Setter Property="VerticalContentAlignment" Value="Center"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="0"/>
+		<Setter Property="FontSize" Value="14"/>
+		<Setter Property="FontWeight" Value="SemiBold"/>
+		<Setter Property="Cursor" Value="Hand"/>
+		<Setter Property="Opacity" Value="0"/>
+		<Setter Property="Template">
+			<ControlTemplate TargetType="Button">
+				<Border Background="{TemplateBinding Background}"
+						CornerRadius="8"
+						Padding="{TemplateBinding Padding}">
+					<ContentPresenter
+						Name="PART_ContentPresenter"
+						Content="{TemplateBinding Content}"
+						ContentTemplate="{TemplateBinding ContentTemplate}"
+						HorizontalAlignment="Center"
+						VerticalAlignment="Center"
+						Foreground="{TemplateBinding Foreground}"
+						FontSize="{TemplateBinding FontSize}"
+						FontWeight="{TemplateBinding FontWeight}"/>
+				</Border>
+			</ControlTemplate>
+		</Setter>
+	</Style>
 
-		<Style Selector="Border.gamecardgrid:pointerover Button.options-grid, Border.gamecardgrid:focus-within Button.options-grid">
-			<Setter Property="Opacity" Value="1"/>
-		</Style>
+	<Style Selector="Border.gamecardgrid:pointerover Button.options-grid, Border.gamecardgrid:focus-within Button.options-grid">
+		<Setter Property="Opacity" Value="1"/>
+	</Style>
 
-		<Style Selector="Button.options-grid:pointerover">
-			<Setter Property="Background" Value="#252527EE"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.options-grid:pointerover">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.options-grid:pressed">
-			<Setter Property="Background" Value="#1a1a1cEE"/>
-			<Setter Property="Foreground" Value="White"/>
-		</Style>
+	<Style Selector="Button.options-grid:pressed">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.settings">
-			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="Foreground" Value="#8B8B8B"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Padding" Value="12,10"/>
-			<Setter Property="HorizontalContentAlignment" Value="Left"/>
-			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="FontWeight" Value="Medium"/>
-			<Setter Property="Cursor" Value="Hand"/>
-		</Style>
+	<Style Selector="Button.settings">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="12,10"/>
+		<Setter Property="HorizontalContentAlignment" Value="Left"/>
+		<Setter Property="FontSize" Value="14"/>
+		<Setter Property="FontWeight" Value="Medium"/>
+		<Setter Property="Cursor" Value="Hand"/>
+	</Style>
 
-		<Style Selector="Button.settings:pointerover">
-			<Setter Property="Background" Value="#1a1a1c"/>
-			<Setter Property="Foreground" Value="#FFFFFF"/>
-		</Style>
+	<Style Selector="Button.settings:pointerover">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.settings:pressed">
-			<Setter Property="Background" Value="#252527"/>
-			<Setter Property="Foreground" Value="#FFFFFF"/>
-		</Style>
-		
-		<Style Selector="Button.iconbutton">
-			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="Cursor" Value="Hand"/>
-		</Style>
+	<Style Selector="Button.settings:pressed">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
+	
+	<Style Selector="Button.iconbutton">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Padding" Value="0"/>
+		<Setter Property="Cursor" Value="Hand"/>
+	</Style>
 
-		<Style Selector="Button.iconbutton:pointerover">
-			<Setter Property="Opacity" Value="0.7"/>
-		</Style>
+	<Style Selector="Button.iconbutton:pointerover">
+		<Setter Property="Opacity" Value="0.7"/>
+	</Style>
 
-		<Style Selector="Button.iconbutton:pressed">
-			<Setter Property="Opacity" Value="0.5"/>
-		</Style>
+	<Style Selector="Button.iconbutton:pressed">
+		<Setter Property="Opacity" Value="0.5"/>
+	</Style>
 
-		<Style Selector="Border.gamecard">
-			<Setter Property="Background" Value="#18181b"/>
-			<Setter Property="CornerRadius" Value="14"/>
-			<Setter Property="Margin" Value="0,0,0,12"/>
-		</Style>
+	<Style Selector="Border.gamecard">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="CornerRadius" Value="14"/>
+		<Setter Property="Margin" Value="0,0,0,12"/>
+	</Style>
 
-		<Style Selector="Border.gamecardgrid">
-			<Setter Property="Background" Value="#18181b"/>
-			<Setter Property="CornerRadius" Value="14"/>
-			<Setter Property="Margin" Value="10"/>
-		</Style>
+	<Style Selector="Border.gamecardgrid">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="CornerRadius" Value="14"/>
+		<Setter Property="Margin" Value="10"/>
+	</Style>
 
-		<Style Selector="ContextMenu">
-			<Setter Property="Background" Value="#1a1a1c"/>
-			<Setter Property="BorderBrush" Value="#2d2d30"/>
-			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="Padding" Value="4"/>
-			<Setter Property="CornerRadius" Value="8"/>
-		</Style>
+	<Style Selector="ContextMenu">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="Padding" Value="4"/>
+		<Setter Property="CornerRadius" Value="8"/>
+	</Style>
 
-		<Style Selector="MenuItem">
-			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="Foreground" Value="#E0E0E0"/>
-			<Setter Property="Padding" Value="10,8"/>
-			<Setter Property="CornerRadius" Value="4"/>
-		</Style>
+	<Style Selector="MenuItem">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+		<Setter Property="Padding" Value="10,8"/>
+		<Setter Property="CornerRadius" Value="4"/>
+	</Style>
 
-		<Style Selector="MenuItem:selected">
-			<Setter Property="Background" Value="#252527"/>
-		</Style>
+	<Style Selector="MenuItem:selected">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+	</Style>
 
-		<Style Selector="MenuItem:focus">
-			<Setter Property="Background" Value="#252527"/>
-			<Setter Property="BorderBrush" Value="#5865F2"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<Style Selector="MenuItem:focus">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-		<Style Selector="MenuItem:focus-visible">
-			<Setter Property="Background" Value="#252527"/>
-			<Setter Property="BorderBrush" Value="#5865F2"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<Style Selector="MenuItem:focus-visible">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-		<!-- Focus Visual Styles -->
-		<Style Selector="Button:focus">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<!-- Focus Visual Styles -->
+	<Style Selector="Button:focus">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-		<Style Selector="Button:focus /template/ Border">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<Style Selector="Button:focus /template/ Border">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-		<Style Selector="Button.modern:focus /template/ Border">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="3"/>
-			<Setter Property="Margin" Value="-1"/>
-		</Style>
+	<Style Selector="Button.modern:focus /template/ Border">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="3"/>
+		<Setter Property="Margin" Value="-1"/>
+	</Style>
 
-		<Style Selector="Button.modern-icon:focus /template/ Border">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="3"/>
-			<Setter Property="Margin" Value="-1"/>
-		</Style>
+	<Style Selector="Button.modern-icon:focus /template/ Border">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="3"/>
+		<Setter Property="Margin" Value="-1"/>
+	</Style>
 
-		<Style Selector="Button.options:focus /template/ Border">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<Style Selector="Button.options:focus /template/ Border">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-		<Style Selector="Button.options-grid:focus /template/ Border">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="3"/>
-			<Setter Property="Opacity" Value="1"/>
-		</Style>
+	<Style Selector="Button.options-grid:focus /template/ Border">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="3"/>
+		<Setter Property="Opacity" Value="1"/>
+	</Style>
 
-		<Style Selector="Button.options-grid:focus">
-			<Setter Property="Opacity" Value="1"/>
-			<Setter Property="Background" Value="#252527EE"/>
-		</Style>
+	<Style Selector="Button.options-grid:focus">
+		<Setter Property="Opacity" Value="1"/>
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+	</Style>
 
-		<Style Selector="Button.settings:focus">
-			<Setter Property="Background" Value="#252527"/>
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="2"/>
-			<Setter Property="Foreground" Value="#FFFFFF"/>
-		</Style>
+	<Style Selector="Button.settings:focus">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
 
-		<Style Selector="Button.iconbutton:focus">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<Style Selector="Button.iconbutton:focus">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-		<Style Selector="CheckBox:focus /template/ Border#NormalRectangle">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<Style Selector="CheckBox:focus /template/ Border#NormalRectangle">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-		<Style Selector="Slider:focus /template/ Thumb">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="3"/>
-		</Style>
+	<Style Selector="Slider:focus /template/ Thumb">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="3"/>
+	</Style>
 
-		<Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-			<Setter Property="BorderBrush" Value="#def0e3"/>
-			<Setter Property="BorderThickness" Value="2"/>
-		</Style>
+	<Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="2"/>
+	</Style>
 
-	</Window.Styles>
+	<!-- Theme-aware text styles -->
+	<Style Selector="TextBlock.theme-text">
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
+
+	<Style Selector="TextBlock.theme-text-secondary">
+		<Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+	</Style>
+
+	<Style Selector="TextBlock.theme-text-muted">
+		<Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+		<Setter Property="Opacity" Value="0.7"/>
+	</Style>
+
+</Window.Styles>
 
 	<Grid x:Name="MainGrid">
 		<Grid.ColumnDefinitions>
@@ -617,7 +607,7 @@
 		</Grid.ColumnDefinitions>
 
 		<!-- Left Sidebar Navigation -->
-		<Border Grid.Column="0" Background="#14141a" BorderBrush="#1a1a1c" BorderThickness="0,0,1,0">
+		<Border Grid.Column="0" Background="{DynamicResource ThemeDarker}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="0,0,1,0">
 			<Grid Margin="0">
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto"/>
@@ -636,13 +626,13 @@
 					<TextBlock Text="N64RECOMP"
 							   FontSize="18"
 							   FontWeight="Bold"
-							   Foreground="#FFFFFF"
+							   Foreground="{DynamicResource ThemeText}"
 							   HorizontalAlignment="Center"
 							   LetterSpacing="2"/>
 					<TextBlock Text="LAUNCHER"
 							   FontSize="11"
 							   FontWeight="Medium"
-							   Foreground="#6B6B6B"
+							   Foreground="{DynamicResource ThemeTextSecondary}"
 							   HorizontalAlignment="Center"
 							   LetterSpacing="3"
 							   Margin="0,2,0,0"/>
@@ -716,7 +706,7 @@
 					<TextBlock Text="DISPLAY FILTERS"
 							   FontSize="10"
 							   FontWeight="Bold"
-							   Foreground="#4a4a4a"
+							   Foreground="{DynamicResource ThemeText}"
 							   LetterSpacing="1"
 							   Margin="12,0,0,4"/>
 					
@@ -768,10 +758,10 @@
 						<TextBlock Text="Custom Games Only"/>
 					</Button>
 				</StackPanel>
-
+				
 				<!-- Footer Links -->
-				<StackPanel Grid.Row="3" Margin="12,0,12,20">
-					<Border Height="1" Background="#1a1a1c" Margin="0,0,0,15"/>
+				<StackPanel Grid.Row="3" Margin="0,9">
+					<Border Height="1" BorderBrush="{DynamicResource ThemeBorder}" Margin="0,0,0,1"/>
 					<Button Classes="iconbutton"
 							Width="216"
 							Height="44"
@@ -782,7 +772,7 @@
 								   Source="avares://N64RecompLauncher/Assets/Discord.png"
 								   Margin="0,0,12,0"/>
 							<TextBlock Text="Discord" 
-									   Foreground="#8B8B8B"
+									   Foreground="{DynamicResource ThemeTextSecondary}"
 									   FontSize="14"
 									   FontWeight="Medium"
 									   VerticalAlignment="Center"/>
@@ -798,7 +788,7 @@
 								   Source="avares://N64RecompLauncher/Assets/Github.png"
 								   Margin="0,0,12,0"/>
 							<TextBlock Text="GitHub" 
-									   Foreground="#8B8B8B"
+									   Foreground="{DynamicResource ThemeTextSecondary}"
 									   FontSize="14"
 									   FontWeight="Medium"
 									   VerticalAlignment="Center"/>
@@ -817,16 +807,17 @@
 
 			<!-- Top Bar -->
 			<Border Grid.Row="0" 
-					Background="#0e0e10" 
-					BorderBrush="#1a1a1c" 
+					Background="{DynamicResource ThemeDarker}" 
+					BorderBrush="{DynamicResource ThemeBorder}"
 					BorderThickness="0,0,0,1"
+					Padding="0,8,0,8"
 					ZIndex="1">
 				<Grid VerticalAlignment="Top">
 					<TextBlock Text="Library"
 							   FontSize="24"
 							   Margin="15,0,0,0"
 							   FontWeight="Bold"
-							   Foreground="#FFFFFF"
+							   Foreground="{DynamicResource ThemeText}"
 							   VerticalAlignment="Center"/>
 					    <StackPanel Orientation="Horizontal"
 						       HorizontalAlignment="Right"
@@ -837,7 +828,7 @@
 								   Text="{Binding currentVersionString}"
 								   VerticalAlignment="Center"
 								   HorizontalAlignment="Right"
-								   Foreground="#aaaaaa"
+								   Foreground="{DynamicResource ThemeText}"
 								   FontSize="14"/>
 
 							<!-- Fullscreen Button -->
@@ -894,8 +885,8 @@
 							HorizontalAlignment="Right"
 							VerticalAlignment="Stretch"
 							Width="400"
-							Background="#14141a"
-							BorderBrush="#1a1a1c"
+							Background="{DynamicResource ThemeDarker}"
+							BorderBrush="{DynamicResource ThemeBorder}"
 							BorderThickness="1,0,0,0"
 							IsVisible="False"
 							Opacity="0.97"
@@ -903,75 +894,75 @@
 					<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 						<StackPanel Margin="30,30,30,30" x:Name="SettingsContent">
 							
-						<TextBlock Text="Settings"
-										   FontSize="28"
+								<TextBlock Text="Settings"
+										   FontSize="32"
 										   FontWeight="Bold"
-										   Foreground="#FFFFFF"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   HorizontalAlignment="Center"/>
 							
 								<!-- General Section -->
 								<TextBlock Text="GENERAL"
 										   FontSize="11"
 										   FontWeight="Bold"
-										   Foreground="#4a4a4a"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   LetterSpacing="1"
 										   HorizontalAlignment="Right"
 										   Margin="0,0,0,15"/>
 
 								<CheckBox x:Name="PortableCheckBox"
 										   Content="Portable Mode"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Checked="PortableCheckBox_Checked"
 										   Unchecked="PortableCheckBox_Unchecked" />
 
 								<TextBlock Text="Store data in the game directory"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<CheckBox x:Name="ShowExperimentalCheckBox"
 										   Content="Show Experimental Games"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Checked="ShowExperimentalCheckBox_Checked"
 										   Unchecked="ShowExperimentalCheckBox_Unchecked" />
 
 								<TextBlock Text="Show Recomp Games that are still experimental"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<CheckBox x:Name="ShowCustomGamesCheckBox"
 										   Content="Show Custom Games"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Checked="ShowCustomGamesCheckBox_Checked"
 										   Unchecked="ShowCustomGamesCheckBox_Unchecked" />
 
 								<TextBlock Text="Show Non-Recomp Games, compatible with this launcher."
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,25"/>
 
 								<TextBlock Text="Custom Games Path"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<TextBlock Text="Enter a custom Game Install Path. Leave Blank for Default."
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   TextWrapping="Wrap"/>
 							
 								<Panel HorizontalAlignment="Stretch" 
 									   Margin="0,0,0,8">
 									<TextBox x:Name="GamePathTextBox"
-											 Foreground="#E0E0E0"
-											 Background="#1a1a1c"
-											 BorderBrush="#2d2d30"
+											 Foreground="{DynamicResource ThemeTextSecondary}"
+											 Background="{DynamicResource ThemeTextDarker}"
+											 BorderBrush="{DynamicResource ThemeBorder}"
 											 BorderThickness="1"
 											 Padding="12,10"
 											 CornerRadius="4"
@@ -1001,12 +992,12 @@
 								<TextBlock Text="Target Platform"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<TextBlock Text="{Binding PlatformString}"
 										   FontSize="12"
-										   Foreground="#B8B8B8"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 							
 								<Button Classes="options"
@@ -1031,12 +1022,31 @@
 								<TextBlock Text="UI CUSTOMIZATION"
 										   FontSize="11"
 										   FontWeight="Bold"
-										   Foreground="#4a4a4a"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   LetterSpacing="1"
 										   HorizontalAlignment="Right"
 										   Margin="0,0,0,15"/>
+								
+								<!-- Theme Color Picker -->
+								<TextBlock Text="Theme Color"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
+										   Margin="0,4,0,8"/>
 
-								<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,16">
+								<Button Classes="options"
+										Content="Choose Theme Color"
+										HorizontalAlignment="Stretch"
+										Margin="0,0,0,8"
+										Click="ThemeColorPicker_Click"/>
+								
+								<!-- Layout Presets -->
+								<TextBlock Text="Game Card Layout"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
+										   Margin="0,4,0,8"/>
+								<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,8">
 									
 									<!-- Layout Preset: Landscape -->
 									<Button Classes="modern-icon"
@@ -1081,41 +1091,41 @@
 
 								<CheckBox x:Name="StartFullscreenCheckBox"
 										   Content="Start in Fullscreen"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Checked="StartFullscreenCheckBox_Checked"
 										   Unchecked="StartFullscreenCheckBox_Unchecked" />
 								
 								<TextBlock Text="Start the launcher in fullscreen mode"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 
 								<CheckBox x:Name="PortraitCheckBox"
 										   Content="Portrait Grid Slots"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Checked="PortraitCheckBox_Checked"
 										   Unchecked="PortraitCheckBox_Unchecked" />
 
 								<TextBlock Text="Display grid items in portrait aspect ratio"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 
 								<TextBlock Text="Slot Scale"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 							
 								<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
 										   FontSize="12"
-										   Foreground="#B8B8B8"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 							
 								<Slider x:Name="SlotSizeSlider"
-										   Foreground="#5865F2"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Minimum="120"
 										   Maximum="400"
@@ -1126,34 +1136,34 @@
 							
 								<TextBlock Text="Adjust the size of game cards"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 
 								<CheckBox x:Name="IconFillCheckBox"
 										   Content="Fill Images"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Checked="IconFillCheckBox_Checked"
 										   Unchecked="IconFillCheckBox_Unchecked" />
 							
 								<TextBlock Text="Stretch images to fill entire card slots"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 							
 								<TextBlock Text="Image Opacity"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 							
 								<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
 										   FontSize="12"
-										   Foreground="#B8B8B8"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<Slider x:Name="IconOpacitySlider"
-										   Foreground="#5865F2"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Minimum="0.0"
 										   Maximum="1.0"
@@ -1164,22 +1174,22 @@
 
 								<TextBlock Text="Control transparency of game images"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 
 								<TextBlock Text="Image Size"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 							
 								<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
 										   FontSize="12"
-										   Foreground="#B8B8B8"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<Slider x:Name="IconSizeSlider"
-										   Foreground="#5865F2"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Minimum="64"
 										   Maximum="512"
@@ -1190,22 +1200,22 @@
 
 								<TextBlock Text="Adjust game image dimensions"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 
 								<TextBlock Text="Image Margin"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 							
 								<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
 										   FontSize="12"
-										   Foreground="#B8B8B8"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<Slider x:Name="IconMarginSlider"
-										   Foreground="#5865F2"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Minimum="0"
 										   Maximum="512"
@@ -1216,22 +1226,22 @@
 
 								<TextBlock Text="Set left padding for images"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 
 								<TextBlock Text="Text Margin"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 							
 								<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
 										   FontSize="12"
-										   Foreground="#B8B8B8"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<Slider x:Name="TextMarginSlider"
-										   Foreground="#5865F2"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   Minimum="0"
 										   Maximum="256"
@@ -1242,14 +1252,14 @@
 
 								<TextBlock Text="Adjust left spacing of text labels"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,30"/>
 
 								<!-- GitHub API Token Section -->
 								<TextBlock Text="GITHUB API"
 										   FontSize="11"
 										   FontWeight="Bold"
-										   Foreground="#4a4a4a"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   LetterSpacing="1"
 										   HorizontalAlignment="Right"
 										   Margin="0,0,0,15"/>
@@ -1257,13 +1267,13 @@
 								<TextBlock Text="GitHub API Token"
 										   FontSize="13"
 										   FontWeight="SemiBold"
-										   Foreground="#E0E0E0"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"/>
 
 								<TextBox x:Name="GitHubTokenTextBox"
-										 Foreground="#E0E0E0"
-										 Background="#1a1a1c"
-										 BorderBrush="#2d2d30"
+										 Foreground="{DynamicResource ThemeTextSecondary}"
+										 Background="{DynamicResource ThemeTextDarker}"
+										 BorderBrush="{DynamicResource ThemeBorder}"
 										 BorderThickness="1"
 										 Padding="12,10"
 										 CornerRadius="4"
@@ -1273,7 +1283,7 @@
 
 								<TextBlock Text="Enter your personal access token from GitHub to increase API call limits"
 										   FontSize="12"
-										   Foreground="#6B6B6B"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,8"
 										   TextWrapping="Wrap"/>
 

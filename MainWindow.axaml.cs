@@ -129,6 +129,20 @@ namespace N64RecompLauncher
             }
         }
         public string InfoTextLength = "*";
+        private SolidColorBrush _themeColorBrush;
+        public SolidColorBrush ThemeColorBrush
+        {
+            get => _themeColorBrush;
+            set
+            {
+                if (_themeColorBrush != value)
+                {
+                    _themeColorBrush = value;
+                    OnPropertyChanged(nameof(ThemeColorBrush));
+                    UpdateThemeColors();
+                }
+            }
+        }
 
         public MainWindow()
         {
@@ -145,6 +159,10 @@ namespace N64RecompLauncher
             }
 
             _gameManager = new GameManager();
+
+            // Initialize theme BEFORE other UI setup
+            ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.ThemeColor ?? "#18181b"));
+            UpdateThemeColors();
 
             _gameManager.UnhideAllGames();
             LoadCurrentVersion();
@@ -179,6 +197,142 @@ namespace N64RecompLauncher
                     }
                 }
             };
+        }
+
+        // Is Theme Color Light
+        private bool IsLightColor(Color color)
+        {
+            // Calculate perceived brightness using standard formula
+            double brightness = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
+            return brightness > 0.5;
+        }
+
+        // Theme Color Shades
+        private Color GetShadedColor(Color baseColor, double factor)
+        {
+            byte r = (byte)Math.Min(255, Math.Max(0, baseColor.R * factor));
+            byte g = (byte)Math.Min(255, Math.Max(0, baseColor.G * factor));
+            byte b = (byte)Math.Min(255, Math.Max(0, baseColor.B * factor));
+            return Color.FromRgb(r, g, b);
+        }
+
+        // Update all Theme Colors
+        private void UpdateThemeColors()
+        {
+            if (_themeColorBrush == null) return;
+
+            var baseColor = _themeColorBrush.Color;
+            bool isLight = IsLightColor(baseColor);
+
+            // Update resources in THIS WINDOW, not Application
+            if (this.Resources != null)
+            {
+                this.Resources["ThemeBase"] = new SolidColorBrush(baseColor);
+                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(baseColor, 1.2));
+                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(baseColor, 0.8));
+                this.Resources["ThemeBorder"] = new SolidColorBrush(GetShadedColor(baseColor, 1.1));
+                this.Resources["ThemeText"] = new SolidColorBrush(isLight ? Colors.Black : Colors.White);
+                this.Resources["ThemeTextSecondary"] = new SolidColorBrush(isLight ? Color.FromRgb(90, 90, 90) : Color.FromRgb(180, 180, 180));
+            }
+        }
+
+        // Color Picker Preset Dialog
+        private async void ThemeColorPicker_Click(object sender, RoutedEventArgs e)
+        {
+            // Simple color presets dialog
+            var presets = new Dictionary<string, string>
+            {
+                { "Black", "#000000" },
+                { "Dark Gray (Default)", "#18181b" },
+                { "Charcoal Gray", "#2c2c2c" },
+                { "Slate Gray", "#36454f" },
+
+                { "Dark Blue", "#1e3a5f" },
+                { "Navy Blue", "#0f2b46" },
+                { "Deep Indigo", "#2c3e50" },
+
+                { "Dark Green", "#1a4d2e" },
+                { "Forest Green", "#228b22" },
+                { "Deep Moss Green", "#2c5f2d" },
+
+                { "Dark Purple", "#2d1b4e" },
+                { "Deep Plum", "#4b0082" },
+                { "Dark Eggplant", "#614051" },
+
+                { "Dark Red", "#4d1f1f" },
+                { "Burgundy", "#800020" },
+                { "Deep Maroon", "#5c0b0b" },
+
+                { "Light Gray", "#e5e5e5" },
+                { "Silver Gray", "#c0c0c0" },
+                { "Pale Gray", "#f0f0f0" },
+
+                { "Light Blue", "#d4e4f7" },
+                { "Sky Blue", "#87ceeb" },
+                { "Powder Blue", "#b0e0e6" },
+
+                { "Light Green", "#d4f1e8" },
+                { "Mint Green", "#98fb98" },
+                { "Sea Foam Green", "#98ff98" }
+            };
+
+            await ShowColorPresetsDialog(presets);
+        }
+
+        private async Task ShowColorPresetsDialog(Dictionary<string, string> presets)
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var stackPanel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
+
+                    foreach (var preset in presets)
+                    {
+                        var button = new Button
+                        {
+                            Content = preset.Key,
+                            HorizontalAlignment = HorizontalAlignment.Stretch,
+                            Height = 40,
+                            Background = new SolidColorBrush(Color.Parse(preset.Value)),
+                            Foreground = new SolidColorBrush(IsLightColor(Color.Parse(preset.Value)) ? Colors.Black : Colors.White),
+                            Tag = preset.Value
+                        };
+
+                        button.Click += (s, e) =>
+                        {
+                            var colorHex = (s as Button)?.Tag as string;
+                            if (!string.IsNullOrEmpty(colorHex))
+                            {
+                                _settings.ThemeColor = colorHex;
+                                ThemeColorBrush = new SolidColorBrush(Color.Parse(colorHex));
+                                OnSettingChanged();
+
+                                // Close the dialog after selection
+                                if (s is Button btn && btn.Parent != null)
+                                {
+                                    var window = btn.GetVisualRoot() as Window;
+                                    window?.Close();
+                                }
+                            }
+                        };
+
+                        stackPanel.Children.Add(button);
+                    }
+
+                    var messageBox = new Window
+                    {
+                        Title = "Select Theme Color",
+                        Width = 300,
+                        Height = 1000,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Content = new ScrollViewer { Content = stackPanel }
+                    };
+
+                    await messageBox.ShowDialog(desktop.MainWindow);
+                }
+            });
         }
 
         private void UpdateContinueButtonState()
@@ -734,6 +888,10 @@ namespace N64RecompLauncher
                     TargetOS.Flatpak => "Flatpak",
                     _ => "Unknown"
                 };
+
+                // Initialize theme
+                ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.ThemeColor ?? "#18181b"));
+                UpdateThemeColors();
             }
         }
 
