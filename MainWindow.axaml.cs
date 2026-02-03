@@ -243,6 +243,7 @@ namespace N64RecompLauncher
             var presets = new Dictionary<string, string>
             {
                 { "Black", "#000000" },
+                { "Darker Gray", "#101010" },
                 { "Dark Gray (Default)", "#18181b" },
                 { "Charcoal Gray", "#2c2c2c" },
                 { "Slate Gray", "#36454f" },
@@ -250,10 +251,17 @@ namespace N64RecompLauncher
                 { "Dark Blue", "#1e3a5f" },
                 { "Navy Blue", "#0f2b46" },
                 { "Deep Indigo", "#2c3e50" },
+                { "Dark Greyish Blue", "#45475a" },
+                { "Very dark (mostly black) Blue", "#19191c" },
 
                 { "Dark Green", "#1a4d2e" },
                 { "Forest Green", "#228b22" },
                 { "Deep Moss Green", "#2c5f2d" },
+                { "Fern Green", "#134411" },
+                { "Dark Green", "#063204" },
+                { "Black Forest Green", "#051D01" },
+                { "Dark Olive Green", "#556b2f" },
+                { "Dark Yello Olive", "#2a2922" },
 
                 { "Dark Purple", "#2d1b4e" },
                 { "Deep Plum", "#4b0082" },
