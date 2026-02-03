@@ -1969,7 +1969,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
+        static async void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -2030,7 +2030,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
+        static async void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -2045,7 +2045,6 @@ namespace N64RecompLauncher.Models
                 };
 
                 using var process = Process.Start(startInfo);
-                SelectedExecutable = null;
                 process?.WaitForExit();
 
                 if (process?.ExitCode != 0)
