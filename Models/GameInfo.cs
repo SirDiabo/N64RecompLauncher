@@ -230,6 +230,36 @@ namespace N64RecompLauncher.Models
 
         public bool HasMultipleExecutables => AvailableExecutables?.Count > 1;
 
+        private List<GitHubAsset>? _availableDownloads;
+        public List<GitHubAsset>? AvailableDownloads
+        {
+            get => _availableDownloads;
+            set
+            {
+                if (_availableDownloads != value)
+                {
+                    _availableDownloads = value;
+                    DispatchPropertyChanged();
+                }
+            }
+        }
+
+        private GitHubAsset? _selectedDownload;
+        public GitHubAsset? SelectedDownload
+        {
+            get => _selectedDownload;
+            set
+            {
+                if (_selectedDownload != value)
+                {
+                    _selectedDownload = value;
+                    DispatchPropertyChanged();
+                }
+            }
+        }
+
+        public bool HasMultipleDownloads => AvailableDownloads?.Count > 1;
+
         public bool IsInstalled
         {
             get
@@ -1196,25 +1226,24 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
+                // Store available downloads for potential UI display
+                AvailableDownloads = availableAssets;
+
                 GitHubAsset? asset = null;
 
-                // If multiple assets, show selection menu
-                if (availableAssets.Count > 1)
+                // If multiple downloads and no selection made, trigger selection UI
+                if (availableAssets.Count > 1 && SelectedDownload == null)
                 {
-                    asset = await ShowAssetSelectionMenu(availableAssets, platformIdentifier);
+                    // Signal to UI that selection is needed
+                    OnPropertyChanged(nameof(HasMultipleDownloads));
+                    OnPropertyChanged(nameof(AvailableDownloads));
+                    Status = GameStatus.NotInstalled;
+                    DownloadProgress = 0;
+                    return;
+                }
 
-                    if (asset == null)
-                    {
-                        // User cancelled
-                        Status = GameStatus.NotInstalled;
-                        DownloadProgress = 0;
-                        return;
-                    }
-                }
-                else
-                {
-                    asset = availableAssets[0];
-                }
+                // Use selected download or default to first one
+                asset = SelectedDownload ?? availableAssets[0];
 
                 // Download the asset
                 var downloadPath = Path.Combine(Path.GetTempPath(), asset.name);
@@ -1323,160 +1352,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private async Task<GitHubAsset?> ShowAssetSelectionMenu(List<GitHubAsset> assets, string platformIdentifier)
-        {
-            GitHubAsset? selectedAsset = null;
-            var tcs = new TaskCompletionSource<GitHubAsset?>();
-
-            await Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-                    desktop.MainWindow != null)
-                {
-                    var window = new Window
-                    {
-                        Title = "Select Download File",
-                        Width = 600,
-                        Height = 400,
-                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                        Content = new StackPanel
-                        {
-                            Margin = new Thickness(20),
-                            Children =
-                    {
-                        new TextBlock
-                        {
-                            Text = $"Multiple download files found for {Name}.\nPlease select which file to download:",
-                            TextWrapping = TextWrapping.Wrap,
-                            Margin = new Thickness(0, 0, 0, 15),
-                            FontSize = 14
-                        },
-                        new ScrollViewer
-                        {
-                            Height = 250,
-                            Content = new StackPanel
-                            {
-                                Spacing = 8
-                            }
-                        },
-                        new StackPanel
-                        {
-                            Orientation = Orientation.Horizontal,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            Spacing = 10,
-                            Margin = new Thickness(0, 15, 0, 0),
-                            Children =
-                            {
-                                new Button { Content = "Cancel", Width = 100 }
-                            }
-                        }
-                    }
-                        }
-                    };
-
-                    var scrollViewer = ((StackPanel)window.Content).Children[1] as ScrollViewer;
-                    var assetList = scrollViewer.Content as StackPanel;
-                    var buttonPanel = ((StackPanel)window.Content).Children[2] as StackPanel;
-                    var cancelButton = buttonPanel.Children[0] as Button;
-
-                    // Find the preferred asset based on platform detection
-                    var preferredAsset = assets.FirstOrDefault(a => MatchesPlatform(a.name, platformIdentifier));
-
-                    // Sort assets: preferred first, then alphabetically
-                    var sortedAssets = assets.OrderByDescending(a => a == preferredAsset)
-                                            .ThenBy(a => a.name)
-                                            .ToList();
-
-                    // Create menu items for each asset
-                    foreach (var asset in sortedAssets)
-                    {
-                        bool isPreferred = asset == preferredAsset;
-
-                        // Determine platform icon
-                        string? iconPath = GetPlatformIcon(asset.name);
-
-                        // Create a grid for icon + text layout
-                        var contentGrid = new Grid
-                        {
-                            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
-                            HorizontalAlignment = HorizontalAlignment.Stretch
-                        };
-
-                        // Add icon if detected
-                        if (!string.IsNullOrEmpty(iconPath))
-                        {
-                            var icon = new Avalonia.Controls.Image
-                            {
-                                Source = new Avalonia.Media.Imaging.Bitmap(
-                                    Avalonia.Platform.AssetLoader.Open(new Uri(iconPath))),
-                                Width = 20,
-                                Height = 20,
-                                Margin = new Thickness(0, 0, 10, 0),
-                                VerticalAlignment = VerticalAlignment.Center
-                            };
-                            Grid.SetColumn(icon, 0);
-                            contentGrid.Children.Add(icon);
-                        }
-
-                        // Add filename text
-                        var displayName = asset.name + (isPreferred ? " (Recommended)" : "");
-                        var textBlock = new TextBlock
-                        {
-                            Text = displayName,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            TextTrimming = TextTrimming.CharacterEllipsis
-                        };
-                        Grid.SetColumn(textBlock, 1);
-                        contentGrid.Children.Add(textBlock);
-
-                        var button = new Button
-                        {
-                            Content = contentGrid,
-                            Tag = asset,
-                            HorizontalAlignment = HorizontalAlignment.Stretch,
-                            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                            Padding = new Thickness(12, 10, 12, 10),
-                            Margin = new Thickness(0, 0, 0, 0)
-                        };
-
-                        if (isPreferred)
-                        {
-                            button.Classes.Add("accent");
-                        }
-
-                        button.Click += (s, e) =>
-                        {
-                            selectedAsset = (s as Button)?.Tag as GitHubAsset;
-                            tcs.TrySetResult(selectedAsset);
-                            window.Close();
-                        };
-
-                        assetList.Children.Add(button);
-                    }
-
-                    window.Closing += (s, e) =>
-                    {
-                        tcs.TrySetResult(null);
-                    };
-
-                    cancelButton.Click += (s, e) =>
-                    {
-                        tcs.TrySetResult(null);
-                        window.Close();
-                    };
-
-                    await window.ShowDialog(desktop.MainWindow);
-                }
-                else
-                {
-                    tcs.TrySetResult(null);
-                }
-            });
-
-            return await tcs.Task;
-        }
-
-        private static string? GetPlatformIcon(string assetName)
+        public static string? GetPlatformIcon(string assetName)
         {
             var assetNameLower = assetName.ToLowerInvariant();
 
@@ -1515,7 +1391,7 @@ namespace N64RecompLauncher.Models
             return null; // No platform detected
         }
 
-        private static bool MatchesPlatform(string assetName, string platformIdentifier)
+        public static bool MatchesPlatform(string assetName, string platformIdentifier)
         {
             if (string.IsNullOrWhiteSpace(assetName) || string.IsNullOrWhiteSpace(platformIdentifier))
             {
@@ -2141,7 +2017,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static string GetPlatformIdentifier(AppSettings settings)
+        public static string GetPlatformIdentifier(AppSettings settings)
         {
             if (settings.Platform == TargetOS.Auto)
             {

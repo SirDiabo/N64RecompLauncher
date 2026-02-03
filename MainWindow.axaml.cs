@@ -398,6 +398,17 @@ namespace N64RecompLauncher
             {
                 try
                 {
+                    // Check if multiple downloads need selection
+                    if ((game.Status == GameStatus.NotInstalled || game.Status == GameStatus.UpdateAvailable) &&
+                        game.HasMultipleDownloads && game.SelectedDownload == null)
+                    {
+                        if (button != null)
+                        {
+                            ShowDownloadSelectionMenu(button, game);
+                        }
+                        return;
+                    }
+
                     await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
 
                     // Check if multiple executables need selection
@@ -416,6 +427,134 @@ namespace N64RecompLauncher
                     await ShowMessageBoxAsync($"Failed to perform action for {game.Name}: {ex.Message}", "Action Error");
                 }
             }
+        }
+
+        private void ShowDownloadSelectionMenu(Button sourceButton, GameInfo game)
+        {
+            if (game.AvailableDownloads == null || game.AvailableDownloads.Count == 0)
+                return;
+
+            var contextMenu = new ContextMenu();
+
+            // Add header
+            var headerItem = new MenuItem
+            {
+                Header = "Select download file:",
+                IsEnabled = false,
+                FontWeight = FontWeight.Bold
+            };
+            contextMenu.Items.Add(headerItem);
+            contextMenu.Items.Add(new Separator());
+
+            // Get platform identifier for matching
+            string platformIdentifier = GameInfo.GetPlatformIdentifier(_settings);
+
+            // Sort downloads: preferred platform first, then others
+            var sortedDownloads = game.AvailableDownloads
+                .OrderByDescending(asset => GameInfo.MatchesPlatform(asset.name, platformIdentifier))
+                .ToList();
+
+            // Add download options
+            foreach (var asset in sortedDownloads)
+            {
+                bool isPreferred = GameInfo.MatchesPlatform(asset.name, platformIdentifier);
+
+                // Detect platform icon
+                string? iconPath = GameInfo.GetPlatformIcon(asset.name);
+
+                // Create grid
+                var contentGrid = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                };
+
+                // Add icon if detected
+                if (!string.IsNullOrEmpty(iconPath))
+                {
+                    var icon = new Avalonia.Controls.Image
+                    {
+                        Source = new Avalonia.Media.Imaging.Bitmap(
+                            Avalonia.Platform.AssetLoader.Open(new Uri(iconPath))),
+                        Width = 20,
+                        Height = 20,
+                        Margin = new Thickness(0, 0, 10, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(icon, 0);
+                    contentGrid.Children.Add(icon);
+                }
+
+                // Add filename text
+                var displayName = asset.name + (isPreferred ? " (Recommended)" : "");
+                var textBlock = new TextBlock
+                {
+                    Text = displayName,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(textBlock, 1);
+                contentGrid.Children.Add(textBlock);
+
+                var menuItem = new MenuItem
+                {
+                    Header = contentGrid,
+                    Tag = asset
+                };
+
+                if (isPreferred)
+                {
+                    menuItem.Classes.Add("accent");
+                }
+
+                menuItem.Click += async (s, e) =>
+                {
+                    var selectedAsset = (s as MenuItem)?.Tag as GitHubAsset;
+                    game.SelectedDownload = selectedAsset;
+                    try
+                    {
+                        await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowMessageBoxAsync($"Failed to download {game.Name}: {ex.Message}", "Download Error");
+                    }
+                };
+
+                contextMenu.Items.Add(menuItem);
+            }
+
+            contextMenu.Items.Add(new Separator());
+
+            // Add cancel option
+            var cancelItem = new MenuItem
+            {
+                Header = "Cancel"
+            };
+            cancelItem.Click += (s, e) =>
+            {
+                game.SelectedDownload = null;
+            };
+            contextMenu.Items.Add(cancelItem);
+
+            // Attach to button and open
+            sourceButton.ContextMenu = contextMenu;
+            contextMenu.PlacementTarget = sourceButton;
+            contextMenu.Placement = PlacementMode.Bottom;
+
+            // Focus first download item when opened
+            contextMenu.Opened += (s, e) =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    var firstDownloadItem = contextMenu.Items.OfType<MenuItem>()
+                        .Skip(1)
+                        .FirstOrDefault(item => item is MenuItem mi && mi.IsEnabled);
+                    firstDownloadItem?.Focus();
+                }, DispatcherPriority.Loaded);
+            };
+
+            contextMenu.Open(sourceButton);
         }
 
         private void ShowExecutableSelectionMenu(Button sourceButton, GameInfo game)
