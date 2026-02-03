@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
@@ -468,8 +468,8 @@ namespace N64RecompLauncher.Models
                     var messageBox = new Window
                     {
                         Title = title,
-                        Width = 400,
-                        Height = 150,
+                        Width = 800,
+                        Height = 400,
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
                         Content = new StackPanel
                         {
@@ -1327,7 +1327,23 @@ namespace N64RecompLauncher.Models
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    await ShowMessageBoxAsync($"Network error installing {Name}: {ex.Message}\n\nPlease check your internet connection.", "Network Error");
+                    // Check if it's a rate limit error
+                    if (ex.Message.Contains("403") || ex.Message.ToLower().Contains("rate limit"))
+                    {
+                        await ShowMessageBoxAsync(
+                            $"GitHub API rate limit exceeded.\n\n" +
+                            $"GitHub limits anonymous requests to 60 per hour. The limit resets one hour after depletion.\n\n" +
+                            $"To avoid this, add a GitHub API token in Settings:\n" +
+                            $"1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)\n" +
+                            $"2. Generate new token (no special permissions needed)\n" +
+                            $"3. Paste the token in the launcher Settings\n\n" +
+                            $"Note: Do not share your token with anyone!",
+                            "Rate Limit Exceeded");
+                    }
+                    else
+                    {
+                        await ShowMessageBoxAsync($"Network error installing {Name}: {ex.Message}\n\nPlease check your internet connection.", "Network Error");
+                    }
                 });
                 Status = GameStatus.NotInstalled;
                 DownloadProgress = 0;

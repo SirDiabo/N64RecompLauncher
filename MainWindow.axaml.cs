@@ -392,12 +392,12 @@ namespace N64RecompLauncher
 
         private async void GameButton_Click(object sender, RoutedEventArgs e)
         {
-            var button = sender as Button;
-            var game = button?.Tag as GameInfo;
-            if (game != null)
+            if (sender is Button button && button.DataContext is GameInfo game)
             {
                 try
                 {
+                    await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+
                     // Check if multiple downloads need selection
                     if ((game.Status == GameStatus.NotInstalled || game.Status == GameStatus.UpdateAvailable) &&
                         game.HasMultipleDownloads && game.SelectedDownload == null)
@@ -409,8 +409,6 @@ namespace N64RecompLauncher
                         return;
                     }
 
-                    await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
-
                     // Check if multiple executables need selection
                     if (game.Status == GameStatus.Installed && game.HasMultipleExecutables && string.IsNullOrEmpty(game.SelectedExecutable))
                     {
@@ -418,6 +416,7 @@ namespace N64RecompLauncher
                         {
                             ShowExecutableSelectionMenu(button, game);
                         }
+                        return;
                     }
 
                     UpdateContinueButtonState();
@@ -476,8 +475,8 @@ namespace N64RecompLauncher
                     {
                         Source = new Avalonia.Media.Imaging.Bitmap(
                             Avalonia.Platform.AssetLoader.Open(new Uri(iconPath))),
-                        Width = 20,
-                        Height = 20,
+                        Width = 28,
+                        Height = 28,
                         Margin = new Thickness(0, 0, 10, 0),
                         VerticalAlignment = VerticalAlignment.Center
                     };
