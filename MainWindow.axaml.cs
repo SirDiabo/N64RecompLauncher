@@ -493,20 +493,23 @@ namespace N64RecompLauncher
 
         public void LayoutPreset_Landscape_Click(object sender, RoutedEventArgs e)
         {
-            _settings.PortraitFrame = false;
             _settings.IconFill = true;
-            _settings.SlotSize = 200;
+            _settings.UseGridView = true;
+            _settings.SlotSize = 276;
             _settings.IconSize = 200;
-            InfoTextLength = "*";
+            _settings.IconMargin = 0;
+            _settings.SlotTextMargin = 0;
+            _settings.IconOpacity = 1.0f;
+            InfoTextLength = "90";
             OnSettingChanged();
             UpdateSettingsUI();
         }
 
         public void LayoutPreset_Portrait_Click(object sender, RoutedEventArgs e)
         {
-            _settings.PortraitFrame = true;
             _settings.IconFill = true;
-            _settings.SlotSize = 200;
+            _settings.UseGridView = true;
+            _settings.SlotSize = 144;
             _settings.IconSize = 200;
             _settings.IconMargin = 0;
             _settings.SlotTextMargin = 0;
@@ -518,8 +521,22 @@ namespace N64RecompLauncher
 
         public void LayoutPreset_Square_Click(object sender, RoutedEventArgs e)
         {
-            _settings.PortraitFrame = true;
             _settings.IconFill = true;
+            _settings.UseGridView = true;
+            _settings.SlotSize = 208;
+            _settings.IconSize = 208;
+            _settings.IconMargin = 0;
+            _settings.SlotTextMargin = 0;
+            _settings.IconOpacity = 1.0f;
+            InfoTextLength = "*";
+            OnSettingChanged();
+            UpdateSettingsUI();
+        }
+
+        public void LayoutPreset_Grid_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.IconFill = true;
+            _settings.UseGridView = true;
             _settings.SlotSize = 272;
             _settings.IconSize = 200;
             _settings.IconMargin = 0;
@@ -532,8 +549,8 @@ namespace N64RecompLauncher
 
         public void LayoutPreset_List_Click(object sender, RoutedEventArgs e)
         {
-            _settings.PortraitFrame = false;
             _settings.IconFill = false;
+            _settings.UseGridView = false;
             _settings.SlotSize = 120;
             _settings.IconSize = 116;
             _settings.IconMargin = 8;
@@ -860,8 +877,8 @@ namespace N64RecompLauncher
                 if (SlotSizeSlider != null)
                     SlotSizeSlider.Value = _settings.SlotSize;
 
-                if (PortraitCheckBox != null)
-                    PortraitCheckBox.IsChecked = _settings.PortraitFrame;
+                if (UseGridViewCheckBox != null)
+                    UseGridViewCheckBox.IsChecked = _settings.UseGridView;
 
                 if (ShowExperimentalCheckBox != null)
                     ShowExperimentalCheckBox.IsChecked = _settings.ShowExperimentalGames;
@@ -925,22 +942,16 @@ namespace N64RecompLauncher
             }
         }
 
-        private void PortraitCheckBox_Checked(object sender, RoutedEventArgs e)
+        private void UseGridViewCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            if (_settings != null)
-            {
-                _settings.PortraitFrame = true;
-                OnSettingChanged();
-            }
+            _settings.UseGridView = true;
+            OnSettingChanged();
         }
 
-        private void PortraitCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        private void UseGridViewCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (_settings != null)
-            {
-                _settings.PortraitFrame = false;
-                OnSettingChanged();
-            }
+            _settings.UseGridView = false;
+            OnSettingChanged();
         }
 
         private void PortableCheckBox_Checked(object sender, RoutedEventArgs e)

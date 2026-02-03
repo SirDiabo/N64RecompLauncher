@@ -13,8 +13,6 @@
 	<Window.Resources>
 		<local:BooleanToStretchConverter x:Key="BooleanToStretchConverter"/>
 		<local:ThicknessConverter x:Key="ThicknessConverter"/>
-		<local:SlotScaleToGridConverter x:Key="SlotScaleToGridConverter"/>
-		<local:GridWidthMultiConverter x:Key="GridWidthMultiConverter"/>
 
 		<!-- Theme Color Resources -->
 		<SolidColorBrush x:Key="ThemeBase" Color="#18181b"/>
@@ -142,10 +140,7 @@
 			<StackPanel>
 				<Border Classes="gamecardgrid">
 					<Border.Width>
-						<MultiBinding Converter="{StaticResource GridWidthMultiConverter}">
-							<Binding ElementName="SlotSizeSlider" Path="Value"/>
-							<Binding ElementName="PortraitCheckBox" Path="IsChecked"/>
-						</MultiBinding>
+						<Binding ElementName="SlotSizeSlider" Path="Value"/>
 					</Border.Width>
 					<Grid ClipToBounds="True">
 						<!-- Background Image -->
@@ -222,10 +217,7 @@
 				<!-- Info Bar Below Card -->
 				<Grid>
 					<Grid.Width>
-						<MultiBinding Converter="{StaticResource GridWidthMultiConverter}">
-							<Binding ElementName="SlotSizeSlider" Path="Value"/>
-							<Binding ElementName="PortraitCheckBox" Path="IsChecked"/>
-						</MultiBinding>
+						<Binding ElementName="SlotSizeSlider" Path="Value"/>
 					</Grid.Width>
 					<Grid Margin="10,0,10,20">
 						<Grid.ColumnDefinitions>
@@ -860,14 +852,14 @@
 				<ScrollViewer VerticalScrollBarVisibility="Auto" x:Name="GameScrollViewer" Margin="30,20,30,30">
 					<Grid>
 						<ItemsControl ItemsSource="{Binding Games}" x:Name="ListViewControl"
-									  IsVisible="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=List}">
+									  IsVisible="{Binding ElementName=UseGridViewCheckBox, Path=IsChecked, Converter={x:Static local:BoolInverterConverter.Instance}}">
 							<ItemsControl.ItemTemplate>
 								<StaticResource ResourceKey="ListViewTemplate"/>
 							</ItemsControl.ItemTemplate>
 						</ItemsControl>
 
 						<ItemsControl ItemsSource="{Binding Games}" x:Name="GridViewControl"
-									  IsVisible="{Binding ElementName=SlotSizeSlider, Path=Value, Converter={StaticResource SlotScaleToGridConverter}, ConverterParameter=Grid}">
+									  IsVisible="{Binding ElementName=UseGridViewCheckBox, Path=IsChecked}">
 							<ItemsControl.ItemsPanel>
 								<ItemsPanelTemplate>
 									<WrapPanel Orientation="Horizontal" />
@@ -1078,7 +1070,7 @@
 											   Source="avares://N64RecompLauncher/Assets/Icons/preset_portrait.png"/>
 									</Button>
 
-									<!-- Layout Preset: Portrait -->
+									<!-- Layout Preset: List -->
 									<Button Classes="modern-icon"
 											Width="64"
 											Margin="10,0,64,0"
@@ -1101,14 +1093,14 @@
 										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
 
-								<CheckBox x:Name="PortraitCheckBox"
-										   Content="Portrait Grid Slots"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Checked="PortraitCheckBox_Checked"
-										   Unchecked="PortraitCheckBox_Unchecked" />
+								<CheckBox x:Name="UseGridViewCheckBox"
+										  Content="Grid View"
+										  Foreground="{DynamicResource ThemeTextSecondary}"
+										  Margin="0,0,0,8"
+										  Checked="UseGridViewCheckBox_Checked"
+										  Unchecked="UseGridViewCheckBox_Unchecked" />
 
-								<TextBlock Text="Display grid items in portrait aspect ratio"
+								<TextBlock Text="Display games in grid layout instead of list"
 										   FontSize="12"
 										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
@@ -1133,6 +1125,27 @@
 										   TickFrequency="4"
 										   IsSnapToTickEnabled="True"
 										   ValueChanged="SlotSizeSlider_ValueChanged" />
+
+								<TextBlock Text="Image Size"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
+										   Margin="0,0,0,8"/>
+							
+								<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
+										   FontSize="12"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
+										   Margin="0,0,0,8"/>
+
+								<Slider x:Name="IconSizeSlider"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
+										   Margin="0,0,0,8"
+										   Minimum="64"
+										   Maximum="512"
+										   Value="256"
+										   TickFrequency="4"
+										   IsSnapToTickEnabled="True"
+										   ValueChanged="IconSizeSlider_ValueChanged" />
 							
 								<TextBlock Text="Adjust the size of game cards"
 										   FontSize="12"
@@ -1176,27 +1189,6 @@
 										   FontSize="12"
 										   Foreground="{DynamicResource ThemeTextSecondary}"
 										   Margin="0,0,0,20"/>
-
-								<TextBlock Text="Image Size"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-
-								<Slider x:Name="IconSizeSlider"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Minimum="64"
-										   Maximum="512"
-										   Value="256"
-										   TickFrequency="4"
-										   IsSnapToTickEnabled="True"
-										   ValueChanged="IconSizeSlider_ValueChanged" />
 
 								<TextBlock Text="Adjust game image dimensions"
 										   FontSize="12"
