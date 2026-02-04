@@ -255,26 +255,26 @@ namespace N64RecompLauncher
                 { "Charcoal Gray", "#2c2c2c" },
                 { "Slate Gray", "#36454f" },
 
-                { "Dark Blue", "#1e3a5f" },
-                { "Navy Blue", "#0f2b46" },
+                { "Dark Navy Blue", "#1e3a5f" },
+                { "Deep Navy", "#0f2b46" },
                 { "Deep Indigo", "#2c3e50" },
-                { "Dark Greyish Blue", "#45475a" },
-                { "Very dark (mostly black) Blue", "#19191c" },
+                { "Dark Grayish Blue", "#45475a" },
+                { "Midnight Black", "#19191c" },
 
-                { "Dark Green", "#1a4d2e" },
-                { "Darker Green", "#063204" },
+                { "Deep Forest Green", "#1a4d2e" },
+                { "Darkest Green", "#063204" },
                 { "Forest Green", "#228b22" },
                 { "Deep Moss Green", "#2c5f2d" },
-                { "Fern Green", "#134411" },
+                { "Deep Forest", "#134411" },
                 { "Black Forest Green", "#051D01" },
                 { "Dark Olive Green", "#556b2f" },
-                { "Dark Yello Olive", "#2a2922" },
+                { "Dark Olive Drab", "#2a2922" },
 
-                { "Dark Purple", "#2d1b4e" },
+                { "Deep Purple", "#2d1b4e" },
                 { "Deep Plum", "#4b0082" },
                 { "Dark Eggplant", "#614051" },
 
-                { "Dark Red", "#4d1f1f" },
+                { "Dark Burgundy", "#4d1f1f" },
                 { "Burgundy", "#800020" },
                 { "Deep Maroon", "#5c0b0b" },
 
@@ -282,13 +282,13 @@ namespace N64RecompLauncher
                 { "Silver Gray", "#c0c0c0" },
                 { "Pale Gray", "#f0f0f0" },
 
-                { "Light Blue", "#d4e4f7" },
+                { "Soft Blue", "#d4e4f7" },
                 { "Sky Blue", "#87ceeb" },
                 { "Powder Blue", "#b0e0e6" },
 
-                { "Light Green", "#d4f1e8" },
+                { "Seafoam Green", "#d4f1e8" },
                 { "Mint Green", "#98fb98" },
-                { "Sea Foam Green", "#98ff98" }
+                { "Bright Sea Foam", "#98ff98" }
             };
 
             await ShowColorPresetsDialog(presets);
@@ -2049,7 +2049,6 @@ namespace N64RecompLauncher
                     launcherPath,
                     _gameManager.CacheFolder);
 
-                await ShowMessageBoxAsync($"Shortcut created on desktop for {game.Name}", "Success");
             }
             catch (Exception ex)
             {
