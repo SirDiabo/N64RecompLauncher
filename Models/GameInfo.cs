@@ -2125,6 +2125,13 @@ namespace N64RecompLauncher.Models
                                name.EndsWith(".arm64") || name.EndsWith(".aarch64");
                     });
 
+                    // If no native Linux files exist, look for Windows executables (for Wine/Proton support)
+                    if (candidateFile == null)
+                    {
+                        candidateFile = allFiles.FirstOrDefault(f =>
+                            f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+                    }
+
                     // Named executables
                     if (candidateFile == null)
                     {
