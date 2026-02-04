@@ -250,10 +250,10 @@ namespace N64RecompLauncher
                 { "Very dark (mostly black) Blue", "#19191c" },
 
                 { "Dark Green", "#1a4d2e" },
+                { "Darker Green", "#063204" },
                 { "Forest Green", "#228b22" },
                 { "Deep Moss Green", "#2c5f2d" },
                 { "Fern Green", "#134411" },
-                { "Dark Green", "#063204" },
                 { "Black Forest Green", "#051D01" },
                 { "Dark Olive Green", "#556b2f" },
                 { "Dark Yello Olive", "#2a2922" },
