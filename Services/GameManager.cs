@@ -775,10 +775,10 @@ namespace N64RecompLauncher.Services
                 allGames = new List<GameInfo>();
 
             var filteredGames = allGames
-                .Where(game => game != null && (!game.IsExperimental || settings.ShowExperimentalGames))
-                .Where(game => game != null && (!game.IsCustom || settings.ShowCustomGames))
-                .Where(game => game != null && !settings.HiddenGames.Contains(game.Name))
-                .ToList();
+            .Where(game => game != null && (!game.IsExperimental || settings.ShowExperimentalGames))
+            .Where(game => game != null && (!game.IsCustom || settings.ShowCustomGames))
+            .Where(game => game != null && !settings.HiddenGames.Contains(game.Name ?? string.Empty))
+            .ToList();
 
             Games.Clear();
 

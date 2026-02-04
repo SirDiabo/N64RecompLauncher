@@ -135,7 +135,7 @@ namespace N64RecompLauncher.Models
         }
     }
 
-    public class GameInfo : INotifyPropertyChanged
+    public class GameInfo : INotifyPropertyChanged, IDisposable
     {
         private string? _latestVersion;
         private string? _installedVersion;
@@ -378,6 +378,11 @@ namespace N64RecompLauncher.Models
 
                 return _buttonImageCache;
             }
+        }
+        public void Dispose()
+        {
+            _buttonImageCache?.Dispose();
+            _buttonImageCache = null;
         }
 
         private string? _lastImagePath;
@@ -1119,8 +1124,17 @@ namespace N64RecompLauncher.Models
                 var linuxAsset = latestRelease.assets.FirstOrDefault(a =>
                     MatchesPlatform(a.name, platformIdentifier));
 
-                // If no Linux version found, assume Windows download is possible
-                return linuxAsset == null;
+                // If no Linux version found, check if Windows version exists
+                if (linuxAsset == null)
+                {
+                    var windowsAsset = latestRelease.assets.FirstOrDefault(a =>
+                        a.name.ToLowerInvariant().Contains("windows") ||
+                        a.name.ToLowerInvariant().Contains("win64") ||
+                        a.name.ToLowerInvariant().Contains("win32") ||
+                        a.name.ToLowerInvariant().EndsWith(".exe"));
+                    return windowsAsset != null;
+                }
+                return false;
             }
             catch
             {
@@ -1878,288 +1892,6 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static void CopyDirectory(string sourceDir, string destDir)
-        {
-            Directory.CreateDirectory(destDir);
-
-            foreach (var file in Directory.GetFiles(sourceDir))
-            {
-                var destFile = Path.Combine(destDir, Path.GetFileName(file));
-                File.Copy(file, destFile, true);
-            }
-
-            foreach (var dir in Directory.GetDirectories(sourceDir))
-            {
-                var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
-                CopyDirectory(dir, destSubDir);
-            }
-        }
-
-        static void CopyDirectoryContentsInto(string sourceDir, string destDir)
-        {
-            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
-            {
-                var relative = Path.GetRelativePath(sourceDir, file);
-                var destFile = Path.Combine(destDir, relative);
-
-                if (File.Exists(destFile))
-                {
-                    Debug.WriteLine($"Skipping duplicate file: {destFile}");
-                    continue;
-                }
-
-                var destParent = Path.GetDirectoryName(destFile);
-                if (!string.IsNullOrEmpty(destParent))
-                    Directory.CreateDirectory(destParent);
-                File.Copy(file, destFile, overwrite: false);
-            }
-        }
-
-        static bool HasTopLevelExecutable(string path)
-        {
-            if (!Directory.Exists(path))
-                return false;
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return Directory.GetFiles(path, "*.exe", SearchOption.TopDirectoryOnly).Any();
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                if (Directory.GetDirectories(path, "*.app", SearchOption.TopDirectoryOnly).Any())
-                    return true;
-                return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
-                    .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
-            }
-            else // Linux
-            {
-                // Check for .appimage files
-                if (Directory.GetFiles(path, "*.appimage", SearchOption.TopDirectoryOnly).Any())
-                    return true;
-
-                // Check for .x86_64 files
-                if (Directory.GetFiles(path, "*.x86_64", SearchOption.TopDirectoryOnly).Any())
-                    return true;
-
-                // Check for ARM files
-                if (Directory.GetFiles(path, "*.arm64", SearchOption.TopDirectoryOnly).Any())
-                    return true;
-
-                if (Directory.GetFiles(path, "*.aarch64", SearchOption.TopDirectoryOnly).Any())
-                    return true;
-
-                return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
-                    .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
-            }
-        }
-
-        static void TryEnsureExecutableAtRoot(string gamePath)
-        {
-            if (!Directory.Exists(gamePath))
-                return;
-
-            if (HasTopLevelExecutable(gamePath))
-                return;
-
-            string? candidateAppBundle = null;
-            string? candidateFile = null;
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                candidateAppBundle = Directory.GetDirectories(gamePath, "*.app", SearchOption.AllDirectories).FirstOrDefault();
-            }
-
-            if (candidateAppBundle == null)
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    candidateFile = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories).FirstOrDefault();
-                }
-                else
-                {
-                    candidateFile = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories)
-                        .Where(f =>
-                        {
-                            var name = Path.GetFileName(f);
-                            if (string.IsNullOrEmpty(name)) return false;
-                            if (name.Contains("recomp", StringComparison.OrdinalIgnoreCase) ||
-                                name.Contains("recompiled", StringComparison.OrdinalIgnoreCase) ||
-                                name.Contains("drmario", StringComparison.OrdinalIgnoreCase) ||
-                                name.Contains("drmario64", StringComparison.OrdinalIgnoreCase))
-                                return true;
-
-                            // Also check for common executable patterns on Linux
-                            if (name.EndsWith(".x86_64", StringComparison.OrdinalIgnoreCase) ||
-                                name.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase) ||
-                                name.EndsWith(".arm64", StringComparison.OrdinalIgnoreCase) ||
-                                name.EndsWith(".aarch64", StringComparison.OrdinalIgnoreCase))
-                                return true;
-
-                            if (!Path.HasExtension(name))
-                            {
-                                try
-                                {
-                                    return new FileInfo(f).Length > 1024;
-                                }
-                                catch { return false; }
-                            }
-                            return false;
-                        })
-                        .OrderByDescending(f => {
-                            try { return new FileInfo(f).Length; } catch { return 0L; }
-                        })
-                        .FirstOrDefault();
-                }
-            }
-
-            string? candidateDir = null;
-            if (!string.IsNullOrEmpty(candidateAppBundle))
-            {
-                candidateDir = Path.GetDirectoryName(candidateAppBundle);
-                if (candidateDir != null && !candidateDir.Equals(gamePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    var destAppPath = Path.Combine(gamePath, Path.GetFileName(candidateAppBundle));
-                    if (!Directory.Exists(destAppPath))
-                    {
-                        Directory.Move(candidateAppBundle, destAppPath);
-                    }
-                    else
-                    {
-                        CopyDirectoryContentsInto(candidateAppBundle, destAppPath);
-                        try
-                        {
-                            Directory.Delete(candidateAppBundle, true);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Warning deleting original .app bundle: {ex.Message}");
-                        }
-                    }
-                }
-                return;
-            }
-
-            if (!string.IsNullOrEmpty(candidateFile))
-            {
-                candidateDir = Path.GetDirectoryName(candidateFile);
-            }
-
-            if (string.IsNullOrEmpty(candidateDir))
-            {
-                var childDirs = Directory.GetDirectories(gamePath, "*", SearchOption.TopDirectoryOnly);
-                if (childDirs.Length == 1)
-                {
-                    candidateDir = childDirs[0];
-                }
-                else
-                {
-                    return;
-                }
-            }
-
-            if (string.IsNullOrEmpty(candidateDir))
-                return;
-
-            if (Path.GetFullPath(candidateDir).TrimEnd(Path.DirectorySeparatorChar) == Path.GetFullPath(gamePath).TrimEnd(Path.DirectorySeparatorChar))
-                return;
-
-            try
-            {
-                CopyDirectoryContentsInto(candidateDir, gamePath);
-
-                if (HasTopLevelExecutable(gamePath))
-                {
-                    try
-                    {
-                        // Wait to ensure all file handles are released
-                        System.Threading.Thread.Sleep(100);
-
-                        // Force delete the directory
-                        var dirInfo = new DirectoryInfo(candidateDir);
-                        SetAttributesNormal(dirInfo);
-                        Directory.Delete(candidateDir, true);
-
-                        Debug.WriteLine($"Successfully deleted original folder: {candidateDir}");
-
-                        // Clean up empty directories
-                        var parent = Path.GetDirectoryName(candidateDir);
-                        while (!string.IsNullOrEmpty(parent) &&
-                               !Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.GetFullPath(gamePath).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
-                            {
-                                var nextParent = Path.GetDirectoryName(parent);
-                                Directory.Delete(parent, false);
-                                Debug.WriteLine($"Deleted empty parent directory: {parent}");
-                                parent = nextParent;
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Failed to delete original extracted folder '{candidateDir}': {ex.Message}");
-                    }
-                }
-                else
-                {
-                    TryDeleteDirectoryIfEmpty(candidateDir, stopAt: gamePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to move subfolder contents to game root: {ex.Message}");
-            }
-        }
-
-        static void SetAttributesNormal(DirectoryInfo dir)
-        {
-            try
-            {
-                foreach (var subDir in dir.GetDirectories())
-                {
-                    SetAttributesNormal(subDir);
-                }
-
-                foreach (var file in dir.GetFiles())
-                {
-                    file.Attributes = FileAttributes.Normal;
-                }
-
-                dir.Attributes = FileAttributes.Normal;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Warning setting file attributes: {ex.Message}");
-            }
-        }
-
-        static void TryDeleteDirectoryIfEmpty(string dir, string stopAt)
-        {
-            try
-            {
-                if (!Directory.Exists(dir))
-                    return;
-
-                if (!Directory.EnumerateFileSystemEntries(dir).Any())
-                {
-                    Directory.Delete(dir, false);
-                    var parent = Path.GetDirectoryName(dir);
-                    if (!string.IsNullOrEmpty(parent) && !Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar).Equals(Path.GetFullPath(stopAt).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
-                    {
-                        TryDeleteDirectoryIfEmpty(parent, stopAt);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed while cleaning up directory '{dir}': {ex.Message}");
-            }
-        }
-
         static void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
         {
             Directory.CreateDirectory(destinationDirectoryPath);
@@ -2196,7 +1928,7 @@ namespace N64RecompLauncher.Models
                 throw;
             }
         }
-        
+
         static void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
         {
             using var reader = new BinaryReader(tarStream);
@@ -2270,6 +2002,317 @@ namespace N64RecompLauncher.Models
                     await ShowMessageBoxAsync($"Error extracting tar.gz: {ex.Message}", "Extraction Error");
                 });
                 throw;
+            }
+        }
+
+        static void CopyDirectory(string sourceDir, string destDir)
+        {
+            Directory.CreateDirectory(destDir);
+
+            foreach (var file in Directory.GetFiles(sourceDir))
+            {
+                var destFile = Path.Combine(destDir, Path.GetFileName(file));
+                File.Copy(file, destFile, true);
+            }
+
+            foreach (var dir in Directory.GetDirectories(sourceDir))
+            {
+                var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
+                CopyDirectory(dir, destSubDir);
+            }
+        }
+
+        static void CopyDirectoryContentsInto(string sourceDir, string destDir)
+        {
+            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(sourceDir, file);
+                var destFile = Path.Combine(destDir, relative);
+
+                if (File.Exists(destFile))
+                {
+                    Debug.WriteLine($"Skipping duplicate file: {destFile}");
+                    continue;
+                }
+
+                var destParent = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(destParent))
+                    Directory.CreateDirectory(destParent);
+                File.Copy(file, destFile, overwrite: false);
+            }
+        }
+
+        static bool HasTopLevelExecutable(string path)
+        {
+            if (!Directory.Exists(path))
+                return false;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return Directory.GetFiles(path, "*.exe", SearchOption.TopDirectoryOnly).Any();
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                if (Directory.GetDirectories(path, "*.app", SearchOption.TopDirectoryOnly).Any())
+                    return true;
+                return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
+                    .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
+            }
+            else // Linux
+            {
+                var topLevelFiles = Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly);
+
+                // Check for common Linux executable extensions
+                if (topLevelFiles.Any(f =>
+                {
+                    var lower = f.ToLowerInvariant();
+                    return lower.EndsWith(".appimage") ||
+                           lower.EndsWith(".x86_64") ||
+                           lower.EndsWith(".arm64") ||
+                           lower.EndsWith(".aarch64");
+                }))
+                    return true;
+
+                // Check for extensionless executables (common on Linux)
+                return topLevelFiles.Any(f =>
+                {
+                    try
+                    {
+                        var name = Path.GetFileName(f);
+                        // Skip known non-executable files
+                        if (name.EndsWith(".txt") || name.EndsWith(".json") ||
+                            name.EndsWith(".dll") || name.EndsWith(".so") || name.EndsWith(".a"))
+                            return false;
+
+                        return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
+                    }
+                    catch { return false; }
+                });
+            }
+        }
+
+        static void TryEnsureExecutableAtRoot(string gamePath)
+        {
+            if (!Directory.Exists(gamePath))
+                return;
+
+            if (HasTopLevelExecutable(gamePath))
+                return;
+
+            string? candidateAppBundle = null;
+            string? candidateFile = null;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                candidateAppBundle = Directory.GetDirectories(gamePath, "*.app", SearchOption.AllDirectories).FirstOrDefault();
+            }
+
+            if (candidateAppBundle == null)
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    candidateFile = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories).FirstOrDefault();
+                }
+                else
+                {
+                    var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories).ToList();
+
+                    // Linux-specific extensions
+                    candidateFile = allFiles.FirstOrDefault(f =>
+                    {
+                        var name = Path.GetFileName(f).ToLowerInvariant();
+                        return name.EndsWith(".x86_64") || name.EndsWith(".appimage") ||
+                               name.EndsWith(".arm64") || name.EndsWith(".aarch64");
+                    });
+
+                    // Named executables
+                    if (candidateFile == null)
+                    {
+                        candidateFile = allFiles.FirstOrDefault(f =>
+                        {
+                            var name = Path.GetFileName(f);
+                            if (string.IsNullOrEmpty(name)) return false;
+                            return name.Contains("recomp", StringComparison.OrdinalIgnoreCase) ||
+                                   name.Contains("recompiled", StringComparison.OrdinalIgnoreCase) ||
+                                   name.Contains("game", StringComparison.OrdinalIgnoreCase) ||
+                                   name.Contains("launch", StringComparison.OrdinalIgnoreCase);
+                        });
+                    }
+
+                    // Large extensionless files
+                    if (candidateFile == null)
+                    {
+                        candidateFile = allFiles
+                            .Where(f =>
+                            {
+                                var name = Path.GetFileName(f);
+                                if (string.IsNullOrEmpty(name)) return false;
+
+                                if (name.EndsWith(".txt") || name.EndsWith(".json") ||
+                                    name.EndsWith(".dll") || name.EndsWith(".so") || name.EndsWith(".a"))
+                                    return false;
+
+                                if (!Path.HasExtension(name))
+                                {
+                                    try { return new FileInfo(f).Length > 1024; }
+                                    catch { return false; }
+                                }
+                                return false;
+                            })
+                            .OrderByDescending(f => { try { return new FileInfo(f).Length; } catch { return 0L; } })
+                            .FirstOrDefault();
+                    }
+                }
+            }
+
+            string? candidateDir = null;
+            if (!string.IsNullOrEmpty(candidateAppBundle))
+            {
+                candidateDir = Path.GetDirectoryName(candidateAppBundle);
+                if (candidateDir != null && !candidateDir.Equals(gamePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    var destAppPath = Path.Combine(gamePath, Path.GetFileName(candidateAppBundle));
+                    if (!Directory.Exists(destAppPath))
+                    {
+                        Directory.Move(candidateAppBundle, destAppPath);
+                    }
+                    else
+                    {
+                        CopyDirectoryContentsInto(candidateAppBundle, destAppPath);
+                        try
+                        {
+                            Directory.Delete(candidateAppBundle, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Warning deleting original .app bundle: {ex.Message}");
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(candidateFile))
+            {
+                candidateDir = Path.GetDirectoryName(candidateFile);
+            }
+
+            if (string.IsNullOrEmpty(candidateDir))
+            {
+                var childDirs = Directory.GetDirectories(gamePath, "*", SearchOption.TopDirectoryOnly);
+                if (childDirs.Length == 1)
+                {
+                    candidateDir = childDirs[0];
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            if (string.IsNullOrEmpty(candidateDir))
+                return;
+
+            if (Path.GetFullPath(candidateDir).TrimEnd(Path.DirectorySeparatorChar) ==
+                Path.GetFullPath(gamePath).TrimEnd(Path.DirectorySeparatorChar))
+                return;
+
+            try
+            {
+                CopyDirectoryContentsInto(candidateDir, gamePath);
+
+                if (HasTopLevelExecutable(gamePath))
+                {
+                    try
+                    {
+                        System.Threading.Thread.Sleep(100);
+
+                        var dirInfo = new DirectoryInfo(candidateDir);
+                        SetAttributesNormal(dirInfo);
+                        Directory.Delete(candidateDir, true);
+
+                        Debug.WriteLine($"Successfully deleted original folder: {candidateDir}");
+
+                        var parent = Path.GetDirectoryName(candidateDir);
+                        while (!string.IsNullOrEmpty(parent) &&
+                               !Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar)
+                                   .Equals(Path.GetFullPath(gamePath).TrimEnd(Path.DirectorySeparatorChar),
+                                           StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
+                            {
+                                var nextParent = Path.GetDirectoryName(parent);
+                                Directory.Delete(parent, false);
+                                Debug.WriteLine($"Deleted empty parent directory: {parent}");
+                                parent = nextParent;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to delete original extracted folder '{candidateDir}': {ex.Message}");
+                    }
+                }
+                else
+                {
+                    TryDeleteDirectoryIfEmpty(candidateDir, stopAt: gamePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to move subfolder contents to game root: {ex.Message}");
+            }
+        }
+
+        static void SetAttributesNormal(DirectoryInfo dir)
+        {
+            try
+            {
+                foreach (var subDir in dir.GetDirectories())
+                {
+                    SetAttributesNormal(subDir);
+                }
+
+                foreach (var file in dir.GetFiles())
+                {
+                    file.Attributes = FileAttributes.Normal;
+                }
+
+                dir.Attributes = FileAttributes.Normal;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Warning setting file attributes: {ex.Message}");
+            }
+        }
+
+        static void TryDeleteDirectoryIfEmpty(string dir, string stopAt)
+        {
+            try
+            {
+                if (!Directory.Exists(dir))
+                    return;
+
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                {
+                    Directory.Delete(dir, false);
+                    var parent = Path.GetDirectoryName(dir);
+                    if (!string.IsNullOrEmpty(parent) &&
+                        !Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar)
+                            .Equals(Path.GetFullPath(stopAt).TrimEnd(Path.DirectorySeparatorChar),
+                                    StringComparison.OrdinalIgnoreCase))
+                    {
+                        TryDeleteDirectoryIfEmpty(parent, stopAt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed while cleaning up directory '{dir}': {ex.Message}");
             }
         }
 

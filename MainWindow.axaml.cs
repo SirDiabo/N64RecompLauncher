@@ -1676,8 +1676,20 @@ namespace N64RecompLauncher
             if (_settings == null || sender is not TextBox textBox)
                 return;
 
-            _gamePathUpdateCts?.Cancel();
+            // Cancel previous update
+            var oldCts = _gamePathUpdateCts;
             _gamePathUpdateCts = new System.Threading.CancellationTokenSource();
+
+            // Dispose old token after a delay
+            if (oldCts != null)
+            {
+                var tokenToDispose = oldCts;
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(1000);
+                    tokenToDispose.Dispose();
+                });
+            }
 
             try
             {
