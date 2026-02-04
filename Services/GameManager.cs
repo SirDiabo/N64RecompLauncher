@@ -666,6 +666,14 @@ namespace N64RecompLauncher.Services
             imageRes = "512",
             folderName = "snesrev.smw",
             customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/5ba01c0e82cd96577309302faf900a0d/32/1024x1024.png" },
+
+        new {name = "Super Mario Bros. Remastered",
+            repository = "JHDev2006/Super-Mario-Bros.-Remastered-Public",
+            branch = "main",
+            imageRes = "512",
+            folderName = "JHDev2006.SuperMarioBrosRemastered",
+            customDefaultIconUrl = "https://raw.githubusercontent.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/refs/heads/main/icon.png"
+        },
     };
 
             return (standard, experimental, custom);
