@@ -36,13 +36,8 @@ namespace N64RecompLauncher.Services
 
             string sourcePath = null;
 
-            // Try custom icon first
-            if (!string.IsNullOrEmpty(game.CustomIconPath) && File.Exists(game.CustomIconPath))
-            {
-                sourcePath = game.CustomIconPath;
-            }
             // Try cached default icon
-            else if (!string.IsNullOrEmpty(game.IconUrl) && File.Exists(game.IconUrl))
+            if (!string.IsNullOrEmpty(game.IconUrl) && File.Exists(game.IconUrl))
             {
                 sourcePath = game.IconUrl;
             }
