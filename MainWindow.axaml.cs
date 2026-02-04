@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -12,14 +11,10 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace N64RecompLauncher
 {

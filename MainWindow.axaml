@@ -691,10 +691,14 @@
 						</StackPanel>
 					</Button>
 
+
 				</StackPanel>
 
 				<!-- Display Filters -->
 				<StackPanel Grid.Row="2" Margin="12,0,12,0">
+
+					<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,15"/>
+					
 					<TextBlock Text="DISPLAY FILTERS"
 							   FontSize="10"
 							   FontWeight="Bold"
@@ -752,8 +756,8 @@
 				</StackPanel>
 				
 				<!-- Footer Links -->
-				<StackPanel Grid.Row="3" Margin="0,9">
-					<Border Height="1" BorderBrush="{DynamicResource ThemeBorder}" Margin="0,0,0,1"/>
+				<StackPanel Grid.Row="3" Margin="12,0,12,20">
+					<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,15"/>
 					<Button Classes="iconbutton"
 							Width="216"
 							Height="44"
