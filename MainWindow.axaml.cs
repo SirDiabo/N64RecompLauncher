@@ -223,12 +223,23 @@ namespace N64RecompLauncher
             if (this.Resources != null)
             {
                 this.Resources["ThemeBase"] = new SolidColorBrush(baseColor);
-                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(baseColor, 1.2));
-                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(baseColor, 0.8));
-                this.Resources["ThemeBorder"] = new SolidColorBrush(GetShadedColor(baseColor, 1.1));
-                this.Resources["ThemeText"] = new SolidColorBrush(isLight ? Colors.Black : Colors.White);
-                this.Resources["ThemeTextSecondary"] = new SolidColorBrush(isLight ? Color.FromRgb(90, 90, 90) : Color.FromRgb(180, 180, 180));
+                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(baseColor, 1.3));
+                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(baseColor, 0.7));
+                this.Resources["ThemeBorder"] = new SolidColorBrush(GetShadedColor(baseColor, 0.9));
+                this.Resources["ThemeText"] = new SolidColorBrush(
+                    CalculateLuminance(baseColor) > 0.5 ? Colors.Black : Colors.White
+                );
+                this.Resources["ThemeTextSecondary"] = new SolidColorBrush(
+                    CalculateLuminance(baseColor) > 0.5
+                        ? Color.FromRgb(70, 70, 70)    // Darker gray
+                        : Color.FromRgb(200, 200, 200) // Lighter gray
+                );
             }
+        }
+
+        private double CalculateLuminance(Color color)
+        {
+            return (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
         }
 
         // Color Picker Preset Dialog
