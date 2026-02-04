@@ -107,6 +107,10 @@
 													  Click="OpenFolder_Click"
 													  IsVisible="{Binding IsInstalled}"
 													  CommandParameter="{Binding}"/>
+										<MenuItem Header="Create Desktop Shortcut"
+												  Click="CreateShortcut_Click"
+												  IsVisible="{Binding IsInstalled}"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Delete"
 												  Click="DeleteGame_Click"
 												  IsVisible="{Binding IsInstalled}"
@@ -187,6 +191,10 @@
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Open Folder"
 											  Click="OpenFolder_Click"
+											  IsVisible="{Binding IsInstalled}"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Create Desktop Shortcut"
+											  Click="CreateShortcut_Click"
 											  IsVisible="{Binding IsInstalled}"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Delete"

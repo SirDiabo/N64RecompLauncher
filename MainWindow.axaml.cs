@@ -14,6 +14,7 @@ using N64RecompLauncher.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace N64RecompLauncher
@@ -2021,6 +2022,39 @@ namespace N64RecompLauncher
         private void MainWindow_Deactivated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(false);
+        }
+
+        private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null)
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            try
+            {
+                string launcherPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                if (string.IsNullOrEmpty(launcherPath))
+                {
+                    await ShowMessageBoxAsync("Could not determine launcher location.", "Error");
+                    return;
+                }
+
+                N64RecompLauncher.Services.ShortcutHelper.CreateGameShortcut(
+                    game,
+                    launcherPath,
+                    _gameManager.CacheFolder);
+
+                await ShowMessageBoxAsync($"Shortcut created on desktop for {game.Name}", "Success");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to create shortcut: {ex.Message}", "Error");
+            }
         }
 
         public new event PropertyChangedEventHandler? PropertyChanged;
