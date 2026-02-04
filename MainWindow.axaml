@@ -169,7 +169,7 @@
 								IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
 								Click="OptionsButton_Click"
 								Tag="{Binding}">
-							<TextBlock Text="⋯" Foreground="White" TextAlignment="Center" VerticalAlignment="Center"/>
+							<TextBlock Text="⋯" Foreground="{DynamicResource ThemeText}" TextAlignment="Center" VerticalAlignment="Center"/>
 							<Button.ContextMenu>
 								<ContextMenu>
 									<MenuItem Header="Open GitHub Page"
