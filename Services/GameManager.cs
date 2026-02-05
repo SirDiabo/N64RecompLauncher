@@ -679,8 +679,14 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "JHDev2006.SuperMarioBrosRemastered",
-            customDefaultIconUrl = "https://raw.githubusercontent.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/refs/heads/main/icon.png"
-        },
+            customDefaultIconUrl = "https://raw.githubusercontent.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/refs/heads/main/icon.png" },
+
+        new {name = "Link's Awakening DX HD",
+            repository = "BigheadSMZ/Zelda-LA-DX-HD-Updated",
+            branch = "main",
+            image = "512",
+            folderName = "BigheadSMZ.ZeldaLAHD",
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" }
     };
 
             return (standard, experimental, custom);
