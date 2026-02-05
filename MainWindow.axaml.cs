@@ -367,7 +367,6 @@ namespace N64RecompLauncher
                     TargetOS.MacOS => "macOS",
                     TargetOS.LinuxX64 => "Linux x64",
                     TargetOS.LinuxARM64 => "Linux ARM64",
-                    TargetOS.Flatpak => "Flatpak",
                     _ => "Unknown"
                 };
             }
@@ -917,7 +916,6 @@ namespace N64RecompLauncher
                     TargetOS.MacOS => "macOS",
                     TargetOS.LinuxX64 => "Linux x64",
                     TargetOS.LinuxARM64 => "Linux ARM64",
-                    TargetOS.Flatpak => "Flatpak",
                     _ => "Unknown"
                 };
 
@@ -1096,16 +1094,6 @@ namespace N64RecompLauncher
             {
                 _settings.Platform = TargetOS.LinuxARM64;
                 PlatformString = "Linux ARM64";
-                OnSettingChanged();
-            }
-        }
-
-        private void PlatformFlatpak_Click(object sender, RoutedEventArgs e)
-        {
-            if (_settings != null)
-            {
-                _settings.Platform = TargetOS.Flatpak;
-                PlatformString = "Flatpak";
                 OnSettingChanged();
             }
         }

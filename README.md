@@ -10,7 +10,6 @@ A modern, user-friendly launcher application for managing and running N64 recomp
 > - ✅ Windows: Works perfectly
 > - ✅ Linux: Working mostly properly
 > - ⚠️ macOS: Not yet supported
-> - ⚠️ Linux Flatpak: Not yet supported
 
 ## ✨ Features
 

@@ -1349,6 +1349,11 @@ namespace N64RecompLauncher.Models
                 // Get all available assets
                 var availableAssets = latestRelease.assets?.ToList() ?? new List<GitHubAsset>();
 
+                // Exclude flatpak files
+                availableAssets = availableAssets
+                    .Where(a => !a.name.ToLowerInvariant().Contains("flatpak"))
+                    .ToList();
+
                 if (availableAssets.Count == 0)
                 {
                     await ShowMessageBoxAsync($"No download files found for {Name}.", "No Assets");
@@ -1631,7 +1636,7 @@ namespace N64RecompLauncher.Models
                 System.Text.RegularExpressions.Regex.IsMatch(assetNameLower, @"[_-]win[_-]|[_-]win\d|^win[_-]"))
             {
                 // Exclude false positives
-                if (!HasAnyOf(assetNameLower, "linux", "macos", "darwin", ".deb", ".rpm", ".appimage", ".dmg", "flatpak"))
+                if (!HasAnyOf(assetNameLower, "linux", "macos", "darwin", ".deb", ".rpm", ".appimage", ".dmg"))
                 {
                     return "avares://N64RecompLauncher/Assets/Icons/platform_win.png";
                 }
@@ -1642,14 +1647,14 @@ namespace N64RecompLauncher.Models
                 (assetNameLower.Contains("mac") && !assetNameLower.Contains("machin")))
             {
                 // Exclude false positives
-                if (!HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe", "flatpak"))
+                if (!HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe"))
                 {
                     return "avares://N64RecompLauncher/Assets/Icons/platform_mac.png";
                 }
             }
 
             // Check for Linux
-            if (HasAnyOf(assetNameLower, "linux", ".appimage", ".deb", ".rpm", "tar.gz", "tar.xz", "flatpak"))
+            if (HasAnyOf(assetNameLower, "linux", ".appimage", ".deb", ".rpm", "tar.gz", "tar.xz"))
             {
                 // Exclude false positives
                 if (!HasAnyOf(assetNameLower, "windows", "win32", "win64", "macos", "osx", "darwin", ".exe", ".dmg"))
@@ -1681,7 +1686,7 @@ namespace N64RecompLauncher.Models
                 System.Diagnostics.Debug.WriteLine("Checking Windows patterns...");
 
                 // Exclude Non-Windows indicators
-                if (HasAnyOf(assetNameLower, "linux", "macos", "flatpak", "osx", "darwin", "apple", ".deb", ".rpm", ".appimage", ".dmg", ".pkg", "switch"))
+                if (HasAnyOf(assetNameLower, "linux", "macos", "osx", "darwin", "apple", ".deb", ".rpm", ".appimage", ".dmg", ".pkg", "switch"))
                 {
                     System.Diagnostics.Debug.WriteLine("Excluded: contains non-Windows platform marker");
                     return false;
@@ -1745,14 +1750,6 @@ namespace N64RecompLauncher.Models
                     return isArm;
                 }
 
-                // Flatpak specific
-                if (platformLower.Contains("flatpak"))
-                {
-                    bool isFlatpak = assetNameLower.Contains("flatpak") || assetNameLower.Contains(".flatpakref");
-                    System.Diagnostics.Debug.WriteLine($"Flatpak match result: {isFlatpak}");
-                    return isFlatpak;
-                }
-
                 // Linux x64 - prioritize x86_64/x64/amd64, exclude i686/i386
                 if (!platformLower.Contains("arm"))
                 {
@@ -1765,7 +1762,7 @@ namespace N64RecompLauncher.Models
 
                     // Must have x64 indicators for 64-bit Linux
                     bool isLinuxX64 = HasAnyOf(assetNameLower, "x86_64", "x64", "amd64", "x86-64") &&
-                                     !HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "flatpak", "arm-");
+                                     !HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "arm-");
 
                     System.Diagnostics.Debug.WriteLine($"Linux x64 match result: {isLinuxX64}");
                     return isLinuxX64;
@@ -2347,10 +2344,7 @@ namespace N64RecompLauncher.Models
                     return arch switch
                     {
                         Architecture.Arm64 => "Linux-ARM64",
-                        Architecture.X64 => Environment.GetEnvironmentVariable("FLATPAK_ID") != null
-                            ? "Linux-Flatpak-X64"
-                            : "Linux-X64",
-                        _ => "Linux-X64"
+                        Architecture.X64 => "Linux-X64",
                     };
                 }
 
@@ -2364,7 +2358,6 @@ namespace N64RecompLauncher.Models
                     TargetOS.MacOS => "macOS",
                     TargetOS.LinuxX64 => "Linux-X64",
                     TargetOS.LinuxARM64 => "Linux-ARM64",
-                    TargetOS.Flatpak => "Linux-Flatpak-X64",
                     _ => throw new PlatformNotSupportedException("Unsupported target OS in settings")
                 };
             }

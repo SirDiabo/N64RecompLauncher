@@ -1022,9 +1022,7 @@
 												<MenuItem Header="Windows" Click="PlatformWindows_Click"/>
 												<MenuItem Header="MacOS" Click="PlatformMacOS_Click"/>
 												<MenuItem Header="Linux X64" Click="PlatformLinuxX64_Click"/>
-												<MenuItem Header="Linux ARM64" Click="PlatformLinuxARM64_Click"/>
-												<MenuItem Header="Linux Flatpak" Click="PlatformFlatpak_Click"/>								
-											</ContextMenu>
+												<MenuItem Header="Linux ARM64" Click="PlatformLinuxARM64_Click"/>											</ContextMenu>
 										</Button.ContextMenu>
 								</Button>
 

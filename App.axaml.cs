@@ -1166,10 +1166,7 @@ rm -- ""$0""
             return arch switch
             {
                 Architecture.Arm64 => "Linux-ARM64",
-                Architecture.X64 => Environment.GetEnvironmentVariable("FLATPAK_ID") != null
-                    ? "Linux-Flatpak-X64"
-                    : "Linux-X64",
-                _ => "Linux-X64"
+                Architecture.X64 => "Linux-X64",
             };
         }
 

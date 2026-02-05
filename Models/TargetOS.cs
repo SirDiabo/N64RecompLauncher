@@ -5,5 +5,4 @@
     MacOS,
     LinuxX64,
     LinuxARM64,
-    Flatpak,
 }
