@@ -565,6 +565,13 @@ namespace N64RecompLauncher.Services
             imageRes = "512",
             folderName = "Quest64Recomp",
             customDefaultIconUrl = (string?)null },
+
+        new { name = "Space Station Silicon Valley: Recompiled",
+            repository = "Cellenseres/SSSV_Recomp",
+            branch = "main",
+            imageRes = "512",
+            folderName = "SSSVRecomp",
+            customDefaultIconUrl = (string?)null },
     };
 
             var custom = new List<object>
