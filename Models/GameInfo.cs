@@ -1123,23 +1123,7 @@ namespace N64RecompLauncher.Models
             {
                 case GameStatus.NotInstalled:
                 case GameStatus.UpdateAvailable:
-                    var willDownloadWindows = await WillDownloadWindowsVersionBasedOnSelection(httpClient, settings);
-                    if (willDownloadWindows && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                    {
-                        if (!IsWineOrProtonAvailable())
-                        {
-                            bool shouldContinueAnyway = await ShowWineNotFoundWarning();
-                            if (!shouldContinueAnyway)
-                                return;
-                        }
-                        else
-                        {
-                            bool shouldContinue = await ShowWineDownloadWarning();
-                            if (!shouldContinue)
-                                return;
-                        }
-                    }
-
+                    
                     await DownloadAndInstallAsync(httpClient, gamesFolder, GetLatestRelease(), settings, _status);
 
                     if (File.Exists(portableFilePath))
@@ -1478,6 +1462,43 @@ namespace N64RecompLauncher.Models
                 // Use selected download or default to first one
                 asset = SelectedDownload ?? availableAssets[0];
 
+                // Check if Wine/Proton is needed on Linux
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    // Check if the selected asset is a Windows file
+                    var assetNameLower = asset.name.ToLowerInvariant();
+                    bool isWindowsFile = assetNameLower.Contains("windows") ||
+                                         assetNameLower.Contains("win64") ||
+                                         assetNameLower.Contains("win32") ||
+                                         assetNameLower.EndsWith(".exe") ||
+                                         assetNameLower.Contains("-win.") ||
+                                         assetNameLower.Contains("_win.");
+
+                    if (isWindowsFile)
+                    {
+                        if (!IsWineOrProtonAvailable())
+                        {
+                            bool shouldContinueAnyway = await ShowWineNotFoundWarning();
+                            if (!shouldContinueAnyway)
+                            {
+                                Status = GameStatus.NotInstalled;
+                                DownloadProgress = 0;
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            bool shouldContinue = await ShowWineDownloadWarning();
+                            if (!shouldContinue)
+                            {
+                                Status = GameStatus.NotInstalled;
+                                DownloadProgress = 0;
+                                return;
+                            }
+                        }
+                    }
+                }
+
                 // Download the asset
                 var downloadPath = Path.Combine(Path.GetTempPath(), asset.name);
 
@@ -1536,7 +1557,10 @@ namespace N64RecompLauncher.Models
                 finally
                 {
                     // Clean up download file
-                    if (File.Exists(downloadPath))
+                    bool wasSingleExecutable = asset.name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                                                asset.name.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase);
+
+                    if (!wasSingleExecutable && File.Exists(downloadPath))
                     {
                         try
                         {
