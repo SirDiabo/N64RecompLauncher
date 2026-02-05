@@ -2232,10 +2232,16 @@ namespace N64RecompLauncher.Models
                 {
                     try
                     {
-                        System.Threading.Thread.Sleep(100);
+                        System.Threading.Thread.Sleep(200);
 
                         var dirInfo = new DirectoryInfo(candidateDir);
                         SetAttributesNormal(dirInfo);
+
+                        // Force garbage collection before deletion
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect();
+
                         Directory.Delete(candidateDir, true);
 
                         Debug.WriteLine($"Successfully deleted original folder: {candidateDir}");
