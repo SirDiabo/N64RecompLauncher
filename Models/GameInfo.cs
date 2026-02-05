@@ -191,6 +191,26 @@ namespace N64RecompLauncher.Models
             }
         }
 
+        public bool HasStoredExecutable
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(FolderName) || GameManager == null)
+                    return false;
+
+                try
+                {
+                    var gamePath = Path.Combine(GameManager.GamesFolder, FolderName);
+                    var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
+                    return File.Exists(selectedExePath);
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
         public string DefaultIconUrl
         {
             get
@@ -746,6 +766,83 @@ namespace N64RecompLauncher.Models
                     CustomIconPath = iconPath;
                     break;
                 }
+            }
+        }
+
+        public void SaveSelectedExecutable(string executablePath, string gamesFolder)
+        {
+            if (string.IsNullOrEmpty(FolderName) || string.IsNullOrEmpty(executablePath))
+                return;
+
+            try
+            {
+                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
+                File.WriteAllText(selectedExePath, executablePath);
+                System.Diagnostics.Debug.WriteLine($"Saved selected executable for {Name}: {executablePath}");
+                OnPropertyChanged(nameof(HasStoredExecutable));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save selected executable for {Name}: {ex.Message}");
+            }
+        }
+
+        public string? LoadSelectedExecutable(string gamesFolder)
+        {
+            if (string.IsNullOrEmpty(FolderName))
+                return null;
+
+            try
+            {
+                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
+
+                if (File.Exists(selectedExePath))
+                {
+                    var savedPath = File.ReadAllText(selectedExePath).Trim();
+                    if (File.Exists(savedPath))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Loaded selected executable for {Name}: {savedPath}");
+                        return savedPath;
+                    }
+                    else
+                    {
+                        // File no longer exists, delete the preference
+                        File.Delete(selectedExePath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load selected executable for {Name}: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        public void ClearSelectedExecutable(string gamesFolder)
+        {
+            if (string.IsNullOrEmpty(FolderName))
+                return;
+
+            try
+            {
+                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
+
+                if (File.Exists(selectedExePath))
+                {
+                    File.Delete(selectedExePath);
+                    System.Diagnostics.Debug.WriteLine($"Cleared selected executable for {Name}");
+                }
+
+                SelectedExecutable = null;
+                OnPropertyChanged(nameof(HasStoredExecutable));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to clear selected executable for {Name}: {ex.Message}");
             }
         }
 
@@ -2483,9 +2580,16 @@ namespace N64RecompLauncher.Models
 
                 string? executablePath = null;
 
-                // If multiple executables and no selection made, trigger selection UI
-                if (executables.Count > 1 && string.IsNullOrEmpty(SelectedExecutable))
+                // Try to load previously selected executable
+                if (string.IsNullOrEmpty(SelectedExecutable))
                 {
+                    SelectedExecutable = LoadSelectedExecutable(gamesFolder);
+                }
+
+                // If multiple executables and no valid selection, trigger selection UI
+                if (executables.Count > 1 && (string.IsNullOrEmpty(SelectedExecutable) || !executables.Contains(SelectedExecutable)))
+                {
+                    SelectedExecutable = null; // Reset if saved exe no longer exists
                     // Signal to UI that selection is needed
                     OnPropertyChanged(nameof(HasMultipleExecutables));
                     OnPropertyChanged(nameof(AvailableExecutables));

@@ -107,6 +107,10 @@
 													  Click="OpenFolder_Click"
 													  IsVisible="{Binding IsInstalled}"
 													  CommandParameter="{Binding}"/>
+										<MenuItem Header="Select Different Executable" 
+												  CommandParameter="{Binding}" 
+												  Click="SelectDifferentExecutable_Click"
+												  IsVisible="{Binding HasStoredExecutable}"/>
 										<MenuItem Header="Create Desktop Shortcut"
 												  Click="CreateShortcut_Click"
 												  IsVisible="{Binding IsInstalled}"
@@ -193,6 +197,10 @@
 											  Click="OpenFolder_Click"
 											  IsVisible="{Binding IsInstalled}"
 											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Select Different Executable" 
+											  CommandParameter="{Binding}" 
+											  Click="SelectDifferentExecutable_Click"
+											  IsVisible="{Binding HasStoredExecutable}"/>
 									<MenuItem Header="Create Desktop Shortcut"
 											  Click="CreateShortcut_Click"
 											  IsVisible="{Binding IsInstalled}"

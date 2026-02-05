@@ -772,6 +772,13 @@ namespace N64RecompLauncher
                 {
                     var selectedExe = (s as MenuItem)?.Tag as string;
                     game.SelectedExecutable = selectedExe;
+
+                    // Save the selection
+                    if (!string.IsNullOrEmpty(selectedExe))
+                    {
+                        game.SaveSelectedExecutable(selectedExe, _gameManager.GamesFolder);
+                    }
+
                     try
                     {
                         await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
@@ -816,6 +823,32 @@ namespace N64RecompLauncher
             };
 
             contextMenu.Open(sourceButton);
+        }
+
+        private void SelectDifferentExecutable_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null)
+            {
+                _ = ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            // Clear the saved selection
+            game.ClearSelectedExecutable(_gameManager.GamesFolder);
+
+            // Trigger the executable selection menu
+            var gameCard = this.GetVisualDescendants()
+                .OfType<Button>()
+                .FirstOrDefault(b => b.DataContext == game);
+
+            if (gameCard != null)
+            {
+                game.AvailableExecutables = null; // Reset to trigger fresh scan
+                _ = game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+            }
         }
 
         private void OptionsButton_Click(object sender, RoutedEventArgs e)
