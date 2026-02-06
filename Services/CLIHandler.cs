@@ -26,6 +26,7 @@ namespace N64RecompLauncher
         {
             if (args.Length == 0)
             {
+                ClearTerminal();
                 await PrintHeader();
                 ShowHelp();
                 return 0;
@@ -39,49 +40,27 @@ namespace N64RecompLauncher
                 {
                     case "-h":
                     case "--help":
+                        ClearTerminal();
                         await PrintHeader();
                         ShowHelp();
                         return 0;
 
-                    case "-v":
-                    case "--version":
-                        LoadVersion();
-                        Console.WriteLine($"N64 Recomp Launcher v{_currentVersion}");
-                        return 0;
-
-                    case "-u":
-                    case "--update":
-                        await PrintHeader();
-                        return await UpdateLauncher();
-
                     case "-l":
                     case "--list":
+                        ClearTerminal();
                         await PrintHeader();
                         await InitializeGameManager();
                         return await ListGames();
 
-                    case "-d":
-                    case "--download":
-                        await PrintHeader();
-                        await InitializeGameManager();
-                        return await DownloadGame(GetGameNameFromArgs(args));
-
                     case "-r":
                     case "--run":
+                        ClearTerminal();
                         await PrintHeader();
                         await InitializeGameManager();
                         return await RunGame(GetGameNameFromArgs(args));
 
-                    case "-dr":
-                    case "--download-run":
-                        await PrintHeader();
-                        await InitializeGameManager();
-                        string name = GetGameNameFromArgs(args);
-                        int dlResult = await DownloadGame(name);
-                        if (dlResult != 0) return dlResult;
-                        return await RunGame(name);
-
                     default:
+                        ClearTerminal();
                         await PrintHeader();
                         ShowHelp();
                         return PrintError($"Unknown command: {command}");
@@ -94,6 +73,20 @@ namespace N64RecompLauncher
             finally
             {
                 _gameManager?.Dispose();
+            }
+        }
+
+        private static void ClearTerminal()
+        {
+            try
+            {
+                Console.Clear();
+            }
+            catch
+            {
+                // Fallback for terminals that don't support Clear()
+                // Send ANSI escape sequences that work on most modern terminals
+                Console.Write("\x1b[2J\x1b[H");
             }
         }
 
@@ -212,52 +205,6 @@ namespace N64RecompLauncher
             }
         }
 
-        private async Task<int> UpdateLauncher()
-        {
-            WriteColor("Checking for launcher updates...", ColorTitle);
-            Console.WriteLine();
-
-            try
-            {
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "N64RecompLauncher-CLI");
-
-                var response = await client.GetStringAsync("https://api.github.com/repos/sirdiabo/N64RecompLauncher/releases/latest");
-                using var doc = JsonDocument.Parse(response);
-
-                var latestTag = doc.RootElement.GetProperty("tag_name").GetString();
-
-                if (string.IsNullOrEmpty(latestTag))
-                {
-                    return PrintError("Could not determine latest version.");
-                }
-
-                if (latestTag == _currentVersion)
-                {
-                    WriteColor("✓ ", ColorSuccess);
-                    Console.WriteLine("Launcher is already up to date!");
-                    return 0;
-                }
-
-                WriteColor($"Update available: {_currentVersion} -> {latestTag}", ColorWarning);
-                Console.WriteLine();
-                Console.WriteLine();
-                Console.WriteLine("To update, please:");
-                Console.WriteLine("  1. Download the latest release from:");
-                Console.WriteLine($"     https://github.com/SirDiabo/N64RecompLauncher/releases/tag/{latestTag}");
-                Console.WriteLine("  2. Extract and replace the current launcher files");
-                Console.WriteLine();
-                WriteColor("Note: ", ColorMuted);
-                Console.WriteLine("Automatic updates will be added in a future version.");
-
-                return 0;
-            }
-            catch (Exception ex)
-            {
-                return PrintError($"Failed to check for updates: {ex.Message}");
-            }
-        }
-
         private void ShowHelp()
         {
             Console.WriteLine("Usage: N64RecompLauncher [command] [game name]");
@@ -265,19 +212,14 @@ namespace N64RecompLauncher
             WriteColor("Commands:", ColorTitle);
             Console.WriteLine();
             PrintHelpItem("-h, --help", "Show this help screen");
-            PrintHelpItem("-v, --version", "Show launcher version");
-            PrintHelpItem("-u, --update", "Check for launcher updates");
             PrintHelpItem("-l, --list", "List all available games");
-            PrintHelpItem("-d, --download <n>", "Download or update a game");
             PrintHelpItem("-r, --run <n>", "Run a game (auto-updates if needed)");
-            PrintHelpItem("-dr, --download-run <n>", "Download then immediately run");
             Console.WriteLine();
             WriteColor("Examples:", ColorMuted);
             Console.WriteLine();
             Console.WriteLine("  N64RecompLauncher --list");
-            Console.WriteLine("  N64RecompLauncher --download \"Zelda 64\"");
             Console.WriteLine("  N64RecompLauncher --run Banjo64");
-            Console.WriteLine("  N64RecompLauncher -dr \"Mario Kart 64\"");
+            Console.WriteLine("  N64RecompLauncher -r \"Mario Kart 64\"");
             Console.WriteLine();
         }
 
