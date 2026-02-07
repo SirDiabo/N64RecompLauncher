@@ -101,12 +101,15 @@
 												  CommandParameter="{Binding}"
 												  IsVisible="{Binding HasCustomIcon}"/>
 										<MenuItem Header="Hide Game"
-													  Click="HideGame_Click"
-													  CommandParameter="{Binding}"/>
+												  Click="HideGame_Click"
+												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Show Changelog"
+												  Click="ShowChangelog_Click"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Open Folder"
-													  Click="OpenFolder_Click"
-													  IsVisible="{Binding IsInstalled}"
-													  CommandParameter="{Binding}"/>
+												  Click="OpenFolder_Click"
+												  IsVisible="{Binding IsInstalled}"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Select Different Executable" 
 												  CommandParameter="{Binding}" 
 												  Click="SelectDifferentExecutable_Click"
@@ -192,6 +195,9 @@
 											  IsVisible="{Binding HasCustomIcon}"/>
 									<MenuItem Header="Hide Game"
 											  Click="HideGame_Click"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Show Changelog"
+											  Click="ShowChangelog_Click"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Open Folder"
 											  Click="OpenFolder_Click"
@@ -820,7 +826,8 @@
 					Padding="0,8,0,8"
 					ZIndex="1">
 				<Grid VerticalAlignment="Top">
-					<TextBlock Text="Library"
+					<TextBlock x:Name="HeaderTitleText"
+							   Text="Library"
 							   FontSize="24"
 							   Margin="15,0,0,0"
 							   FontWeight="Bold"
@@ -904,419 +911,449 @@
 							IsVisible="False"
 							Opacity="0.97"
 							ZIndex="10">
-					<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-						<StackPanel Margin="30,30,30,30" x:Name="SettingsContent">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+							<StackPanel Margin="30,30,30,30" x:Name="SettingsContent">
 							
-								<TextBlock Text="Settings"
-										   FontSize="32"
-										   FontWeight="Bold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   HorizontalAlignment="Center"/>
+									<TextBlock Text="Settings"
+											   FontSize="32"
+											   FontWeight="Bold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   HorizontalAlignment="Center"/>
 							
-								<!-- General Section -->
-								<TextBlock Text="GENERAL"
-										   FontSize="11"
-										   FontWeight="Bold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   LetterSpacing="1"
-										   HorizontalAlignment="Right"
-										   Margin="0,0,0,15"/>
+									<!-- General Section -->
+									<TextBlock Text="GENERAL"
+											   FontSize="11"
+											   FontWeight="Bold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   LetterSpacing="1"
+											   HorizontalAlignment="Right"
+											   Margin="0,0,0,15"/>
 
-								<CheckBox x:Name="PortableCheckBox"
-										   Content="Portable Mode"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Checked="PortableCheckBox_Checked"
-										   Unchecked="PortableCheckBox_Unchecked" />
+									<CheckBox x:Name="PortableCheckBox"
+											   Content="Portable Mode"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Checked="PortableCheckBox_Checked"
+											   Unchecked="PortableCheckBox_Unchecked" />
 
-								<TextBlock Text="Store data in the game directory"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
+									<TextBlock Text="Store data in the game directory"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
 
-								<CheckBox x:Name="ShowExperimentalCheckBox"
-										   Content="Show Experimental Games"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Checked="ShowExperimentalCheckBox_Checked"
-										   Unchecked="ShowExperimentalCheckBox_Unchecked" />
+									<CheckBox x:Name="ShowExperimentalCheckBox"
+											   Content="Show Experimental Games"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Checked="ShowExperimentalCheckBox_Checked"
+											   Unchecked="ShowExperimentalCheckBox_Unchecked" />
 
-								<TextBlock Text="Show Recomp Games that are still experimental"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
+									<TextBlock Text="Show Recomp Games that are still experimental"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
 
-								<CheckBox x:Name="ShowCustomGamesCheckBox"
-										   Content="Show Custom Games"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Checked="ShowCustomGamesCheckBox_Checked"
-										   Unchecked="ShowCustomGamesCheckBox_Unchecked" />
+									<CheckBox x:Name="ShowCustomGamesCheckBox"
+											   Content="Show Custom Games"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Checked="ShowCustomGamesCheckBox_Checked"
+											   Unchecked="ShowCustomGamesCheckBox_Unchecked" />
 
-								<TextBlock Text="Show Non-Recomp Games, compatible with this launcher."
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,25"/>
+									<TextBlock Text="Show Non-Recomp Games, compatible with this launcher."
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,25"/>
 
-								<TextBlock Text="Custom Games Path"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
+									<TextBlock Text="Custom Games Path"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
 
-								<TextBlock Text="Enter a custom Game Install Path. Leave Blank for Default."
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   TextWrapping="Wrap"/>
+									<TextBlock Text="Enter a custom Game Install Path. Leave Blank for Default."
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   TextWrapping="Wrap"/>
 							
-								<Panel HorizontalAlignment="Stretch" 
-									   Margin="0,0,0,8">
-									<TextBox x:Name="GamePathTextBox"
+									<Panel HorizontalAlignment="Stretch" 
+										   Margin="0,0,0,8">
+										<TextBox x:Name="GamePathTextBox"
+												 Foreground="{DynamicResource ThemeTextSecondary}"
+												 Background="{DynamicResource ThemeTextDarker}"
+												 BorderBrush="{DynamicResource ThemeBorder}"
+												 BorderThickness="1"
+												 Padding="12,10"
+												 CornerRadius="4"
+												 Margin="0,0,48,8"
+												 TextChanged="GamePathTextBox_TextChanged"
+												 Text="{Binding Settings.GamePath, Mode=TwoWay}"/>
+										<Button Classes="options"
+												HorizontalAlignment="Right"
+												Margin="8,0,0,8"
+												Content="📁"
+												Click="BrowseGamePath_Click">
+										</Button>
+									</Panel>
+
+									<Button Classes="options"
+											Content="Clear Custom Game Path"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,8"
+											Click="ClearGamePath_Click"/>
+
+									<Button Classes="options"
+											Content="Clear Icon Cache"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,30"
+											Click="ClearIconCache_Click"/>
+
+									<TextBlock Text="Target Platform"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<TextBlock Text="{Binding PlatformString}"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+							
+									<Button Classes="options"
+											Content="Change Platform"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,30"
+											Click="OptionsButton_Click"
+											Tag="{Binding}">
+											<Button.ContextMenu>
+												<ContextMenu>
+													<MenuItem Header="Automatic" Click="PlatformAuto_Click"/>
+													<MenuItem Header="Windows" Click="PlatformWindows_Click"/>
+													<MenuItem Header="MacOS" Click="PlatformMacOS_Click"/>
+													<MenuItem Header="Linux X64" Click="PlatformLinuxX64_Click"/>
+													<MenuItem Header="Linux ARM64" Click="PlatformLinuxARM64_Click"/>											</ContextMenu>
+											</Button.ContextMenu>
+									</Button>
+
+									<!-- UI Customization Section -->
+									<TextBlock Text="UI CUSTOMIZATION"
+											   FontSize="11"
+											   FontWeight="Bold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   LetterSpacing="1"
+											   HorizontalAlignment="Right"
+											   Margin="0,0,0,15"/>
+								
+									<!-- Theme Color Picker -->
+									<TextBlock Text="Theme Color"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<Button Classes="options"
+											Content="Choose Theme Color"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,8"
+											Click="ThemeColorPicker_Click"/>
+
+									<!-- Secondary Color Picker -->
+									<TextBlock Text="Secondary Color"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,4,0,8"/>
+
+									<Button Classes="options"
+											Content="Choose Secondary Color"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,24"
+											Click="SecondaryColorPicker_Click"/>
+								
+									<!-- Layout Presets -->
+									<TextBlock Text="Game Card Layout"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,4,0,8"/>
+									<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,8">
+									
+										<!-- Layout Preset: Landscape -->
+										<Button Classes="modern-icon"
+												Width="64"
+												Margin="10,0,0,0"
+												Click="LayoutPreset_Landscape_Click">
+											<Image Width="64"
+												   Height="64"
+												   Source="avares://N64RecompLauncher/Assets/Icons/preset_landscape.png"/>
+										</Button>
+
+										<!-- Layout Preset: Square -->
+										<Button Classes="modern-icon"
+												Width="64"
+												Margin="10,0,0,0"
+												Click="LayoutPreset_Square_Click">
+											<Image Width="64"
+												   Height="64"
+												   Source="avares://N64RecompLauncher/Assets/Icons/preset_square.png"/>
+										</Button>
+
+										<!-- Layout Preset: Portrait -->
+										<Button Classes="modern-icon"
+												Width="64"
+												Margin="10,0,0,0"
+												Click="LayoutPreset_Portrait_Click">
+											<Image Width="64"
+												   Height="64"
+												   Source="avares://N64RecompLauncher/Assets/Icons/preset_portrait.png"/>
+										</Button>
+
+										<!-- Layout Preset: List -->
+										<Button Classes="modern-icon"
+												Width="64"
+												Margin="10,0,64,0"
+												Click="LayoutPreset_List_Click">
+											<Image Width="64"
+												   Height="64"
+												   Source="avares://N64RecompLauncher/Assets/Icons/preset_list.png"/>
+										</Button>
+									</StackPanel>
+
+									<CheckBox x:Name="StartFullscreenCheckBox"
+											   Content="Start in Fullscreen"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Checked="StartFullscreenCheckBox_Checked"
+											   Unchecked="StartFullscreenCheckBox_Unchecked" />
+								
+									<TextBlock Text="Start the launcher in fullscreen mode"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"/>
+
+									<CheckBox x:Name="UseGridViewCheckBox"
+											  Content="Grid View"
+											  Foreground="{DynamicResource ThemeTextSecondary}"
+											  Margin="0,0,0,8"
+											  Checked="UseGridViewCheckBox_Checked"
+											  Unchecked="UseGridViewCheckBox_Unchecked" />
+
+									<TextBlock Text="Display games in grid layout instead of list"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"/>
+
+									<TextBlock Text="Slot Scale"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+							
+									<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+							
+									<TextBlock Text="Adjust the size of game cards"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"/>
+
+									<Slider x:Name="SlotSizeSlider"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"
+											   Minimum="120"
+											   Maximum="400"
+											   Value="120"
+											   TickFrequency="4"
+											   IsSnapToTickEnabled="True"
+											   ValueChanged="SlotSizeSlider_ValueChanged" />
+
+									<TextBlock Text="Image Size"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+							
+									<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+								
+									<TextBlock Text="Adjust game image dimensions"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"/>
+							    
+									<Slider x:Name="IconSizeSlider"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"
+											   Minimum="64"
+											   Maximum="512"
+											   Value="256"
+											   TickFrequency="4"
+											   IsSnapToTickEnabled="True"
+											   ValueChanged="IconSizeSlider_ValueChanged" />
+							    
+									<CheckBox x:Name="IconFillCheckBox"
+											   Content="Fill Images"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Checked="IconFillCheckBox_Checked"
+											   Unchecked="IconFillCheckBox_Unchecked" />
+							
+									<TextBlock Text="Stretch images to fill entire card slots"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"/>
+							
+									<TextBlock Text="Image Opacity"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+							
+									<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<Slider x:Name="IconOpacitySlider"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Minimum="0.0"
+											   Maximum="1.0"
+											   Value="0.2"
+											   TickFrequency="0.1"
+											   IsSnapToTickEnabled="True"
+											   ValueChanged="IconOpacitySlider_ValueChanged" />
+
+									<TextBlock Text="Control transparency of game images"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"/>
+
+									<TextBlock Text="Image Margin"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+							
+									<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<Slider x:Name="IconMarginSlider"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Minimum="0"
+											   Maximum="512"
+											   Value="0"
+											   TickFrequency="8"
+											   IsSnapToTickEnabled="True"
+											   ValueChanged="IconMarginSlider_ValueChanged" />
+
+									<TextBlock Text="Set left padding for images"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"/>
+
+									<TextBlock Text="Text Margin"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+							
+									<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<Slider x:Name="TextMarginSlider"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   Minimum="0"
+											   Maximum="256"
+											   Value="0"
+											   TickFrequency="8"
+											   IsSnapToTickEnabled="True"
+											   ValueChanged="TextMarginSlider_ValueChanged" />
+
+									<TextBlock Text="Adjust left spacing of text labels"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,30"/>
+
+									<!-- GitHub API Token Section -->
+									<TextBlock Text="GITHUB API"
+											   FontSize="11"
+											   FontWeight="Bold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   LetterSpacing="1"
+											   HorizontalAlignment="Right"
+											   Margin="0,0,0,15"/>
+
+									<TextBlock Text="GitHub API Token"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<TextBox x:Name="GitHubTokenTextBox"
 											 Foreground="{DynamicResource ThemeTextSecondary}"
 											 Background="{DynamicResource ThemeTextDarker}"
 											 BorderBrush="{DynamicResource ThemeBorder}"
 											 BorderThickness="1"
 											 Padding="12,10"
 											 CornerRadius="4"
-											 Margin="0,0,48,8"
-											 TextChanged="GamePathTextBox_TextChanged"
-											 Text="{Binding Settings.GamePath, Mode=TwoWay}"/>
+											 Margin="0,0,0,8"
+											 TextChanged="GitHubTokenTextBox_TextChanged"
+											 Text="{Binding Settings.GitHubApiToken, Mode=TwoWay}"/>
+
+									<TextBlock Text="Enter your personal access token from GitHub to increase API call limits"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"
+											   TextWrapping="Wrap"/>
+
 									<Button Classes="options"
-											HorizontalAlignment="Right"
-											Margin="8,0,0,8"
-											Content="📁"
-											Click="BrowseGamePath_Click">
-									</Button>
-								</Panel>
-
-								<Button Classes="options"
-										Content="Clear Custom Game Path"
-										HorizontalAlignment="Stretch"
-										Margin="0,0,0,8"
-										Click="ClearGamePath_Click"/>
-
-								<Button Classes="options"
-										Content="Clear Icon Cache"
-										HorizontalAlignment="Stretch"
-										Margin="0,0,0,30"
-										Click="ClearIconCache_Click"/>
-
-								<TextBlock Text="Target Platform"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-
-								<TextBlock Text="{Binding PlatformString}"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<Button Classes="options"
-										Content="Change Platform"
-										HorizontalAlignment="Stretch"
-										Margin="0,0,0,30"
-										Click="OptionsButton_Click"
-										Tag="{Binding}">
-										<Button.ContextMenu>
-											<ContextMenu>
-												<MenuItem Header="Automatic" Click="PlatformAuto_Click"/>
-												<MenuItem Header="Windows" Click="PlatformWindows_Click"/>
-												<MenuItem Header="MacOS" Click="PlatformMacOS_Click"/>
-												<MenuItem Header="Linux X64" Click="PlatformLinuxX64_Click"/>
-												<MenuItem Header="Linux ARM64" Click="PlatformLinuxARM64_Click"/>											</ContextMenu>
-										</Button.ContextMenu>
-								</Button>
-
-								<!-- UI Customization Section -->
-								<TextBlock Text="UI CUSTOMIZATION"
-										   FontSize="11"
+											Content="Clear Token"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,30"
+											Click="ClearGitHubToken_Click"/>
+							</StackPanel>
+					</ScrollViewer>
+				</Border>
+				
+				<!-- Changelog Panel -->
+				<Border x:Name="ChangelogPanel"
+						Grid.RowSpan="2"
+						Background="{DynamicResource ThemeBase}"
+						IsVisible="False"
+						ZIndex="100">
+					<Grid>
+						<ScrollViewer VerticalScrollBarVisibility="Auto"
+									  Margin="40">
+							<StackPanel MaxWidth="900">
+								<TextBlock x:Name="ChangelogTitle"
+										   Text="Changelog"
+										   FontSize="28"
 										   FontWeight="Bold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   LetterSpacing="1"
-										   HorizontalAlignment="Right"
-										   Margin="0,0,0,15"/>
-								
-								<!-- Theme Color Picker -->
-								<TextBlock Text="Theme Color"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-
-								<Button Classes="options"
-										Content="Choose Theme Color"
-										HorizontalAlignment="Stretch"
-										Margin="0,0,0,8"
-										Click="ThemeColorPicker_Click"/>
-
-								<!-- Secondary Color Picker -->
-								<TextBlock Text="Secondary Color"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,4,0,8"/>
-
-								<Button Classes="options"
-										Content="Choose Secondary Color"
-										HorizontalAlignment="Stretch"
-										Margin="0,0,0,24"
-										Click="SecondaryColorPicker_Click"/>
-								
-								<!-- Layout Presets -->
-								<TextBlock Text="Game Card Layout"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,4,0,8"/>
-								<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,8">
-									
-									<!-- Layout Preset: Landscape -->
-									<Button Classes="modern-icon"
-											Width="64"
-											Margin="10,0,0,0"
-											Click="LayoutPreset_Landscape_Click">
-										<Image Width="64"
-											   Height="64"
-											   Source="avares://N64RecompLauncher/Assets/Icons/preset_landscape.png"/>
-									</Button>
-
-									<!-- Layout Preset: Square -->
-									<Button Classes="modern-icon"
-											Width="64"
-											Margin="10,0,0,0"
-											Click="LayoutPreset_Square_Click">
-										<Image Width="64"
-											   Height="64"
-											   Source="avares://N64RecompLauncher/Assets/Icons/preset_square.png"/>
-									</Button>
-
-									<!-- Layout Preset: Portrait -->
-									<Button Classes="modern-icon"
-											Width="64"
-											Margin="10,0,0,0"
-											Click="LayoutPreset_Portrait_Click">
-										<Image Width="64"
-											   Height="64"
-											   Source="avares://N64RecompLauncher/Assets/Icons/preset_portrait.png"/>
-									</Button>
-
-									<!-- Layout Preset: List -->
-									<Button Classes="modern-icon"
-											Width="64"
-											Margin="10,0,64,0"
-											Click="LayoutPreset_List_Click">
-										<Image Width="64"
-											   Height="64"
-											   Source="avares://N64RecompLauncher/Assets/Icons/preset_list.png"/>
-									</Button>
-								</StackPanel>
-
-								<CheckBox x:Name="StartFullscreenCheckBox"
-										   Content="Start in Fullscreen"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Checked="StartFullscreenCheckBox_Checked"
-										   Unchecked="StartFullscreenCheckBox_Unchecked" />
-								
-								<TextBlock Text="Start the launcher in fullscreen mode"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
+										   Foreground="{DynamicResource ThemeText}"
 										   Margin="0,0,0,20"/>
-
-								<CheckBox x:Name="UseGridViewCheckBox"
-										  Content="Grid View"
-										  Foreground="{DynamicResource ThemeTextSecondary}"
-										  Margin="0,0,0,8"
-										  Checked="UseGridViewCheckBox_Checked"
-										  Unchecked="UseGridViewCheckBox_Unchecked" />
-
-								<TextBlock Text="Display games in grid layout instead of list"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,20"/>
-
-								<TextBlock Text="Slot Scale"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<TextBlock Text="{Binding ElementName=SlotSizeSlider, Path=Value}"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<TextBlock Text="Adjust the size of game cards"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"/>
-
-								<Slider x:Name="SlotSizeSlider"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,20"
-										   Minimum="120"
-										   Maximum="400"
-										   Value="120"
-										   TickFrequency="4"
-										   IsSnapToTickEnabled="True"
-										   ValueChanged="SlotSizeSlider_ValueChanged" />
-
-								<TextBlock Text="Image Size"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<TextBlock Text="{Binding ElementName=IconSizeSlider, Path=Value}"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-								
-								<TextBlock Text="Adjust game image dimensions"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"/>
-							    
-								<Slider x:Name="IconSizeSlider"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,20"
-										   Minimum="64"
-										   Maximum="512"
-										   Value="256"
-										   TickFrequency="4"
-										   IsSnapToTickEnabled="True"
-										   ValueChanged="IconSizeSlider_ValueChanged" />
-							    
-								<CheckBox x:Name="IconFillCheckBox"
-										   Content="Fill Images"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Checked="IconFillCheckBox_Checked"
-										   Unchecked="IconFillCheckBox_Unchecked" />
-							
-								<TextBlock Text="Stretch images to fill entire card slots"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,20"/>
-							
-								<TextBlock Text="Image Opacity"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<TextBlock Text="{Binding ElementName=IconOpacitySlider, Path=Value, StringFormat={}{0:F1}}"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-
-								<Slider x:Name="IconOpacitySlider"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Minimum="0.0"
-										   Maximum="1.0"
-										   Value="0.2"
-										   TickFrequency="0.1"
-										   IsSnapToTickEnabled="True"
-										   ValueChanged="IconOpacitySlider_ValueChanged" />
-
-								<TextBlock Text="Control transparency of game images"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,20"/>
-
-								<TextBlock Text="Image Margin"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<TextBlock Text="{Binding ElementName=IconMarginSlider, Path=Value}"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-
-								<Slider x:Name="IconMarginSlider"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Minimum="0"
-										   Maximum="512"
-										   Value="0"
-										   TickFrequency="8"
-										   IsSnapToTickEnabled="True"
-										   ValueChanged="IconMarginSlider_ValueChanged" />
-
-								<TextBlock Text="Set left padding for images"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,20"/>
-
-								<TextBlock Text="Text Margin"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-							
-								<TextBlock Text="{Binding ElementName=TextMarginSlider, Path=Value}"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-
-								<Slider x:Name="TextMarginSlider"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   Minimum="0"
-										   Maximum="256"
-										   Value="0"
-										   TickFrequency="8"
-										   IsSnapToTickEnabled="True"
-										   ValueChanged="TextMarginSlider_ValueChanged" />
-
-								<TextBlock Text="Adjust left spacing of text labels"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,30"/>
-
-								<!-- GitHub API Token Section -->
-								<TextBlock Text="GITHUB API"
-										   FontSize="11"
-										   FontWeight="Bold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   LetterSpacing="1"
-										   HorizontalAlignment="Right"
-										   Margin="0,0,0,15"/>
-
-								<TextBlock Text="GitHub API Token"
-										   FontSize="13"
-										   FontWeight="SemiBold"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"/>
-
-								<TextBox x:Name="GitHubTokenTextBox"
-										 Foreground="{DynamicResource ThemeTextSecondary}"
-										 Background="{DynamicResource ThemeTextDarker}"
-										 BorderBrush="{DynamicResource ThemeBorder}"
-										 BorderThickness="1"
-										 Padding="12,10"
-										 CornerRadius="4"
-										 Margin="0,0,0,8"
-										 TextChanged="GitHubTokenTextBox_TextChanged"
-										 Text="{Binding Settings.GitHubApiToken, Mode=TwoWay}"/>
-
-								<TextBlock Text="Enter your personal access token from GitHub to increase API call limits"
-										   FontSize="12"
-										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,0,0,8"
-										   TextWrapping="Wrap"/>
-
-								<Button Classes="options"
-										Content="Clear Token"
-										HorizontalAlignment="Stretch"
-										Margin="0,0,0,30"
-										Click="ClearGitHubToken_Click"/>
+								<ItemsControl x:Name="ChangelogContent"
+											  ItemsSource="{Binding}">
+									<ItemsControl.ItemTemplate>
+										<DataTemplate>
+											<ContentControl Content="{Binding}"/>
+										</DataTemplate>
+									</ItemsControl.ItemTemplate>
+								</ItemsControl>
 							</StackPanel>
 						</ScrollViewer>
-				</Border>		
+					</Grid>
+				</Border>
+
 			</Grid>
 		</Grid>
 	</Grid>

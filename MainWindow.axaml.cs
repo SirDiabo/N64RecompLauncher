@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -14,7 +15,7 @@ using N64RecompLauncher.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 
 namespace N64RecompLauncher
@@ -110,6 +111,9 @@ namespace N64RecompLauncher
         private InputService? _inputService;
         private bool _isProcessingInput = false;
         private bool _hasInitializedFocus = false;
+
+        private bool _isChangelogOpen = false;
+        private GameInfo? _currentChangelogGame;
 
         private GameInfo? _continueGameInfo;
         public GameInfo? ContinueGameInfo
@@ -234,7 +238,7 @@ namespace N64RecompLauncher
             var primaryColor = _themeColorBrush.Color;
             var secondaryColor = _secondaryColorBrush.Color;
 
-            // Update resources in THIS WINDOW, not Application
+            // Update resources
             if (this.Resources != null)
             {
                 // Primary affects backgrounds
@@ -781,6 +785,13 @@ namespace N64RecompLauncher
             {
                 isSettingsPanelOpen = false;
                 SettingsPanel.IsVisible = false;
+                return;
+            }
+
+            // Close changelog if open
+            if (_isChangelogOpen)
+            {
+                CloseChangelog();
                 return;
             }
 
@@ -2301,6 +2312,12 @@ namespace N64RecompLauncher
                 }
                 return;
             }
+            // Close changelog if open
+            if (_isChangelogOpen)
+            {
+                CloseChangelog();
+                return;
+            }
         }
 
         private bool IsInsideSettingsPanel(Control control)
@@ -2339,6 +2356,501 @@ namespace N64RecompLauncher
         private void MainWindow_Deactivated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(false);
+        }
+
+        private async void ShowChangelog_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null || string.IsNullOrEmpty(game.Repository))
+            {
+                await ShowMessageBoxAsync("Unable to retrieve changelog information.", "Error");
+                return;
+            }
+
+            _currentChangelogGame = game;
+            await ShowChangelogAsync(game);
+        }
+
+        private async Task ShowChangelogAsync(GameInfo game)
+        {
+            try
+            {
+                _isChangelogOpen = true;
+
+                // Show changelog panel
+                var changelogPanel = this.FindControl<Border>("ChangelogPanel");
+                if (changelogPanel != null)
+                {
+                    changelogPanel.IsVisible = true;
+                }
+
+                // Update header title
+                var headerTitle = this.FindControl<TextBlock>("HeaderTitleText");
+                if (headerTitle != null)
+                {
+                    headerTitle.Text = $"{game.Name} - Version {game.LatestVersion ?? "Unknown"}";
+                }
+
+                // Update changelog title
+                var changelogTitle = this.FindControl<TextBlock>("ChangelogTitle");
+                if (changelogTitle != null)
+                {
+                    changelogTitle.Text = $"{game.Name} Changelog";
+                }
+
+                // Fetch and render changelog
+                var changelogContent = this.FindControl<ItemsControl>("ChangelogContent");
+                if (changelogContent != null)
+                {
+                    // Show loading placeholder
+                    var loadingPanel = new StackPanel();
+                    loadingPanel.Children.Add(new TextBlock
+                    {
+                        Text = "Loading changelog...",
+                        Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")),
+                        FontSize = 14
+                    });
+                    changelogContent.ItemsSource = new[] { loadingPanel };
+                }
+
+                string changelogText = await FetchChangelogAsync(game.Repository);
+
+                if (changelogContent != null)
+                {
+                    changelogContent.ItemsSource = ParseMarkdown(changelogText);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to load changelog: {ex.Message}", "Error");
+                CloseChangelog();
+            }
+        }
+
+        private List<Control> ParseMarkdown(string markdown)
+        {
+            var controls = new List<Control>();
+            if (string.IsNullOrWhiteSpace(markdown))
+            {
+                controls.Add(new SelectableTextBlock
+                {
+                    Text = "No changelog available.",
+                    Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")),
+                    FontSize = 14
+                });
+                return controls;
+            }
+
+            var lines = markdown.Split('\n');
+            var listItems = new List<string>();
+            var codeBlockLines = new List<string>();
+            bool inCodeBlock = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].TrimEnd('\r');
+
+                // Code blocks
+                if (line.TrimStart().StartsWith("```"))
+                {
+                    if (inCodeBlock)
+                    {
+                        if (codeBlockLines.Count > 0)
+                        {
+                            var codeBlock = new Border
+                            {
+                                Background = new SolidColorBrush(Color.Parse("#1e1e1e")),
+                                BorderBrush = new SolidColorBrush(Color.Parse("#2d2d30")),
+                                BorderThickness = new Thickness(1),
+                                CornerRadius = new CornerRadius(4),
+                                Padding = new Thickness(12),
+                                Margin = new Thickness(0, 8, 0, 8)
+                            };
+                            codeBlock.Child = new SelectableTextBlock
+                            {
+                                Text = string.Join("\n", codeBlockLines),
+                                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                                FontSize = 13,
+                                Foreground = new SolidColorBrush(Color.Parse("#d4d4d4"))
+                            };
+                            controls.Add(codeBlock);
+                            codeBlockLines.Clear();
+                        }
+                        inCodeBlock = false;
+                    }
+                    else
+                    {
+                        FlushListItems(controls, listItems);
+                        inCodeBlock = true;
+                    }
+                    continue;
+                }
+
+                if (inCodeBlock)
+                {
+                    codeBlockLines.Add(line);
+                    continue;
+                }
+
+                // GitHub alerts: > [!NOTE], etc.
+                var alertMatch = System.Text.RegularExpressions.Regex.Match(line.TrimStart(),
+                    @"^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (alertMatch.Success)
+                {
+                    FlushListItems(controls, listItems);
+
+                    var alertType = alertMatch.Groups[1].Value.ToUpper();
+                    var alertContentLines = new List<string>();
+
+                    // Move to the first line of content
+                    i++;
+
+                    // Collect all lines belonging to the alert block
+                    while (i < lines.Length)
+                    {
+                        var nextLine = lines[i].TrimEnd('\r');
+
+                        // Stop if the line is empty
+                        if (string.IsNullOrWhiteSpace(nextLine))
+                        {
+                            break;
+                        }
+
+                        var trimmedLine = nextLine.TrimStart();
+
+                        if (trimmedLine.StartsWith(">"))
+                        {
+                            // Standard blockquote line: strip the '>'
+                            var content = trimmedLine.Substring(1);
+                            if (content.StartsWith(" ")) content = content.Substring(1);
+                            alertContentLines.Add(content);
+                        }
+                        else
+                        {
+                            // Lazy continuation
+                            alertContentLines.Add(trimmedLine);
+                        }
+                        i++;
+                    }
+
+                    // Define colors and icon names
+                    var (borderColorHex, iconPath) = alertType switch
+                    {
+                        "NOTE" => ("#0969da", "markdown_info.png"),
+                        "TIP" => ("#1a7f37", "markdown_tip.png"),
+                        "IMPORTANT" => ("#8250df", "markdown_important.png"),
+                        "WARNING" => ("#9a6700", "markdown_warning.png"),
+                        "CAUTION" => ("#d1242f", "markdown_caution.png"),
+                        _ => ("#2d2d30", "markdown_info.png")
+                    };
+
+                    var alertColor = Color.Parse(borderColorHex);
+                    var alertBrush = new SolidColorBrush(alertColor);
+
+                    var alertBorder = new Border
+                    {
+                        BorderBrush = alertBrush,
+                        BorderThickness = new Thickness(4, 0, 0, 0),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(16, 12, 16, 12),
+                        Margin = new Thickness(0, 8, 0, 8),
+                        Background = new SolidColorBrush(alertColor) { Opacity = 0.05 }
+                    };
+
+                    var alertPanel = new StackPanel();
+
+                    // Title row with icon tinted to border color
+                    var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+
+                    try
+                    {
+                        // Use a Rectangle + OpacityMask to draw the icon in the alert's color
+                        var iconRect = new Avalonia.Controls.Shapes.Rectangle
+                        {
+                            Width = 16,
+                            Height = 16,
+                            Margin = new Thickness(0, 0, 8, 0),
+                            Fill = alertBrush,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            OpacityMask = new ImageBrush
+                            {
+                                Source = new Avalonia.Media.Imaging.Bitmap(
+                                    Avalonia.Platform.AssetLoader.Open(
+                                        new Uri($"avares://N64RecompLauncher/Assets/{iconPath}")))
+                            }
+                        };
+                        titlePanel.Children.Add(iconRect);
+                    }
+                    catch (Exception)
+                    {
+                        // Fallback circle if icon load fails
+                        titlePanel.Children.Add(new Avalonia.Controls.Shapes.Ellipse
+                        {
+                            Width = 8,
+                            Height = 8,
+                            Fill = alertBrush,
+                            Margin = new Thickness(0, 0, 8, 0)
+                        });
+                    }
+
+                    titlePanel.Children.Add(new SelectableTextBlock
+                    {
+                        Text = alertType,
+                        FontSize = 14,
+                        FontWeight = FontWeight.Bold,
+                        Foreground = alertBrush,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+
+                    alertPanel.Children.Add(titlePanel);
+
+                    // Parse the inner content for markdown (bold, links, etc.)
+                    var contentText = string.Join("\n", alertContentLines);
+                    var contentBlocks = ParseInlineMarkdown(contentText);
+                    foreach (var block in contentBlocks)
+                    {
+                        block.Margin = new Thickness(0, 2, 0, 2);
+                        alertPanel.Children.Add(block);
+                    }
+
+                    alertBorder.Child = alertPanel;
+                    controls.Add(alertBorder);
+                    continue;
+                }
+
+                // Headers
+                if (line.StartsWith("#"))
+                {
+                    FlushListItems(controls, listItems);
+                    int level = 0;
+                    while (level < line.Length && line[level] == '#') level++;
+                    var headerText = line.Substring(level).Trim();
+                    var fontSize = level switch { 1 => 24, 2 => 20, 3 => 18, 4 => 16, _ => 14 };
+                    var fontWeight = level <= 2 ? FontWeight.Bold : FontWeight.SemiBold;
+
+                    controls.Add(new SelectableTextBlock
+                    {
+                        Text = headerText,
+                        FontSize = fontSize,
+                        FontWeight = fontWeight,
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Margin = new Thickness(0, level == 1 ? 16 : 12, 0, 8)
+                    });
+                    continue;
+                }
+
+                // Lists
+                if (line.TrimStart().StartsWith("* ") || line.TrimStart().StartsWith("- "))
+                {
+                    var itemText = line.TrimStart().Substring(2);
+                    listItems.Add("• " + itemText);
+                    continue;
+                }
+
+                var orderedMatch = System.Text.RegularExpressions.Regex.Match(line.TrimStart(), @"^(\d+)\.\s+(.+)");
+                if (orderedMatch.Success)
+                {
+                    listItems.Add(orderedMatch.Groups[1].Value + ". " + orderedMatch.Groups[2].Value);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("---"))
+                {
+                    FlushListItems(controls, listItems);
+                    if (line.Trim().StartsWith("---"))
+                        controls.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.Parse("#2d2d30")), Margin = new Thickness(0, 12, 0, 12) });
+                    continue;
+                }
+
+                FlushListItems(controls, listItems);
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    var blocks = ParseInlineMarkdown(line);
+                    foreach (var block in blocks)
+                    {
+                        block.Margin = new Thickness(0, 0, 0, 8);
+                        controls.Add(block);
+                    }
+                }
+            }
+
+            FlushListItems(controls, listItems);
+            return controls;
+        }
+
+        private List<SelectableTextBlock> ParseInlineMarkdown(string text)
+        {
+            var blocks = new List<SelectableTextBlock>();
+            var textBlock = new SelectableTextBlock { FontSize = 14, Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")) };
+            var inlines = new Avalonia.Controls.Documents.InlineCollection();
+
+            int i = 0;
+            var currentText = new StringBuilder();
+
+            while (i < text.Length)
+            {
+                // Bold **text**
+                if (i < text.Length - 1 && text[i] == '*' && text[i + 1] == '*')
+                {
+                    if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                    i += 2;
+                    var boldText = new StringBuilder();
+                    while (i < text.Length - 1 && !(text[i] == '*' && text[i + 1] == '*')) { boldText.Append(text[i]); i++; }
+                    if (i < text.Length - 1) i += 2;
+                    inlines.Add(new Avalonia.Controls.Documents.Run { Text = boldText.ToString(), FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Colors.White) });
+                    continue;
+                }
+
+                // Inline code `text`
+                if (text[i] == '`')
+                {
+                    if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                    i++;
+                    var codeText = new StringBuilder();
+                    while (i < text.Length && text[i] != '`') { codeText.Append(text[i]); i++; }
+                    if (i < text.Length) i++;
+                    inlines.Add(new Avalonia.Controls.Documents.Run
+                    {
+                        Text = codeText.ToString(),
+                        FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                        Foreground = new SolidColorBrush(Color.Parse("#d4d4d4"))
+                    });
+                    continue;
+                }
+
+                // Links [text](url)
+                if (text[i] == '[')
+                {
+                    var linkMatch = System.Text.RegularExpressions.Regex.Match(text.Substring(i), @"^\[([^\]]+)\]\(([^\)]+)\)");
+                    if (linkMatch.Success)
+                    {
+                        if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                        inlines.Add(new Avalonia.Controls.Documents.Run
+                        {
+                            Text = linkMatch.Groups[1].Value,
+                            Foreground = new SolidColorBrush(Color.Parse("#0969da")),
+                            TextDecorations = TextDecorations.Underline
+                        });
+                        i += linkMatch.Length;
+                        continue;
+                    }
+                }
+
+                currentText.Append(text[i]);
+                i++;
+            }
+
+            if (currentText.Length > 0) inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() });
+
+            if (inlines.Count > 0)
+            {
+                textBlock.Inlines = inlines;
+                blocks.Add(textBlock);
+            }
+
+            return blocks;
+        }
+
+        private void FlushListItems(List<Control> controls, List<string> listItems)
+        {
+            if (listItems.Count > 0)
+            {
+                var listPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                foreach (var item in listItems)
+                {
+                    var blocks = ParseInlineMarkdown(item);
+                    foreach (var block in blocks)
+                    {
+                        block.Margin = new Thickness(0, 2, 0, 2);
+                        listPanel.Children.Add(block);
+                    }
+                }
+                controls.Add(listPanel);
+                listItems.Clear();
+            }
+        }
+
+        private TextBlock CreateFormattedTextBlock(string text)
+        {
+            var textBlock = new SelectableTextBlock
+            {
+                Text = text,
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.Parse("#B8B8B8"))
+            };
+            return textBlock;
+        }
+
+        private async Task<string> FetchChangelogAsync(string repository)
+        {
+            try
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "N64RecompLauncher");
+
+                if (!string.IsNullOrEmpty(_settings?.GitHubApiToken))
+                {
+                    client.DefaultRequestHeaders.Add("Authorization", $"token {_settings.GitHubApiToken}");
+                }
+
+                var url = $"https://api.github.com/repos/{repository}/releases/latest";
+                var response = await client.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return "Failed to fetch changelog from GitHub.";
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+
+                if (root.TryGetProperty("body", out var bodyElement))
+                {
+                    var body = bodyElement.GetString();
+                    if (!string.IsNullOrEmpty(body))
+                    {
+                        return body;
+                    }
+                }
+
+                return "No changelog available for this release.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error fetching changelog: {ex.Message}";
+            }
+        }
+
+        private void CloseChangelog()
+        {
+            _isChangelogOpen = false;
+            _currentChangelogGame = null;
+
+            // Hide changelog panel
+            var changelogPanel = this.FindControl<Border>("ChangelogPanel");
+            if (changelogPanel != null)
+            {
+                changelogPanel.IsVisible = false;
+            }
+
+            // Restore sidebar content
+            var sidebarContent = this.FindControl<StackPanel>("SidebarContent");
+            if (sidebarContent != null)
+            {
+                sidebarContent.Width = double.NaN;
+            }
+
+            // Restore header title
+            var headerTitle = this.FindControl<TextBlock>("HeaderTitleText");
+            if (headerTitle != null)
+            {
+                headerTitle.Text = "Library";
+            }
         }
 
         private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
@@ -2380,4 +2892,13 @@ namespace N64RecompLauncher
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
+
+    public class MarkdownBlock
+    {
+        public string Type { get; set; } = "paragraph";
+        public string Content { get; set; } = "";
+        public int Level { get; set; } = 0;
+        public List<string> Items { get; set; } = new List<string>();
+    }
+
 }
