@@ -17,7 +17,7 @@ namespace N64RecompLauncher
         public int SlotTextMargin { get; set; } = 112;
         public int SlotSize { get; set; } = 208;
         public string PrimaryColor { get; set; } = "#18181b";
-        public string SecondaryColor { get; set; } = "#3b82f6";
+        public string SecondaryColor { get; set; } = "#404040";
         public TargetOS Platform { get; set; } = TargetOS.Auto;
         public List<string> HiddenGames { get; set; } = new List<string>();
         public string GamesPath { get; set; } = string.Empty;
