@@ -726,7 +726,6 @@
 							Classes="settings"
 							Width="216"
 							HorizontalAlignment="Left"
-							Margin="0,0,0,4"
 							Click="UnhideAllGamesButton_Click">
 						<TextBlock Text="All Games"/>
 					</Button>
@@ -735,7 +734,6 @@
 							Classes="settings"
 							Width="216"
 							HorizontalAlignment="Left"
-							Margin="0,0,0,4"
 							Click="HideNonInstalledButton_Click">
 						<TextBlock Text="Installed Only"/>
 					</Button>
@@ -744,7 +742,6 @@
 							Classes="settings"
 							Width="216"
 							HorizontalAlignment="Left"
-							Margin="0,0,0,4"
 							Click="HideNonStableButton_Click"
 							IsVisible="{Binding ShowExperimentalGames}">
 						<TextBlock Text="Stable Only"/>
@@ -754,7 +751,6 @@
 							Classes="settings"
 							Width="216"
 							HorizontalAlignment="Left"
-							Margin="0,0,0,4"
 							Click="OnlyExperimentalGamesButton_Click"
 							IsVisible="{Binding ShowExperimentalGames}">
 						<TextBlock Text="Experimental Only"/>
@@ -764,7 +760,6 @@
 							Classes="settings"
 							Width="216"
 							HorizontalAlignment="Left"
-							Margin="0,0,0,8"
 							Click="OnlyCustomGamesButton_Click"
 							IsVisible="{Binding ShowCustomGames}">
 						<TextBlock Text="Custom Games Only"/>
@@ -1048,13 +1043,26 @@
 										   FontSize="13"
 										   FontWeight="SemiBold"
 										   Foreground="{DynamicResource ThemeTextSecondary}"
-										   Margin="0,4,0,8"/>
+										   Margin="0,0,0,8"/>
 
 								<Button Classes="options"
 										Content="Choose Theme Color"
 										HorizontalAlignment="Stretch"
 										Margin="0,0,0,8"
 										Click="ThemeColorPicker_Click"/>
+
+								<!-- Secondary Color Picker -->
+								<TextBlock Text="Secondary Color"
+										   FontSize="13"
+										   FontWeight="SemiBold"
+										   Foreground="{DynamicResource ThemeTextSecondary}"
+										   Margin="0,4,0,8"/>
+
+								<Button Classes="options"
+										Content="Choose Secondary Color"
+										HorizontalAlignment="Stretch"
+										Margin="0,0,0,24"
+										Click="SecondaryColorPicker_Click"/>
 								
 								<!-- Layout Presets -->
 								<TextBlock Text="Game Card Layout"

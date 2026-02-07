@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
@@ -139,6 +139,20 @@ namespace N64RecompLauncher
                 }
             }
         }
+        private SolidColorBrush _secondaryColorBrush;
+        public SolidColorBrush SecondaryColorBrush
+        {
+            get => _secondaryColorBrush;
+            set
+            {
+                if (_secondaryColorBrush != value)
+                {
+                    _secondaryColorBrush = value;
+                    OnPropertyChanged(nameof(SecondaryColorBrush));
+                    UpdateThemeColors();
+                }
+            }
+        }
 
         public MainWindow()
         {
@@ -157,7 +171,8 @@ namespace N64RecompLauncher
             _gameManager = new GameManager();
 
             // Initialize theme BEFORE other UI setup
-            ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.ThemeColor ?? "#18181b"));
+            ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
+            SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings?.SecondaryColor ?? "#404040"));
             UpdateThemeColors();
 
             _gameManager.UnhideAllGames();
@@ -212,28 +227,33 @@ namespace N64RecompLauncher
             return Color.FromRgb(r, g, b);
         }
 
-        // Update all Theme Colors
         private void UpdateThemeColors()
         {
-            if (_themeColorBrush == null) return;
+            if (_themeColorBrush == null || _secondaryColorBrush == null) return;
 
-            var baseColor = _themeColorBrush.Color;
-            bool isLight = IsLightColor(baseColor);
+            var primaryColor = _themeColorBrush.Color;
+            var secondaryColor = _secondaryColorBrush.Color;
 
             // Update resources in THIS WINDOW, not Application
             if (this.Resources != null)
             {
-                this.Resources["ThemeBase"] = new SolidColorBrush(baseColor);
-                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(baseColor, 1.3));
-                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(baseColor, 0.7));
-                this.Resources["ThemeBorder"] = new SolidColorBrush(GetShadedColor(baseColor, 0.9));
-                this.Resources["ThemeText"] = new SolidColorBrush(
-                    CalculateLuminance(baseColor) > 0.5 ? Colors.Black : Colors.White
-                );
+                // Primary affects backgrounds
+                this.Resources["ThemeBase"] = new SolidColorBrush(primaryColor);
+                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(primaryColor, 1.3));
+                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(primaryColor, 0.7));
+
+                // Secondary affects borders and accents
+                this.Resources["ThemeBorder"] = new SolidColorBrush(secondaryColor);
+
+                // Text with secondary hue tint
+                var textColor = CalculateLuminance(primaryColor) > 0.5 ? Colors.Black : Colors.White;
+                var tintedText = BlendColors(textColor, secondaryColor, 0.08);
+                this.Resources["ThemeText"] = new SolidColorBrush(tintedText);
+
                 this.Resources["ThemeTextSecondary"] = new SolidColorBrush(
-                    CalculateLuminance(baseColor) > 0.5
-                        ? Color.FromRgb(70, 70, 70)    // Darker gray
-                        : Color.FromRgb(200, 200, 200) // Lighter gray
+                    CalculateLuminance(primaryColor) > 0.5
+                        ? BlendColors(Color.FromRgb(70, 70, 70), secondaryColor, 0.15)
+                        : BlendColors(Color.FromRgb(200, 200, 200), secondaryColor, 0.15)
                 );
             }
         }
@@ -294,7 +314,45 @@ namespace N64RecompLauncher
             await ShowColorPresetsDialog(presets);
         }
 
-        private async Task ShowColorPresetsDialog(Dictionary<string, string> presets)
+        // Secondary Color Picker
+        private async void SecondaryColorPicker_Click(object sender, RoutedEventArgs e)
+        {
+            // Simple color presets dialog
+            var presets = new Dictionary<string, string>
+            {
+                { "Black", "#000000" },
+                { "Dark Gray (Default)", "#404040" },
+                { "Gray", "#737373" },
+                { "Light Gray", "#d4d4d4" },
+                { "White", "#ffffff" },
+
+                { "Red", "#ef4444" },
+                { "Orange", "#f97316" },
+                { "Yellow", "#eab308" },
+                { "Lime", "#84cc16" },
+                { "Green", "#10b981" },
+                { "Teal", "#14b8a6" },
+                { "Cyan", "#06b6d4" },
+                { "Sky Blue", "#0ea5e9" },
+                { "Blue", "#3b82f6" },
+                { "Purple", "#a855f7" },
+                { "Violet", "#8b5cf6" },
+                { "Indigo", "#6366f1" },
+                { "Pink", "#ec4899" } 
+            };
+
+            await ShowColorPresetsDialog(presets, true);
+        }
+
+        private Color BlendColors(Color baseColor, Color blendColor, double blendAmount)
+        {
+            byte r = (byte)(baseColor.R * (1 - blendAmount) + blendColor.R * blendAmount);
+            byte g = (byte)(baseColor.G * (1 - blendAmount) + blendColor.G * blendAmount);
+            byte b = (byte)(baseColor.B * (1 - blendAmount) + blendColor.B * blendAmount);
+            return Color.FromRgb(r, g, b);
+        }
+
+        private async Task ShowColorPresetsDialog(Dictionary<string, string> presets, bool isSecondary = false)
         {
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
@@ -302,6 +360,37 @@ namespace N64RecompLauncher
                     desktop.MainWindow != null)
                 {
                     var stackPanel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
+
+                    // Add Custom Color button at the top
+                    var customButton = new Button
+                    {
+                        Content = "🎨 Custom Color Picker",
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        Height = 50,
+                        Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
+                        Foreground = new SolidColorBrush(Colors.White),
+                        FontWeight = FontWeight.Bold
+                    };
+
+                    customButton.Click += async (s, e) =>
+                    {
+                        // Close presets dialog
+                        var window = (s as Button)?.GetVisualRoot() as Window;
+                        window?.Close();
+
+                        // Open custom color picker
+                        await ShowCustomColorPicker(isSecondary);
+                    };
+
+                    stackPanel.Children.Add(customButton);
+
+                    // Add separator
+                    stackPanel.Children.Add(new Border
+                    {
+                        Height = 1,
+                        Background = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                        Margin = new Thickness(0, 5, 0, 5)
+                    });
 
                     foreach (var preset in presets)
                     {
@@ -320,8 +409,16 @@ namespace N64RecompLauncher
                             var colorHex = (s as Button)?.Tag as string;
                             if (!string.IsNullOrEmpty(colorHex))
                             {
-                                _settings.ThemeColor = colorHex;
-                                ThemeColorBrush = new SolidColorBrush(Color.Parse(colorHex));
+                                if (isSecondary)
+                                {
+                                    _settings.SecondaryColor = colorHex;
+                                    SecondaryColorBrush = new SolidColorBrush(Color.Parse(colorHex));
+                                }
+                                else
+                                {
+                                    _settings.PrimaryColor = colorHex;
+                                    ThemeColorBrush = new SolidColorBrush(Color.Parse(colorHex));
+                                }
                                 OnSettingChanged();
 
                                 // Close the dialog after selection
@@ -338,7 +435,7 @@ namespace N64RecompLauncher
 
                     var messageBox = new Window
                     {
-                        Title = "Select Theme Color",
+                        Title = isSecondary ? "Select Secondary Color" : "Select Primary Color",
                         Width = 300,
                         Height = 1000,
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -348,6 +445,204 @@ namespace N64RecompLauncher
                     await messageBox.ShowDialog(desktop.MainWindow);
                 }
             });
+        }
+
+        private async Task ShowCustomColorPicker(bool isSecondary = false)
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var currentColor = isSecondary ? SecondaryColorBrush.Color : ThemeColorBrush.Color;
+
+                    var pickerPanel = new StackPanel { Margin = new Thickness(20), Spacing = 15 };
+
+                    // Preview box
+                    var previewBorder = new Border
+                    {
+                        Width = 260,
+                        Height = 60,
+                        CornerRadius = new CornerRadius(8),
+                        Background = new SolidColorBrush(currentColor),
+                        BorderBrush = new SolidColorBrush(Colors.White),
+                        BorderThickness = new Thickness(2)
+                    };
+                    pickerPanel.Children.Add(previewBorder);
+
+                    // RGB Sliders
+                    var rSlider = CreateColorSlider("Red", currentColor.R, Colors.Red);
+                    var gSlider = CreateColorSlider("Green", currentColor.G, Colors.Green);
+                    var bSlider = CreateColorSlider("Blue", currentColor.B, Colors.Blue);
+
+                    pickerPanel.Children.Add(rSlider.panel);
+                    pickerPanel.Children.Add(gSlider.panel);
+                    pickerPanel.Children.Add(bSlider.panel);
+
+                    // Update preview on slider change
+                    EventHandler<AvaloniaPropertyChangedEventArgs> updatePreview = (s, e) =>
+                    {
+                        var newColor = Color.FromRgb((byte)rSlider.slider.Value, (byte)gSlider.slider.Value, (byte)bSlider.slider.Value);
+                        previewBorder.Background = new SolidColorBrush(newColor);
+                    };
+
+                    rSlider.slider.PropertyChanged += updatePreview;
+                    gSlider.slider.PropertyChanged += updatePreview;
+                    bSlider.slider.PropertyChanged += updatePreview;
+
+                    // Hex input
+                    var hexPanel = new StackPanel { Spacing = 5 };
+                    hexPanel.Children.Add(new TextBlock
+                    {
+                        Text = "Hex Color",
+                        Foreground = new SolidColorBrush(Colors.White),
+                        FontSize = 12
+                    });
+
+                    var hexBox = new TextBox
+                    {
+                        Text = $"#{currentColor.R:X2}{currentColor.G:X2}{currentColor.B:X2}",
+                        Watermark = "#RRGGBB",
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Background = new SolidColorBrush(Color.FromRgb(40, 40, 40))
+                    };
+
+                    hexBox.TextChanged += (s, e) =>
+                    {
+                        try
+                        {
+                            var text = hexBox.Text?.Trim();
+                            if (!string.IsNullOrEmpty(text) && text.StartsWith("#") && text.Length == 7)
+                            {
+                                var color = Color.Parse(text);
+                                rSlider.slider.Value = color.R;
+                                gSlider.slider.Value = color.G;
+                                bSlider.slider.Value = color.B;
+                            }
+                        }
+                        catch { }
+                    };
+
+                    // Update hex box when sliders change
+                    EventHandler<AvaloniaPropertyChangedEventArgs> updateHex = (s, e) =>
+                    {
+                        hexBox.Text = $"#{(byte)rSlider.slider.Value:X2}{(byte)gSlider.slider.Value:X2}{(byte)bSlider.slider.Value:X2}";
+                    };
+
+                    rSlider.slider.PropertyChanged += updateHex;
+                    gSlider.slider.PropertyChanged += updateHex;
+                    bSlider.slider.PropertyChanged += updateHex;
+
+                    hexPanel.Children.Add(hexBox);
+                    pickerPanel.Children.Add(hexPanel);
+
+                    // Buttons
+                    var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
+
+                    var applyButton = new Button
+                    {
+                        Content = "Apply",
+                        Width = 120,
+                        Height = 35,
+                        Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                        Foreground = new SolidColorBrush(Colors.White)
+                    };
+
+                    var cancelButton = new Button
+                    {
+                        Content = "Cancel",
+                        Width = 120,
+                        Height = 35,
+                        Background = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                        Foreground = new SolidColorBrush(Colors.White)
+                    };
+
+                    buttonPanel.Children.Add(applyButton);
+                    buttonPanel.Children.Add(cancelButton);
+                    pickerPanel.Children.Add(buttonPanel);
+
+                    var pickerWindow = new Window
+                    {
+                        Title = isSecondary ? "Custom Secondary Color" : "Custom Primary Color",
+                        Width = 320,
+                        Height = 480,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                        Content = pickerPanel,
+                        CanResize = false
+                    };
+
+                    applyButton.Click += (s, e) =>
+                    {
+                        var finalColor = Color.FromRgb((byte)rSlider.slider.Value, (byte)gSlider.slider.Value, (byte)bSlider.slider.Value);
+                        var hexColor = $"#{finalColor.R:X2}{finalColor.G:X2}{finalColor.B:X2}";
+
+                        if (isSecondary)
+                        {
+                            _settings.SecondaryColor = hexColor;
+                            SecondaryColorBrush = new SolidColorBrush(finalColor);
+                        }
+                        else
+                        {
+                            _settings.PrimaryColor = hexColor;
+                            ThemeColorBrush = new SolidColorBrush(finalColor);
+                        }
+                        OnSettingChanged();
+                        pickerWindow.Close();
+                    };
+
+                    cancelButton.Click += (s, e) => pickerWindow.Close();
+
+                    await pickerWindow.ShowDialog(desktop.MainWindow);
+                }
+            });
+        }
+
+        private (StackPanel panel, Slider slider) CreateColorSlider(string label, byte initialValue, Color thumbColor)
+        {
+            var panel = new StackPanel { Spacing = 5 };
+
+            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = label,
+                Foreground = new SolidColorBrush(Colors.White),
+                FontSize = 12,
+                Width = 50
+            });
+
+            var valueText = new TextBlock
+            {
+                Text = initialValue.ToString(),
+                Foreground = new SolidColorBrush(Colors.White),
+                FontSize = 12,
+                Width = 40,
+                TextAlignment = TextAlignment.Right
+            };
+            headerPanel.Children.Add(valueText);
+
+            panel.Children.Add(headerPanel);
+
+            var slider = new Slider
+            {
+                Minimum = 0,
+                Maximum = 255,
+                Value = initialValue,
+                Width = 260,
+                Foreground = new SolidColorBrush(thumbColor)
+            };
+
+            slider.PropertyChanged += (s, e) =>
+            {
+                if (e.Property.Name == "Value")
+                {
+                    valueText.Text = ((int)slider.Value).ToString();
+                }
+            };
+
+            panel.Children.Add(slider);
+
+            return (panel, slider);
         }
 
         private void UpdateContinueButtonState()
@@ -953,7 +1248,8 @@ namespace N64RecompLauncher
                 };
 
                 // Initialize theme
-                ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.ThemeColor ?? "#18181b"));
+                ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
+                SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings?.SecondaryColor ?? "#404040"));
                 UpdateThemeColors();
             }
         }
