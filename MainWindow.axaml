@@ -93,6 +93,9 @@
 										<MenuItem Header="Open GitHub Page"
 												  Click="OpenGitHubPage_Click"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Show Changelog"
+												  Click="ShowChangelog_Click"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Add Custom Image"
 												  Click="SetCustomIcon_Click"
 												  CommandParameter="{Binding}"/>
@@ -102,9 +105,6 @@
 												  IsVisible="{Binding HasCustomIcon}"/>
 										<MenuItem Header="Hide Game"
 												  Click="HideGame_Click"
-												  CommandParameter="{Binding}"/>
-										<MenuItem Header="Show Changelog"
-												  Click="ShowChangelog_Click"
 												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Open Folder"
 												  Click="OpenFolder_Click"
@@ -186,6 +186,9 @@
 									<MenuItem Header="Open GitHub Page"
 											  Click="OpenGitHubPage_Click"
 											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Show Changelog"
+											  Click="ShowChangelog_Click"
+											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Add Custom Image"
 											  Click="SetCustomIcon_Click"
 											  CommandParameter="{Binding}"/>
@@ -195,9 +198,6 @@
 											  IsVisible="{Binding HasCustomIcon}"/>
 									<MenuItem Header="Hide Game"
 											  Click="HideGame_Click"
-											  CommandParameter="{Binding}"/>
-									<MenuItem Header="Show Changelog"
-											  Click="ShowChangelog_Click"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Open Folder"
 											  Click="OpenFolder_Click"
