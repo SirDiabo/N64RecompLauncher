@@ -1,54 +1,16 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow will build, test, sign and package a WPF or Windows Forms desktop application
-# built on .NET Core.
-# To learn how to migrate your existing application to .NET Core,
-# refer to https://docs.microsoft.com/en-us/dotnet/desktop-wpf/migration/convert-project-from-net-framework
-#
-# To configure this workflow:
-#
-# 1. Configure environment variables
-# GitHub sets default environment variables for every workflow run.
-# Replace the variables relative to your project in the "env" section below.
-#
-# 2. Signing
-# Generate a signing certificate in the Windows Application
-# Packaging Project or add an existing signing certificate to the project.
-# Next, use PowerShell to encode the .pfx file using Base64 encoding
-# by running the following Powershell script to generate the output string:
-#
-# $pfx_cert = Get-Content '.\SigningCertificate.pfx' -Encoding Byte
-# [System.Convert]::ToBase64String($pfx_cert) | Out-File 'SigningCertificate_Encoded.txt'
-#
-# Open the output file, SigningCertificate_Encoded.txt, and copy the
-# string inside. Then, add the string to the repo as a GitHub secret
-# and name it "Base64_Encoded_Pfx."
-# For more information on how to configure your signing certificate for
-# this workflow, refer to https://github.com/microsoft/github-actions-for-desktop-apps#signing
-#
-# Finally, add the signing certificate password to the repo as a secret and name it "Pfx_Key".
-# See "Build the Windows Application Packaging project" below to see how the secret is used.
-#
-# For more information on GitHub Actions, refer to https://github.com/features/actions
-# For a complete CI/CD sample to get started with GitHub Action workflows for Desktop Applications,
-# refer to https://github.com/microsoft/github-actions-for-desktop-apps
-
-name: .NET Desktop
+name: .NET Desktop Build
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-debug:
     strategy:
       matrix:
-        configuration: [Debug, Release]
         os: [windows-latest, ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
@@ -70,20 +32,157 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore ${{ env.Solution_Name }}
 
-    - name: Build
-      run: dotnet build ${{ env.Solution_Name }} --configuration ${{ matrix.configuration }} --no-restore
+    - name: Build Debug
+      run: dotnet build ${{ env.Solution_Name }} --configuration Debug --no-restore
 
     - name: Test
-      if: contains(matrix.os, 'windows') # Only run tests if you have Windows-specific
-      run: dotnet test ${{ env.Solution_Name }} --configuration ${{ matrix.configuration }} --no-build
+      run: dotnet test ${{ env.Solution_Name }} --configuration Debug --no-build --verbosity normal
 
-    - name: Publish
-      if: matrix.configuration == 'Release'
-      run: dotnet publish ${{ env.Solution_Name }} --configuration ${{ matrix.configuration }} --no-build --output publish
+  build-windows:
+    runs-on: windows-latest
+    
+    env:
+      Solution_Name: N64RecompLauncher.sln
 
-    - name: Upload build artifacts
-      if: matrix.configuration == 'Release'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.Solution_Name }}
+
+    - name: Publish Windows x64
+      run: dotnet publish ${{ env.Solution_Name }} -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/win-x64
+
+    - name: Upload Windows x64
       uses: actions/upload-artifact@v4
       with:
-        name: N64RecompLauncher-${{ matrix.os }}
-        path: publish
+        name: N64RecompLauncher-Windows-x64
+        path: publish/win-x64
+        retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    env:
+      Solution_Name: N64RecompLauncher.sln
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.Solution_Name }}
+
+    - name: Publish Linux x64
+      run: dotnet publish ${{ env.Solution_Name }} -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/linux-x64
+
+    - name: Publish Linux ARM64
+      run: dotnet publish ${{ env.Solution_Name }} -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/linux-arm64
+
+    - name: Upload Linux x64
+      uses: actions/upload-artifact@v4
+      with:
+        name: N64RecompLauncher-Linux-x64
+        path: publish/linux-x64
+        retention-days: 30
+
+    - name: Upload Linux ARM64
+      uses: actions/upload-artifact@v4
+      with:
+        name: N64RecompLauncher-Linux-ARM64
+        path: publish/linux-arm64
+        retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    
+    env:
+      Solution_Name: N64RecompLauncher.sln
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.Solution_Name }}
+
+    - name: Publish macOS x64
+      run: dotnet publish ${{ env.Solution_Name }} -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/osx-x64
+
+    - name: Upload macOS x64
+      uses: actions/upload-artifact@v4
+      with:
+        name: N64RecompLauncher-macOS-x64
+        path: publish/osx-x64
+        retention-days: 30
+
+  package-release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download Windows Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: N64RecompLauncher-Windows-x64
+        path: artifacts/windows-x64
+
+    - name: Download Linux x64 Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: N64RecompLauncher-Linux-x64
+        path: artifacts/linux-x64
+
+    - name: Download Linux ARM64 Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: N64RecompLauncher-Linux-ARM64
+        path: artifacts/linux-arm64
+
+    - name: Download macOS Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: N64RecompLauncher-macOS-x64
+        path: artifacts/macos-x64
+
+    - name: Create Release Packages
+      run: |
+        mkdir -p release-package
+        cd artifacts/windows-x64
+        zip -r ../../release-package/N64RecompLauncher-Windows-x64.zip .
+        cd ../linux-x64
+        tar -czf ../../release-package/N64RecompLauncher-Linux-x64.tar.gz .
+        cd ../linux-arm64
+        tar -czf ../../release-package/N64RecompLauncher-Linux-ARM64.tar.gz .
+        cd ../macos-x64
+        tar -czf ../../release-package/N64RecompLauncher-macOS-x64.tar.gz .
+
+    - name: Upload Combined Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: N64RecompLauncher-All-Platforms
+        path: release-package/
+        retention-days: 90
