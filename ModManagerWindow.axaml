@@ -285,7 +285,17 @@
                                                 <TextBlock Text="Downloads:"
                                                            FontSize="12"
                                                            Foreground="{DynamicResource ThemeTextSecondary}"/>
-                                                <TextBlock Text="{Binding LatestVersion.Downloads}"
+                                                <TextBlock Text="{Binding TotalDownloads}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource ThemeText}"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="👍"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding RatingScore}"
                                                            FontSize="12"
                                                            FontWeight="SemiBold"
                                                            Foreground="{DynamicResource ThemeText}"/>

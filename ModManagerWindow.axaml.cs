@@ -188,13 +188,13 @@ namespace N64RecompLauncher
             if (isPortable)
             {
                 var gamePath = Path.Combine(_gamesFolder, _game.FolderName ?? "");
-                return Path.Combine(gamePath, "Mods");
+                return Path.Combine(gamePath, "mods");
             }
             else
             {
                 // Non-portable mode: mods go in AppData/LocalLow
                 var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                var gameModsPath = Path.Combine(appDataPath, "N64Recomp", _game.FolderName ?? "", "Mods");
+                var gameModsPath = Path.Combine(appDataPath, "N64Recomp", _game.FolderName ?? "", "mods");
                 return gameModsPath;
             }
         }
@@ -280,7 +280,7 @@ namespace N64RecompLauncher
                     .Where(p => !p.IsDeprecated && p.Versions.Any())
                     .OrderByDescending(p => p.IsPinned)
                     .ThenByDescending(p => p.RatingScore)
-                    .ThenByDescending(p => p.Versions.FirstOrDefault()?.Downloads ?? 0)
+                    .ThenByDescending(p => p.Versions.Sum(v => v.Downloads))
                     .ToList();
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
@@ -350,7 +350,7 @@ namespace N64RecompLauncher
             // Apply sorting
             filtered = SelectedSort switch
             {
-                "Most Downloaded" => filtered.OrderByDescending(m => m.LatestVersion?.Downloads ?? 0),
+                "Most Downloaded" => filtered.OrderByDescending(m => m.TotalDownloads),
                 "Newest" => filtered.OrderByDescending(m => m.Package.DateCreated),
                 "Last Updated" => filtered.OrderByDescending(m => m.Package.DateUpdated),
                 "Top Rated" => filtered.OrderByDescending(m => m.Package.IsPinned)
@@ -549,9 +549,13 @@ namespace N64RecompLauncher
                 }
             }
 
+            // Show completion message briefly, then restore normal status
             StatusMessage = "All updates completed!";
+            await Task.Delay(2000);
+            
             OnPropertyChanged(nameof(HasUpdatesAvailable));
             RefreshModInstallationStatus();
+            // UpdateStatusMessage is already called by RefreshModInstallationStatus -> ApplyFilters
         }
 
         /// <summary>
@@ -837,7 +841,7 @@ namespace N64RecompLauncher
                             try
                             {
                                 File.Delete(filePath);
-                                Debug.WriteLine($"Deleted old file: {file}");
+                                Debug.WriteLine($"Deleted: {file}");
                             }
                             catch (Exception ex)
                             {
@@ -901,22 +905,33 @@ namespace N64RecompLauncher
                     _modsManifest.Mods.Add(newModInfo);
                     SaveModsManifest();
 
+                    // Update the viewmodel with new installation info
+                    viewModel.UpdateInstalledInfo(newModInfo);
+                    
+                    // Refresh installation status for all mods without recreating ViewModels
+                    RefreshModInstallationStatus();
+                    
+                    // Show success message briefly, then restore normal status
                     StatusMessage = $"Successfully installed {extractedCount} mod file{(extractedCount == 1 ? "" : "s")} from {package.Name}";
-
-                    // Reload mods to update UI
-                    _ = LoadModsAsync();
+                    await Task.Delay(2000);
+                    UpdateStatusMessage();
                 }
             }
             catch (OperationCanceledException)
             {
                 StatusMessage = $"Download cancelled: {package.Name}";
                 Debug.WriteLine($"Download cancelled for {package.Name}");
+                // Restore normal status after brief delay
+                await Task.Delay(1500);
+                UpdateStatusMessage();
             }
             catch (Exception ex)
             {
                 StatusMessage = $"Failed to install {package.Name}";
-                await ShowMessageAsync("Error", $"Failed to download/install mod: {ex.Message}");
                 Debug.WriteLine($"Error downloading mod: {ex}");
+                // Show error dialog and restore normal status
+                await ShowMessageAsync("Error", $"Failed to download/install mod: {ex.Message}");
+                UpdateStatusMessage();
             }
             finally
             {
@@ -973,13 +988,11 @@ namespace N64RecompLauncher
             {
                 StatusMessage = $"Deleting {viewModel.Name}...";
 
-                // Find the installed mod
                 var installedMod = _modsManifest.Mods.FirstOrDefault(m =>
                     m.Owner == viewModel.Owner && m.Name == viewModel.Name);
 
                 if (installedMod != null)
                 {
-                    // Get mods path based on current portable mode setting
                     var settings = AppSettings.Load();
                     var modsPath = GetGameModsPath(settings.IsPortable);
                     int deletedCount = 0;
@@ -1002,14 +1015,16 @@ namespace N64RecompLauncher
                         }
                     }
 
-                    // Remove from manifest
                     _modsManifest.Mods.Remove(installedMod);
                     SaveModsManifest();
 
+                    viewModel.UpdateInstalledInfo(null);
+                    
+                    RefreshModInstallationStatus();
+                    
                     StatusMessage = $"Successfully deleted {viewModel.Name}";
-
-                    // Reload mods to update UI
-                    _ = LoadModsAsync();
+                    await Task.Delay(1000);
+                    UpdateStatusMessage();
                 }
                 else
                 {
@@ -1019,8 +1034,10 @@ namespace N64RecompLauncher
             catch (Exception ex)
             {
                 StatusMessage = $"Failed to delete {viewModel.Name}";
-                await ShowMessageAsync("Error", $"Failed to delete mod: {ex.Message}");
                 Debug.WriteLine($"Error deleting mod: {ex}");
+                // Show error dialog and restore normal status
+                await ShowMessageAsync("Error", $"Failed to delete mod: {ex.Message}");
+                UpdateStatusMessage();
             }
         }
 

@@ -27,6 +27,10 @@ namespace N64RecompLauncher.Models
         public bool IsInstalled => _installedInfo != null;
         public string? InstalledVersion => _installedInfo?.Version;
 
+        public int TotalDownloads => _package.Versions.Sum(v => v.Downloads);
+        
+        public int RatingScore => _package.RatingScore;
+
         public bool HasDependencies => LatestVersion?.Dependencies?.Any() == true;
 
         public string DependenciesText
