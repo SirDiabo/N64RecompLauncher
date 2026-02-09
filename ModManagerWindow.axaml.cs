@@ -194,7 +194,7 @@ namespace N64RecompLauncher
             {
                 // Non-portable mode: mods go in AppData/LocalLow
                 var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                var gameModsPath = Path.Combine(appDataPath, "N64Recomp", _game.FolderName ?? "", "mods");
+                var gameModsPath = Path.Combine(appDataPath, _game.FolderName ?? "", "mods");
                 return gameModsPath;
             }
         }
