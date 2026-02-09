@@ -1,6 +1,7 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -14,7 +15,7 @@ using N64RecompLauncher.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 
 namespace N64RecompLauncher
@@ -111,6 +112,9 @@ namespace N64RecompLauncher
         private bool _isProcessingInput = false;
         private bool _hasInitializedFocus = false;
 
+        private bool _isChangelogOpen = false;
+        private GameInfo? _currentChangelogGame;
+
         private GameInfo? _continueGameInfo;
         public GameInfo? ContinueGameInfo
         {
@@ -139,6 +143,20 @@ namespace N64RecompLauncher
                 }
             }
         }
+        private SolidColorBrush _secondaryColorBrush;
+        public SolidColorBrush SecondaryColorBrush
+        {
+            get => _secondaryColorBrush;
+            set
+            {
+                if (_secondaryColorBrush != value)
+                {
+                    _secondaryColorBrush = value;
+                    OnPropertyChanged(nameof(SecondaryColorBrush));
+                    UpdateThemeColors();
+                }
+            }
+        }
 
         public MainWindow()
         {
@@ -157,7 +175,8 @@ namespace N64RecompLauncher
             _gameManager = new GameManager();
 
             // Initialize theme BEFORE other UI setup
-            ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.ThemeColor ?? "#18181b"));
+            ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
+            SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings?.SecondaryColor ?? "#404040"));
             UpdateThemeColors();
 
             _gameManager.UnhideAllGames();
@@ -212,28 +231,33 @@ namespace N64RecompLauncher
             return Color.FromRgb(r, g, b);
         }
 
-        // Update all Theme Colors
         private void UpdateThemeColors()
         {
-            if (_themeColorBrush == null) return;
+            if (_themeColorBrush == null || _secondaryColorBrush == null) return;
 
-            var baseColor = _themeColorBrush.Color;
-            bool isLight = IsLightColor(baseColor);
+            var primaryColor = _themeColorBrush.Color;
+            var secondaryColor = _secondaryColorBrush.Color;
 
-            // Update resources in THIS WINDOW, not Application
+            // Update resources
             if (this.Resources != null)
             {
-                this.Resources["ThemeBase"] = new SolidColorBrush(baseColor);
-                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(baseColor, 1.3));
-                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(baseColor, 0.7));
-                this.Resources["ThemeBorder"] = new SolidColorBrush(GetShadedColor(baseColor, 0.9));
-                this.Resources["ThemeText"] = new SolidColorBrush(
-                    CalculateLuminance(baseColor) > 0.5 ? Colors.Black : Colors.White
-                );
+                // Primary affects backgrounds
+                this.Resources["ThemeBase"] = new SolidColorBrush(primaryColor);
+                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(primaryColor, 1.3));
+                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(primaryColor, 0.7));
+
+                // Secondary affects borders and accents
+                this.Resources["ThemeBorder"] = new SolidColorBrush(secondaryColor);
+
+                // Text with secondary hue tint
+                var textColor = CalculateLuminance(primaryColor) > 0.5 ? Colors.Black : Colors.White;
+                var tintedText = BlendColors(textColor, secondaryColor, 0.08);
+                this.Resources["ThemeText"] = new SolidColorBrush(tintedText);
+
                 this.Resources["ThemeTextSecondary"] = new SolidColorBrush(
-                    CalculateLuminance(baseColor) > 0.5
-                        ? Color.FromRgb(70, 70, 70)    // Darker gray
-                        : Color.FromRgb(200, 200, 200) // Lighter gray
+                    CalculateLuminance(primaryColor) > 0.5
+                        ? BlendColors(Color.FromRgb(70, 70, 70), secondaryColor, 0.15)
+                        : BlendColors(Color.FromRgb(200, 200, 200), secondaryColor, 0.15)
                 );
             }
         }
@@ -294,7 +318,45 @@ namespace N64RecompLauncher
             await ShowColorPresetsDialog(presets);
         }
 
-        private async Task ShowColorPresetsDialog(Dictionary<string, string> presets)
+        // Secondary Color Picker
+        private async void SecondaryColorPicker_Click(object sender, RoutedEventArgs e)
+        {
+            // Simple color presets dialog
+            var presets = new Dictionary<string, string>
+            {
+                { "Black", "#000000" },
+                { "Dark Gray (Default)", "#404040" },
+                { "Gray", "#737373" },
+                { "Light Gray", "#d4d4d4" },
+                { "White", "#ffffff" },
+
+                { "Red", "#ef4444" },
+                { "Orange", "#f97316" },
+                { "Yellow", "#eab308" },
+                { "Lime", "#84cc16" },
+                { "Green", "#10b981" },
+                { "Teal", "#14b8a6" },
+                { "Cyan", "#06b6d4" },
+                { "Sky Blue", "#0ea5e9" },
+                { "Blue", "#3b82f6" },
+                { "Purple", "#a855f7" },
+                { "Violet", "#8b5cf6" },
+                { "Indigo", "#6366f1" },
+                { "Pink", "#ec4899" } 
+            };
+
+            await ShowColorPresetsDialog(presets, true);
+        }
+
+        private Color BlendColors(Color baseColor, Color blendColor, double blendAmount)
+        {
+            byte r = (byte)(baseColor.R * (1 - blendAmount) + blendColor.R * blendAmount);
+            byte g = (byte)(baseColor.G * (1 - blendAmount) + blendColor.G * blendAmount);
+            byte b = (byte)(baseColor.B * (1 - blendAmount) + blendColor.B * blendAmount);
+            return Color.FromRgb(r, g, b);
+        }
+
+        private async Task ShowColorPresetsDialog(Dictionary<string, string> presets, bool isSecondary = false)
         {
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
@@ -302,6 +364,37 @@ namespace N64RecompLauncher
                     desktop.MainWindow != null)
                 {
                     var stackPanel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
+
+                    // Add Custom Color button at the top
+                    var customButton = new Button
+                    {
+                        Content = "🎨 Custom Color Picker",
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        Height = 50,
+                        Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
+                        Foreground = new SolidColorBrush(Colors.White),
+                        FontWeight = FontWeight.Bold
+                    };
+
+                    customButton.Click += async (s, e) =>
+                    {
+                        // Close presets dialog
+                        var window = (s as Button)?.GetVisualRoot() as Window;
+                        window?.Close();
+
+                        // Open custom color picker
+                        await ShowCustomColorPicker(isSecondary);
+                    };
+
+                    stackPanel.Children.Add(customButton);
+
+                    // Add separator
+                    stackPanel.Children.Add(new Border
+                    {
+                        Height = 1,
+                        Background = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                        Margin = new Thickness(0, 5, 0, 5)
+                    });
 
                     foreach (var preset in presets)
                     {
@@ -320,8 +413,16 @@ namespace N64RecompLauncher
                             var colorHex = (s as Button)?.Tag as string;
                             if (!string.IsNullOrEmpty(colorHex))
                             {
-                                _settings.ThemeColor = colorHex;
-                                ThemeColorBrush = new SolidColorBrush(Color.Parse(colorHex));
+                                if (isSecondary)
+                                {
+                                    _settings.SecondaryColor = colorHex;
+                                    SecondaryColorBrush = new SolidColorBrush(Color.Parse(colorHex));
+                                }
+                                else
+                                {
+                                    _settings.PrimaryColor = colorHex;
+                                    ThemeColorBrush = new SolidColorBrush(Color.Parse(colorHex));
+                                }
                                 OnSettingChanged();
 
                                 // Close the dialog after selection
@@ -338,7 +439,7 @@ namespace N64RecompLauncher
 
                     var messageBox = new Window
                     {
-                        Title = "Select Theme Color",
+                        Title = isSecondary ? "Select Secondary Color" : "Select Primary Color",
                         Width = 300,
                         Height = 1000,
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -348,6 +449,204 @@ namespace N64RecompLauncher
                     await messageBox.ShowDialog(desktop.MainWindow);
                 }
             });
+        }
+
+        private async Task ShowCustomColorPicker(bool isSecondary = false)
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow != null)
+                {
+                    var currentColor = isSecondary ? SecondaryColorBrush.Color : ThemeColorBrush.Color;
+
+                    var pickerPanel = new StackPanel { Margin = new Thickness(20), Spacing = 15 };
+
+                    // Preview box
+                    var previewBorder = new Border
+                    {
+                        Width = 260,
+                        Height = 60,
+                        CornerRadius = new CornerRadius(8),
+                        Background = new SolidColorBrush(currentColor),
+                        BorderBrush = new SolidColorBrush(Colors.White),
+                        BorderThickness = new Thickness(2)
+                    };
+                    pickerPanel.Children.Add(previewBorder);
+
+                    // RGB Sliders
+                    var rSlider = CreateColorSlider("Red", currentColor.R, Colors.Red);
+                    var gSlider = CreateColorSlider("Green", currentColor.G, Colors.Green);
+                    var bSlider = CreateColorSlider("Blue", currentColor.B, Colors.Blue);
+
+                    pickerPanel.Children.Add(rSlider.panel);
+                    pickerPanel.Children.Add(gSlider.panel);
+                    pickerPanel.Children.Add(bSlider.panel);
+
+                    // Update preview on slider change
+                    EventHandler<AvaloniaPropertyChangedEventArgs> updatePreview = (s, e) =>
+                    {
+                        var newColor = Color.FromRgb((byte)rSlider.slider.Value, (byte)gSlider.slider.Value, (byte)bSlider.slider.Value);
+                        previewBorder.Background = new SolidColorBrush(newColor);
+                    };
+
+                    rSlider.slider.PropertyChanged += updatePreview;
+                    gSlider.slider.PropertyChanged += updatePreview;
+                    bSlider.slider.PropertyChanged += updatePreview;
+
+                    // Hex input
+                    var hexPanel = new StackPanel { Spacing = 5 };
+                    hexPanel.Children.Add(new TextBlock
+                    {
+                        Text = "Hex Color",
+                        Foreground = new SolidColorBrush(Colors.White),
+                        FontSize = 12
+                    });
+
+                    var hexBox = new TextBox
+                    {
+                        Text = $"#{currentColor.R:X2}{currentColor.G:X2}{currentColor.B:X2}",
+                        Watermark = "#RRGGBB",
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Background = new SolidColorBrush(Color.FromRgb(40, 40, 40))
+                    };
+
+                    hexBox.TextChanged += (s, e) =>
+                    {
+                        try
+                        {
+                            var text = hexBox.Text?.Trim();
+                            if (!string.IsNullOrEmpty(text) && text.StartsWith("#") && text.Length == 7)
+                            {
+                                var color = Color.Parse(text);
+                                rSlider.slider.Value = color.R;
+                                gSlider.slider.Value = color.G;
+                                bSlider.slider.Value = color.B;
+                            }
+                        }
+                        catch { }
+                    };
+
+                    // Update hex box when sliders change
+                    EventHandler<AvaloniaPropertyChangedEventArgs> updateHex = (s, e) =>
+                    {
+                        hexBox.Text = $"#{(byte)rSlider.slider.Value:X2}{(byte)gSlider.slider.Value:X2}{(byte)bSlider.slider.Value:X2}";
+                    };
+
+                    rSlider.slider.PropertyChanged += updateHex;
+                    gSlider.slider.PropertyChanged += updateHex;
+                    bSlider.slider.PropertyChanged += updateHex;
+
+                    hexPanel.Children.Add(hexBox);
+                    pickerPanel.Children.Add(hexPanel);
+
+                    // Buttons
+                    var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
+
+                    var applyButton = new Button
+                    {
+                        Content = "Apply",
+                        Width = 120,
+                        Height = 35,
+                        Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                        Foreground = new SolidColorBrush(Colors.White)
+                    };
+
+                    var cancelButton = new Button
+                    {
+                        Content = "Cancel",
+                        Width = 120,
+                        Height = 35,
+                        Background = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                        Foreground = new SolidColorBrush(Colors.White)
+                    };
+
+                    buttonPanel.Children.Add(applyButton);
+                    buttonPanel.Children.Add(cancelButton);
+                    pickerPanel.Children.Add(buttonPanel);
+
+                    var pickerWindow = new Window
+                    {
+                        Title = isSecondary ? "Custom Secondary Color" : "Custom Primary Color",
+                        Width = 320,
+                        Height = 480,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                        Content = pickerPanel,
+                        CanResize = false
+                    };
+
+                    applyButton.Click += (s, e) =>
+                    {
+                        var finalColor = Color.FromRgb((byte)rSlider.slider.Value, (byte)gSlider.slider.Value, (byte)bSlider.slider.Value);
+                        var hexColor = $"#{finalColor.R:X2}{finalColor.G:X2}{finalColor.B:X2}";
+
+                        if (isSecondary)
+                        {
+                            _settings.SecondaryColor = hexColor;
+                            SecondaryColorBrush = new SolidColorBrush(finalColor);
+                        }
+                        else
+                        {
+                            _settings.PrimaryColor = hexColor;
+                            ThemeColorBrush = new SolidColorBrush(finalColor);
+                        }
+                        OnSettingChanged();
+                        pickerWindow.Close();
+                    };
+
+                    cancelButton.Click += (s, e) => pickerWindow.Close();
+
+                    await pickerWindow.ShowDialog(desktop.MainWindow);
+                }
+            });
+        }
+
+        private (StackPanel panel, Slider slider) CreateColorSlider(string label, byte initialValue, Color thumbColor)
+        {
+            var panel = new StackPanel { Spacing = 5 };
+
+            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = label,
+                Foreground = new SolidColorBrush(Colors.White),
+                FontSize = 12,
+                Width = 50
+            });
+
+            var valueText = new TextBlock
+            {
+                Text = initialValue.ToString(),
+                Foreground = new SolidColorBrush(Colors.White),
+                FontSize = 12,
+                Width = 40,
+                TextAlignment = TextAlignment.Right
+            };
+            headerPanel.Children.Add(valueText);
+
+            panel.Children.Add(headerPanel);
+
+            var slider = new Slider
+            {
+                Minimum = 0,
+                Maximum = 255,
+                Value = initialValue,
+                Width = 260,
+                Foreground = new SolidColorBrush(thumbColor)
+            };
+
+            slider.PropertyChanged += (s, e) =>
+            {
+                if (e.Property.Name == "Value")
+                {
+                    valueText.Text = ((int)slider.Value).ToString();
+                }
+            };
+
+            panel.Children.Add(slider);
+
+            return (panel, slider);
         }
 
         private void UpdateContinueButtonState()
@@ -486,6 +785,13 @@ namespace N64RecompLauncher
             {
                 isSettingsPanelOpen = false;
                 SettingsPanel.IsVisible = false;
+                return;
+            }
+
+            // Close changelog if open
+            if (_isChangelogOpen)
+            {
+                CloseChangelog();
                 return;
             }
 
@@ -953,7 +1259,8 @@ namespace N64RecompLauncher
                 };
 
                 // Initialize theme
-                ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.ThemeColor ?? "#18181b"));
+                ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
+                SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings?.SecondaryColor ?? "#404040"));
                 UpdateThemeColors();
             }
         }
@@ -2025,6 +2332,12 @@ namespace N64RecompLauncher
                 }
                 return;
             }
+            // Close changelog if open
+            if (_isChangelogOpen)
+            {
+                CloseChangelog();
+                return;
+            }
         }
 
         private bool IsInsideSettingsPanel(Control control)
@@ -2063,6 +2376,501 @@ namespace N64RecompLauncher
         private void MainWindow_Deactivated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(false);
+        }
+
+        private async void ShowChangelog_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null || string.IsNullOrEmpty(game.Repository))
+            {
+                await ShowMessageBoxAsync("Unable to retrieve changelog information.", "Error");
+                return;
+            }
+
+            _currentChangelogGame = game;
+            await ShowChangelogAsync(game);
+        }
+
+        private async Task ShowChangelogAsync(GameInfo game)
+        {
+            try
+            {
+                _isChangelogOpen = true;
+
+                // Show changelog panel
+                var changelogPanel = this.FindControl<Border>("ChangelogPanel");
+                if (changelogPanel != null)
+                {
+                    changelogPanel.IsVisible = true;
+                }
+
+                // Update header title
+                var headerTitle = this.FindControl<TextBlock>("HeaderTitleText");
+                if (headerTitle != null)
+                {
+                    headerTitle.Text = $"{game.Name} - Version {game.LatestVersion ?? "Unknown"}";
+                }
+
+                // Update changelog title
+                var changelogTitle = this.FindControl<TextBlock>("ChangelogTitle");
+                if (changelogTitle != null)
+                {
+                    changelogTitle.Text = $"{game.Name} Changelog";
+                }
+
+                // Fetch and render changelog
+                var changelogContent = this.FindControl<ItemsControl>("ChangelogContent");
+                if (changelogContent != null)
+                {
+                    // Show loading placeholder
+                    var loadingPanel = new StackPanel();
+                    loadingPanel.Children.Add(new TextBlock
+                    {
+                        Text = "Loading changelog...",
+                        Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")),
+                        FontSize = 14
+                    });
+                    changelogContent.ItemsSource = new[] { loadingPanel };
+                }
+
+                string changelogText = await FetchChangelogAsync(game.Repository);
+
+                if (changelogContent != null)
+                {
+                    changelogContent.ItemsSource = ParseMarkdown(changelogText);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to load changelog: {ex.Message}", "Error");
+                CloseChangelog();
+            }
+        }
+
+        private List<Control> ParseMarkdown(string markdown)
+        {
+            var controls = new List<Control>();
+            if (string.IsNullOrWhiteSpace(markdown))
+            {
+                controls.Add(new SelectableTextBlock
+                {
+                    Text = "No changelog available.",
+                    Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")),
+                    FontSize = 14
+                });
+                return controls;
+            }
+
+            var lines = markdown.Split('\n');
+            var listItems = new List<string>();
+            var codeBlockLines = new List<string>();
+            bool inCodeBlock = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].TrimEnd('\r');
+
+                // Code blocks
+                if (line.TrimStart().StartsWith("```"))
+                {
+                    if (inCodeBlock)
+                    {
+                        if (codeBlockLines.Count > 0)
+                        {
+                            var codeBlock = new Border
+                            {
+                                Background = new SolidColorBrush(Color.Parse("#1e1e1e")),
+                                BorderBrush = new SolidColorBrush(Color.Parse("#2d2d30")),
+                                BorderThickness = new Thickness(1),
+                                CornerRadius = new CornerRadius(4),
+                                Padding = new Thickness(12),
+                                Margin = new Thickness(0, 8, 0, 8)
+                            };
+                            codeBlock.Child = new SelectableTextBlock
+                            {
+                                Text = string.Join("\n", codeBlockLines),
+                                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                                FontSize = 13,
+                                Foreground = new SolidColorBrush(Color.Parse("#d4d4d4"))
+                            };
+                            controls.Add(codeBlock);
+                            codeBlockLines.Clear();
+                        }
+                        inCodeBlock = false;
+                    }
+                    else
+                    {
+                        FlushListItems(controls, listItems);
+                        inCodeBlock = true;
+                    }
+                    continue;
+                }
+
+                if (inCodeBlock)
+                {
+                    codeBlockLines.Add(line);
+                    continue;
+                }
+
+                // GitHub alerts: > [!NOTE], etc.
+                var alertMatch = System.Text.RegularExpressions.Regex.Match(line.TrimStart(),
+                    @"^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (alertMatch.Success)
+                {
+                    FlushListItems(controls, listItems);
+
+                    var alertType = alertMatch.Groups[1].Value.ToUpper();
+                    var alertContentLines = new List<string>();
+
+                    // Move to the first line of content
+                    i++;
+
+                    // Collect all lines belonging to the alert block
+                    while (i < lines.Length)
+                    {
+                        var nextLine = lines[i].TrimEnd('\r');
+
+                        // Stop if the line is empty
+                        if (string.IsNullOrWhiteSpace(nextLine))
+                        {
+                            break;
+                        }
+
+                        var trimmedLine = nextLine.TrimStart();
+
+                        if (trimmedLine.StartsWith(">"))
+                        {
+                            // Standard blockquote line: strip the '>'
+                            var content = trimmedLine.Substring(1);
+                            if (content.StartsWith(" ")) content = content.Substring(1);
+                            alertContentLines.Add(content);
+                        }
+                        else
+                        {
+                            // Lazy continuation
+                            alertContentLines.Add(trimmedLine);
+                        }
+                        i++;
+                    }
+
+                    // Define colors and icon names
+                    var (borderColorHex, iconPath) = alertType switch
+                    {
+                        "NOTE" => ("#0969da", "markdown_info.png"),
+                        "TIP" => ("#1a7f37", "markdown_tip.png"),
+                        "IMPORTANT" => ("#8250df", "markdown_important.png"),
+                        "WARNING" => ("#9a6700", "markdown_warning.png"),
+                        "CAUTION" => ("#d1242f", "markdown_caution.png"),
+                        _ => ("#2d2d30", "markdown_info.png")
+                    };
+
+                    var alertColor = Color.Parse(borderColorHex);
+                    var alertBrush = new SolidColorBrush(alertColor);
+
+                    var alertBorder = new Border
+                    {
+                        BorderBrush = alertBrush,
+                        BorderThickness = new Thickness(4, 0, 0, 0),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(16, 12, 16, 12),
+                        Margin = new Thickness(0, 8, 0, 8),
+                        Background = new SolidColorBrush(alertColor) { Opacity = 0.05 }
+                    };
+
+                    var alertPanel = new StackPanel();
+
+                    // Title row with icon tinted to border color
+                    var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+
+                    try
+                    {
+                        // Use a Rectangle + OpacityMask to draw the icon in the alert's color
+                        var iconRect = new Avalonia.Controls.Shapes.Rectangle
+                        {
+                            Width = 16,
+                            Height = 16,
+                            Margin = new Thickness(0, 0, 8, 0),
+                            Fill = alertBrush,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            OpacityMask = new ImageBrush
+                            {
+                                Source = new Avalonia.Media.Imaging.Bitmap(
+                                    Avalonia.Platform.AssetLoader.Open(
+                                        new Uri($"avares://N64RecompLauncher/Assets/{iconPath}")))
+                            }
+                        };
+                        titlePanel.Children.Add(iconRect);
+                    }
+                    catch (Exception)
+                    {
+                        // Fallback circle if icon load fails
+                        titlePanel.Children.Add(new Avalonia.Controls.Shapes.Ellipse
+                        {
+                            Width = 8,
+                            Height = 8,
+                            Fill = alertBrush,
+                            Margin = new Thickness(0, 0, 8, 0)
+                        });
+                    }
+
+                    titlePanel.Children.Add(new SelectableTextBlock
+                    {
+                        Text = alertType,
+                        FontSize = 14,
+                        FontWeight = FontWeight.Bold,
+                        Foreground = alertBrush,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+
+                    alertPanel.Children.Add(titlePanel);
+
+                    // Parse the inner content for markdown (bold, links, etc.)
+                    var contentText = string.Join("\n", alertContentLines);
+                    var contentBlocks = ParseInlineMarkdown(contentText);
+                    foreach (var block in contentBlocks)
+                    {
+                        block.Margin = new Thickness(0, 2, 0, 2);
+                        alertPanel.Children.Add(block);
+                    }
+
+                    alertBorder.Child = alertPanel;
+                    controls.Add(alertBorder);
+                    continue;
+                }
+
+                // Headers
+                if (line.StartsWith("#"))
+                {
+                    FlushListItems(controls, listItems);
+                    int level = 0;
+                    while (level < line.Length && line[level] == '#') level++;
+                    var headerText = line.Substring(level).Trim();
+                    var fontSize = level switch { 1 => 24, 2 => 20, 3 => 18, 4 => 16, _ => 14 };
+                    var fontWeight = level <= 2 ? FontWeight.Bold : FontWeight.SemiBold;
+
+                    controls.Add(new SelectableTextBlock
+                    {
+                        Text = headerText,
+                        FontSize = fontSize,
+                        FontWeight = fontWeight,
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Margin = new Thickness(0, level == 1 ? 16 : 12, 0, 8)
+                    });
+                    continue;
+                }
+
+                // Lists
+                if (line.TrimStart().StartsWith("* ") || line.TrimStart().StartsWith("- "))
+                {
+                    var itemText = line.TrimStart().Substring(2);
+                    listItems.Add("• " + itemText);
+                    continue;
+                }
+
+                var orderedMatch = System.Text.RegularExpressions.Regex.Match(line.TrimStart(), @"^(\d+)\.\s+(.+)");
+                if (orderedMatch.Success)
+                {
+                    listItems.Add(orderedMatch.Groups[1].Value + ". " + orderedMatch.Groups[2].Value);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("---"))
+                {
+                    FlushListItems(controls, listItems);
+                    if (line.Trim().StartsWith("---"))
+                        controls.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.Parse("#2d2d30")), Margin = new Thickness(0, 12, 0, 12) });
+                    continue;
+                }
+
+                FlushListItems(controls, listItems);
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    var blocks = ParseInlineMarkdown(line);
+                    foreach (var block in blocks)
+                    {
+                        block.Margin = new Thickness(0, 0, 0, 8);
+                        controls.Add(block);
+                    }
+                }
+            }
+
+            FlushListItems(controls, listItems);
+            return controls;
+        }
+
+        private List<SelectableTextBlock> ParseInlineMarkdown(string text)
+        {
+            var blocks = new List<SelectableTextBlock>();
+            var textBlock = new SelectableTextBlock { FontSize = 14, Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")) };
+            var inlines = new Avalonia.Controls.Documents.InlineCollection();
+
+            int i = 0;
+            var currentText = new StringBuilder();
+
+            while (i < text.Length)
+            {
+                // Bold **text**
+                if (i < text.Length - 1 && text[i] == '*' && text[i + 1] == '*')
+                {
+                    if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                    i += 2;
+                    var boldText = new StringBuilder();
+                    while (i < text.Length - 1 && !(text[i] == '*' && text[i + 1] == '*')) { boldText.Append(text[i]); i++; }
+                    if (i < text.Length - 1) i += 2;
+                    inlines.Add(new Avalonia.Controls.Documents.Run { Text = boldText.ToString(), FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Colors.White) });
+                    continue;
+                }
+
+                // Inline code `text`
+                if (text[i] == '`')
+                {
+                    if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                    i++;
+                    var codeText = new StringBuilder();
+                    while (i < text.Length && text[i] != '`') { codeText.Append(text[i]); i++; }
+                    if (i < text.Length) i++;
+                    inlines.Add(new Avalonia.Controls.Documents.Run
+                    {
+                        Text = codeText.ToString(),
+                        FontFamily = new FontFamily("Consolas,Courier New,monospace"),
+                        Foreground = new SolidColorBrush(Color.Parse("#d4d4d4"))
+                    });
+                    continue;
+                }
+
+                // Links [text](url)
+                if (text[i] == '[')
+                {
+                    var linkMatch = System.Text.RegularExpressions.Regex.Match(text.Substring(i), @"^\[([^\]]+)\]\(([^\)]+)\)");
+                    if (linkMatch.Success)
+                    {
+                        if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                        inlines.Add(new Avalonia.Controls.Documents.Run
+                        {
+                            Text = linkMatch.Groups[1].Value,
+                            Foreground = new SolidColorBrush(Color.Parse("#0969da")),
+                            TextDecorations = TextDecorations.Underline
+                        });
+                        i += linkMatch.Length;
+                        continue;
+                    }
+                }
+
+                currentText.Append(text[i]);
+                i++;
+            }
+
+            if (currentText.Length > 0) inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() });
+
+            if (inlines.Count > 0)
+            {
+                textBlock.Inlines = inlines;
+                blocks.Add(textBlock);
+            }
+
+            return blocks;
+        }
+
+        private void FlushListItems(List<Control> controls, List<string> listItems)
+        {
+            if (listItems.Count > 0)
+            {
+                var listPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                foreach (var item in listItems)
+                {
+                    var blocks = ParseInlineMarkdown(item);
+                    foreach (var block in blocks)
+                    {
+                        block.Margin = new Thickness(0, 2, 0, 2);
+                        listPanel.Children.Add(block);
+                    }
+                }
+                controls.Add(listPanel);
+                listItems.Clear();
+            }
+        }
+
+        private TextBlock CreateFormattedTextBlock(string text)
+        {
+            var textBlock = new SelectableTextBlock
+            {
+                Text = text,
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.Parse("#B8B8B8"))
+            };
+            return textBlock;
+        }
+
+        private async Task<string> FetchChangelogAsync(string repository)
+        {
+            try
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "N64RecompLauncher");
+
+                if (!string.IsNullOrEmpty(_settings?.GitHubApiToken))
+                {
+                    client.DefaultRequestHeaders.Add("Authorization", $"token {_settings.GitHubApiToken}");
+                }
+
+                var url = $"https://api.github.com/repos/{repository}/releases/latest";
+                var response = await client.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return "Failed to fetch changelog from GitHub.";
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+
+                if (root.TryGetProperty("body", out var bodyElement))
+                {
+                    var body = bodyElement.GetString();
+                    if (!string.IsNullOrEmpty(body))
+                    {
+                        return body;
+                    }
+                }
+
+                return "No changelog available for this release.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error fetching changelog: {ex.Message}";
+            }
+        }
+
+        private void CloseChangelog()
+        {
+            _isChangelogOpen = false;
+            _currentChangelogGame = null;
+
+            // Hide changelog panel
+            var changelogPanel = this.FindControl<Border>("ChangelogPanel");
+            if (changelogPanel != null)
+            {
+                changelogPanel.IsVisible = false;
+            }
+
+            // Restore sidebar content
+            var sidebarContent = this.FindControl<StackPanel>("SidebarContent");
+            if (sidebarContent != null)
+            {
+                sidebarContent.Width = double.NaN;
+            }
+
+            // Restore header title
+            var headerTitle = this.FindControl<TextBlock>("HeaderTitleText");
+            if (headerTitle != null)
+            {
+                headerTitle.Text = "Library";
+            }
         }
 
         private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
@@ -2104,4 +2912,13 @@ namespace N64RecompLauncher
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
+
+    public class MarkdownBlock
+    {
+        public string Type { get; set; } = "paragraph";
+        public string Content { get; set; } = "";
+        public int Level { get; set; } = 0;
+        public List<string> Items { get; set; } = new List<string>();
+    }
+
 }

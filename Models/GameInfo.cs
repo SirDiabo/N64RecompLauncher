@@ -1155,74 +1155,6 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private async Task<bool> WillDownloadWindowsVersionBasedOnSelection(HttpClient httpClient, AppSettings settings)
-        {
-            // This is only called on Linux to check if Wine warning is needed
-            // Since we let user choose, we can't know in advance, so we check if Windows assets exist
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return false;
-
-            try
-            {
-                var latestRelease = GetLatestRelease();
-
-                if (latestRelease == null)
-                {
-                    if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache?.CachedRelease != null)
-                    {
-                        latestRelease = cache.CachedRelease;
-                    }
-                    else
-                    {
-                        var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
-
-                        var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
-                        var token = GetGitHubApiToken();
-                        if (!string.IsNullOrEmpty(token))
-                        {
-                            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                        }
-
-                        var response = await httpClient.SendAsync(request);
-                        response.EnsureSuccessStatusCode();
-                        var releaseResponse = await response.Content.ReadAsStringAsync();
-                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
-
-                        if (deserializedReleases == null || !deserializedReleases.Any())
-                            return false;
-
-                        latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
-                                        deserializedReleases.FirstOrDefault(r => r.prerelease);
-                    }
-                }
-
-                if (latestRelease?.assets == null)
-                    return false;
-
-                string platformIdentifier = GetPlatformIdentifier(settings);
-
-                // Check if there's a Linux version
-                var linuxAsset = latestRelease.assets.FirstOrDefault(a =>
-                    MatchesPlatform(a.name, platformIdentifier));
-
-                // If no Linux version found, check if Windows version exists
-                if (linuxAsset == null)
-                {
-                    var windowsAsset = latestRelease.assets.FirstOrDefault(a =>
-                        a.name.ToLowerInvariant().Contains("windows") ||
-                        a.name.ToLowerInvariant().Contains("win64") ||
-                        a.name.ToLowerInvariant().Contains("win32") ||
-                        a.name.ToLowerInvariant().EndsWith(".exe"));
-                    return windowsAsset != null;
-                }
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         private static async Task<bool> ShowWineNotFoundWarning()
         {
             bool userChoice = false;
@@ -2506,31 +2438,29 @@ namespace N64RecompLauncher.Models
                 }
                 else // Linux
                 {
+                    // First check for native Linux executables
                     var x86_64Files = Directory.GetFiles(gamePath, "*.x86_64", SearchOption.TopDirectoryOnly);
                     executables.AddRange(x86_64Files);
 
-                    // Check for .appimage files
                     var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
                     executables.AddRange(appImages);
 
-                    // Check for .arm64 and .aarch64 files
                     var arm64Files = Directory.GetFiles(gamePath, "*.arm64", SearchOption.TopDirectoryOnly);
                     executables.AddRange(arm64Files);
 
                     var aarch64Files = Directory.GetFiles(gamePath, "*.aarch64", SearchOption.TopDirectoryOnly);
                     executables.AddRange(aarch64Files);
 
-                    // Then add other executables
                     executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
                         .Where(f =>
                         {
                             var fileName = Path.GetFileName(f).ToLowerInvariant();
 
-                            // Skip if already added
                             if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64") ||
                                 fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64") ||
                                 fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
-                                fileName.EndsWith(".so") || fileName.EndsWith(".json"))
+                                fileName.EndsWith(".so") || fileName.EndsWith(".json") ||
+                                fileName.EndsWith(".exe"))
                             {
                                 return false;
                             }
@@ -2541,7 +2471,7 @@ namespace N64RecompLauncher.Models
                             catch { return false; }
                         }));
 
-                    // Check if only Windows .exe files were found
+                    // If no native Linux executables found, check for .exe files with Wine/Proton
                     if (executables.Count == 0)
                     {
                         var exeFiles = Directory.GetFiles(gamePath, "*.exe", SearchOption.TopDirectoryOnly);
@@ -2623,7 +2553,6 @@ namespace N64RecompLauncher.Models
                 }
                 else if (needsWine && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
-                    // Use Wine/Proton to launch
                     var wineCommand = GetWineCommand();
                     if (wineCommand == null)
                     {
@@ -2631,21 +2560,19 @@ namespace N64RecompLauncher.Models
                         return;
                     }
 
+                    startInfo.UseShellExecute = false;
+                    startInfo.WorkingDirectory = gamePath;
+
                     if (wineCommand.Contains("proton"))
                     {
-                        // Proton usage
                         startInfo.FileName = wineCommand;
                         startInfo.Arguments = $"run \"{executablePath}\"";
                     }
                     else
                     {
-                        // Wine usage
                         startInfo.FileName = wineCommand;
                         startInfo.Arguments = $"\"{executablePath}\"";
                     }
-
-                    startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath) ?? gamePath;
-                    startInfo.UseShellExecute = false;
                 }
                 else
                 {
