@@ -1,0 +1,434 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
+        x:Class="N64RecompLauncher.ModManagerWindow"
+        Title="Mod Manager"
+        Width="900" Height="700"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource ThemeDarker}">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="ThemeBase" Color="#18181b"/>
+        <SolidColorBrush x:Key="ThemeLighter" Color="#252527"/>
+        <SolidColorBrush x:Key="ThemeDarker" Color="#0e0e10"/>
+        <SolidColorBrush x:Key="ThemeBorder" Color="#2d2d30"/>
+        <SolidColorBrush x:Key="ThemeText" Color="White"/>
+        <SolidColorBrush x:Key="ThemeTextSecondary" Color="#B8B8B8"/>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.modern">
+            <Setter Property="Background" Value="#007aff"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="Button.modern:pointerover">
+            <Setter Property="Opacity" Value="0.85"/>
+        </Style>
+
+        <Style Selector="Button.modern:pressed">
+            <Setter Property="Opacity" Value="0.7"/>
+        </Style>
+
+        <Style Selector="Border.modcard">
+            <Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource ThemeBase}"
+                BorderBrush="{DynamicResource ThemeBorder}"
+                BorderThickness="0,0,0,1"
+                Padding="20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Title Row -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="{Binding GameName}"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource ThemeText}"/>
+                        <TextBlock Text="Thunderstore Mods"
+                                   FontSize="14"
+                                   Foreground="{DynamicResource ThemeTextSecondary}"
+                                   Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Content="Update All"
+                            Classes="modern"
+                            Click="UpdateAll_Click"
+                            IsVisible="{Binding HasUpdatesAvailable}"
+                            IsEnabled="{Binding !IsLoading}"
+                            Background="#ff9500"
+                            Margin="0,0,12,0"/>
+
+                    <Button Grid.Column="2"
+                            Content="Refresh"
+                            Classes="modern"
+                            Click="RefreshMods_Click"
+                            IsEnabled="{Binding !IsLoading}"/>
+                </Grid>
+
+                <!-- Search and Filter Row -->
+                <Grid Grid.Row="1" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Search Box -->
+                    <TextBox Grid.Column="0"
+                             Name="SearchBox"
+                             Watermark="Search mods..."
+                             TextChanged="SearchBox_TextChanged"
+                             Padding="10"
+                             CornerRadius="6"
+                             Background="{DynamicResource ThemeDarker}"
+                             Foreground="{DynamicResource ThemeText}"
+                             BorderBrush="{DynamicResource ThemeBorder}"
+                             BorderThickness="1"
+                             MinHeight="40"/>
+
+                    <!-- Filter ComboBox -->
+                    <ComboBox Grid.Column="1"
+                              Name="FilterComboBox"
+                              SelectionChanged="FilterComboBox_SelectionChanged"
+                              SelectedIndex="0"
+                              MinWidth="150"
+                              Margin="12,0,0,0"
+                              Padding="10"
+                              CornerRadius="6"
+                              Background="{DynamicResource ThemeDarker}"
+                              Foreground="{DynamicResource ThemeText}"
+                              BorderBrush="{DynamicResource ThemeBorder}"
+                              BorderThickness="1"
+                              MinHeight="40">
+                        <ComboBoxItem Content="All"/>
+                        <ComboBoxItem Content="Downloaded"/>
+                        <ComboBoxItem Content="Not Downloaded"/>
+                        <ComboBoxItem Content="Updates Available"/>
+                    </ComboBox>
+
+                    <!-- Sort ComboBox -->
+                    <ComboBox Grid.Column="2"
+                              Name="SortComboBox"
+                              SelectionChanged="SortComboBox_SelectionChanged"
+                              SelectedIndex="0"
+                              MinWidth="150"
+                              Margin="12,0,0,0"
+                              Padding="10"
+                              CornerRadius="6"
+                              Background="{DynamicResource ThemeDarker}"
+                              Foreground="{DynamicResource ThemeText}"
+                              BorderBrush="{DynamicResource ThemeBorder}"
+                              BorderThickness="1"
+                              MinHeight="40">
+                        <ComboBoxItem Content="Top Rated"/>
+                        <ComboBoxItem Content="Most Downloaded"/>
+                        <ComboBoxItem Content="Last Updated"/>
+                        <ComboBoxItem Content="Newest"/>
+                    </ComboBox>
+                </Grid>
+            </Grid>
+        </Border>
+
+
+        <ScrollViewer Grid.Row="1" 
+                      Padding="20"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <Border IsVisible="{Binding IsLoading}"
+                        Background="{DynamicResource ThemeBase}"
+                        CornerRadius="8"
+                        Padding="40"
+                        HorizontalAlignment="Center">
+                    <TextBlock Text="Loading mods..."
+                               FontSize="16"
+                               Foreground="{DynamicResource ThemeTextSecondary}"/>
+                </Border>
+
+                <Border IsVisible="{Binding HasError}"
+                        Background="#aa3333"
+                        CornerRadius="8"
+                        Padding="16"
+                        Margin="0,0,0,20">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               TextWrapping="Wrap"
+                               Foreground="White"/>
+                </Border>
+
+
+                <Border IsVisible="{Binding NoModsAvailable}"
+                        Background="{DynamicResource ThemeBase}"
+                        CornerRadius="8"
+                        Padding="40">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="No mods available"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ThemeText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="This game or filter doesn't contain any mods."
+                                   FontSize="14"
+                                   Foreground="{DynamicResource ThemeTextSecondary}"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   MaxWidth="500"
+                                   Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+
+
+                <!-- Mods List -->
+                <ItemsControl ItemsSource="{Binding Mods}"
+                              IsVisible="{Binding HasMods}"
+							  Margin="0,0,0,60">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="modcard">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Mod Icon -->
+                                    <Border Grid.Column="0"
+                                            Width="64"
+                                            Height="64"
+                                            CornerRadius="8"
+                                            ClipToBounds="True"
+                                            Margin="0,0,16,0">
+                                        <asyncImageLoader:AdvancedImage Source="{Binding LatestVersion.Icon}"
+                                                                        Stretch="UniformToFill"/>
+                                    </Border>
+
+                                    <!-- Mod Info -->
+                                    <StackPanel Grid.Column="1"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="18"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource ThemeText}"/>
+                                        
+                                        <TextBlock Text="{Binding Owner}"
+                                                   FontSize="13"
+												   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource ThemeTextSecondary}"
+                                                   Margin="0,2,0,0"/>
+                                        
+                                        <TextBlock Text="{Binding LatestVersion.Description}"
+                                                   FontSize="13"
+                                                   Foreground="{DynamicResource ThemeTextSecondary}"
+                                                   TextWrapping="Wrap"
+												   HorizontalAlignment="Left"
+                                                   Margin="0,3,0,0"
+                                                   MaxWidth="500"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxHeight="60"/>
+                                        
+                                        <StackPanel Orientation="Horizontal"
+                                                    Margin="0,8,0,0"
+                                                    Spacing="16">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="Version:"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource ThemeTextSecondary}"/>
+                                                <TextBlock Text="{Binding LatestVersion.VersionNumber}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource ThemeText}"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsInstalled}">
+                                                <TextBlock Text="Installed:"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource ThemeTextSecondary}"/>
+                                                <TextBlock Text="{Binding InstalledVersion}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource ThemeText}"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="Downloads:"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource ThemeTextSecondary}"/>
+                                                <TextBlock Text="{Binding TotalDownloads}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource ThemeText}"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="👍"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding RatingScore}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource ThemeText}"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding HasDependencies}">
+                                                <TextBlock Text="📦"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding DependenciesText}"
+                                                           FontSize="11"
+                                                           FontStyle="Italic"
+                                                           Foreground="{DynamicResource ThemeTextSecondary}"
+                                                           ToolTip.Tip="{Binding DependenciesTooltip}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        
+                                        <!-- Progress Bar -->
+                                        <Grid Margin="0,8,0,0" IsVisible="{Binding IsDownloading}">
+                                            <ProgressBar Value="{Binding DownloadProgress}"
+                                                         Minimum="0"
+                                                         Maximum="100"
+                                                         Height="6"
+                                                         CornerRadius="3"
+                                                         Background="{DynamicResource ThemeDarker}"
+                                                         Foreground="#007aff"
+                                                         BorderThickness="0"/>
+                                            <TextBlock Text="{Binding DownloadProgress, StringFormat={}{0:F1}%}"
+                                                       FontSize="8"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource ThemeText}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,1,0,0"/>
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <!-- Action Buttons -->
+                                    <StackPanel Grid.Column="2"
+                                                VerticalAlignment="Center"
+                                                Spacing="8"
+                                                Margin="0,0,8,0">
+                                        <Button Content="{Binding ButtonText}"
+                                                Classes="modern"
+                                                IsEnabled="{Binding IsButtonEnabled}"
+                                                HorizontalContentAlignment="Center"
+                                                Background="{Binding ButtonColor}"
+                                                Width="150"
+                                                Click="DownloadMod_Click"
+                                                Tag="{Binding}"/>
+                                        
+                                        <Button Content="View Page"
+                                                Background="{DynamicResource ThemeBase}"
+                                                Foreground="{DynamicResource ThemeText}"
+                                                BorderBrush="{DynamicResource ThemeBorder}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                HorizontalContentAlignment="Center"
+                                                Padding="12,8"
+                                                Width="150"
+                                                Cursor="Hand"
+                                                Click="ViewModPage_Click"
+                                                Tag="{Binding}"/>
+                                    </StackPanel>
+
+                                    <!-- Options Menu (3 dots) - Always visible -->
+                                    <Button Grid.Column="3"
+                                            Width="32"
+                                            Height="32"
+                                            VerticalAlignment="Center"
+                                            HorizontalContentAlignment="Center"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Cursor="Hand"
+                                            Click="OptionsButton_Click">
+                                        <Button.Content>
+                                            <TextBlock Text="⋮"
+                                                       FontSize="20"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource ThemeText}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Button.Content>
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{Binding LatestVersion.VersionNumber, StringFormat='Version: {0}'}"
+                                                          IsEnabled="False"
+                                                          Tag="{Binding}">
+                                                    <MenuItem.Icon>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <Separator IsVisible="{Binding IsInstalled}"/>
+                                                <MenuItem Header="Delete Mod"
+                                                          Click="DeleteMod_Click"
+                                                          Tag="{Binding}"
+                                                          IsVisible="{Binding IsInstalled}">
+                                                    <MenuItem.Icon>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                        <Button.Styles>
+                                            <Style Selector="Button:pointerover">
+                                                <Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+                                            </Style>
+                                        </Button.Styles>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource ThemeBase}"
+                BorderBrush="{DynamicResource ThemeBorder}"
+                BorderThickness="0,1,0,0"
+                Padding="20">
+            <Grid>
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="{DynamicResource ThemeTextSecondary}"
+                           VerticalAlignment="Center"/>
+                
+                <Button Content="Close"
+                        Classes="modern"
+                        HorizontalAlignment="Right"
+						HorizontalContentAlignment="Center"
+                        Width="150"
+                        Click="CloseWindow_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
