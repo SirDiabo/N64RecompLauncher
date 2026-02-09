@@ -193,9 +193,17 @@ namespace N64RecompLauncher
             else
             {
                 // Non-portable mode: mods go in AppData/LocalLow
-                var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                var gameModsPath = Path.Combine(appDataPath, _game.FolderName ?? "", "mods");
-                return gameModsPath;
+                var gameModsPath = Path.Combine(_gamesFolder, _game.FolderName ?? "", "mods");
+                if (OperatingSystem.IsWindows())
+                {
+                    var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    gameModsPath = Path.Combine(appDataPath, _game.FolderName ?? "", "mods");
+                } else if (OperatingSystem.IsLinux())
+                {
+                    var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    gameModsPath = Path.Combine(homeDirectory, ".config", _game.FolderName ?? "", "mods");
+                }
+                    return gameModsPath;
             }
         }
 
