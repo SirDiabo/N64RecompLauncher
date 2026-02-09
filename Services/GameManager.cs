@@ -490,7 +490,7 @@ namespace N64RecompLauncher.Services
             repository = "Zelda64Recomp/Zelda64Recomp",
             branch = "dev",
             imageRes = "512",
-            folderName = "Zelda64Recomp",
+            folderName = "Zelda64Recompiled",
             customDefaultIconUrl = (string?)null },
 
         new { name = "Goemon 64",
