@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
@@ -24,6 +25,7 @@ namespace N64RecompLauncher
     {
         private readonly GameInfo _game;
         private readonly string _gamesFolder;
+        private readonly AppSettings _settings;
         private readonly ThunderstoreService _thunderstoreService;
         private readonly string? _community;
         private ModsManifest _modsManifest;
@@ -146,9 +148,11 @@ namespace N64RecompLauncher
 
         public ModManagerWindow()
         {
+            _settings = AppSettings.Load();
             InitializeComponent();
+            ApplyThemeColors();
+
             _thunderstoreService = new ThunderstoreService();
-            _modsManifest = new ModsManifest();
         }
 
         public ModManagerWindow(GameInfo game, string gamesFolder) : this()
@@ -182,6 +186,52 @@ namespace N64RecompLauncher
             LoadModsManifest();
         }
 
+        private void ApplyThemeColors()
+        {
+            if (_settings == null || this.Resources == null)
+                return;
+
+            var primaryColor = Color.Parse(_settings.PrimaryColor ?? "#18181b");
+            var secondaryColor = Color.Parse(_settings.SecondaryColor ?? "#404040");
+
+            // Apply theme colors to window resources
+            this.Resources["ThemeBase"] = new SolidColorBrush(primaryColor);
+            this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(primaryColor, 1.3));
+            this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(primaryColor, 0.7));
+            this.Resources["ThemeBorder"] = new SolidColorBrush(secondaryColor);
+
+            // Calculate text colors based on background luminance
+            var textColor = CalculateLuminance(primaryColor) > 0.5 ? Colors.Black : Colors.White;
+            var tintedText = BlendColors(textColor, secondaryColor, 0.08);
+            this.Resources["ThemeText"] = new SolidColorBrush(tintedText);
+
+            this.Resources["ThemeTextSecondary"] = new SolidColorBrush(
+                CalculateLuminance(primaryColor) > 0.5
+                    ? BlendColors(Color.FromRgb(70, 70, 70), secondaryColor, 0.15)
+                    : BlendColors(Color.FromRgb(200, 200, 200), secondaryColor, 0.15)
+            );
+        }
+
+        private Color GetShadedColor(Color baseColor, double factor)
+        {
+            byte r = (byte)Math.Min(255, Math.Max(0, baseColor.R * factor));
+            byte g = (byte)Math.Min(255, Math.Max(0, baseColor.G * factor));
+            byte b = (byte)Math.Min(255, Math.Max(0, baseColor.B * factor));
+            return Color.FromRgb(r, g, b);
+        }
+
+        private double CalculateLuminance(Color color)
+        {
+            return (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
+        }
+
+        private Color BlendColors(Color baseColor, Color blendColor, double blendAmount)
+        {
+            byte r = (byte)(baseColor.R * (1 - blendAmount) + blendColor.R * blendAmount);
+            byte g = (byte)(baseColor.G * (1 - blendAmount) + blendColor.G * blendAmount);
+            byte b = (byte)(baseColor.B * (1 - blendAmount) + blendColor.B * blendAmount);
+            return Color.FromRgb(r, g, b);
+        }
 
         private string GetGameModsPath(bool isPortable)
         {
