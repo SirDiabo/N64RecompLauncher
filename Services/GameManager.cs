@@ -116,6 +116,8 @@ namespace N64RecompLauncher.Services
                 using var document = JsonDocument.Parse(json);
                 var root = document.RootElement;
 
+                await RenameOldGameFoldersAsync(root);
+
                 bool needsFix = false;
                 var fixedData = new
                 {
@@ -139,6 +141,70 @@ namespace N64RecompLauncher.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error during games.json integrity check: {ex.Message}");
+            }
+        }
+
+        private async Task RenameOldGameFoldersAsync(JsonElement root)
+        {
+            if (string.IsNullOrEmpty(_gamesFolder))
+                return;
+
+            var defaultGames = GetDefaultGamesData();
+            var allDefaults = new List<object>();
+            allDefaults.AddRange(defaultGames.standard);
+            allDefaults.AddRange(defaultGames.experimental);
+            allDefaults.AddRange(defaultGames.custom);
+
+            // Check each section
+            foreach (var sectionName in new[] { "standard", "experimental", "custom" })
+            {
+                if (!root.TryGetProperty(sectionName, out var sectionArray))
+                    continue;
+
+                foreach (var gameElement in sectionArray.EnumerateArray())
+                {
+                    if (!gameElement.TryGetProperty("repository", out var repoElement))
+                        continue;
+
+                    string? repository = repoElement.GetString();
+                    if (string.IsNullOrEmpty(repository))
+                        continue;
+
+                    // Find matching default game
+                    var defaultGame = allDefaults.FirstOrDefault(g =>
+                        ObjectToDict(g).ContainsKey("repository") &&
+                        ObjectToDict(g)["repository"]?.ToString()?.Equals(repository, StringComparison.OrdinalIgnoreCase) == true);
+
+                    if (defaultGame == null)
+                        continue;
+
+                    var defaultDict = ObjectToDict(defaultGame);
+                    string? correctFolderName = defaultDict.ContainsKey("folderName") ? defaultDict["folderName"]?.ToString() : null;
+                    string? currentFolderName = gameElement.TryGetProperty("folderName", out var folderElement) ? folderElement.GetString() : null;
+
+                    if (string.IsNullOrEmpty(correctFolderName) || string.IsNullOrEmpty(currentFolderName))
+                        continue;
+
+                    if (!correctFolderName.Equals(currentFolderName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Attempt to rename folder
+                        var oldPath = Path.Combine(_gamesFolder, currentFolderName);
+                        var newPath = Path.Combine(_gamesFolder, correctFolderName);
+
+                        if (Directory.Exists(oldPath) && !Directory.Exists(newPath))
+                        {
+                            try
+                            {
+                                Directory.Move(oldPath, newPath);
+                                System.Diagnostics.Debug.WriteLine($"Renamed folder: {currentFolderName} -> {correctFolderName}");
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to rename folder {currentFolderName}: {ex.Message}");
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -176,6 +242,42 @@ namespace N64RecompLauncher.Services
                         JsonValueKind.Null => null,
                         _ => prop.Value.GetRawText()
                     };
+                }
+
+                // Check if folderName needs updating to match defaults
+                var defaultGames = GetDefaultGamesData();
+                var allDefaults = new List<object>();
+                allDefaults.AddRange(defaultGames.standard);
+                allDefaults.AddRange(defaultGames.experimental);
+                allDefaults.AddRange(defaultGames.custom);
+
+                if (gameDict.ContainsKey("repository"))
+                {
+                    string? repository = gameDict["repository"]?.ToString();
+                    var matchingDefault = allDefaults.FirstOrDefault(g =>
+                    {
+                        var dict = ObjectToDict(g);
+                        return dict.ContainsKey("repository") &&
+                               dict["repository"]?.ToString()?.Equals(repository, StringComparison.OrdinalIgnoreCase) == true;
+                    });
+
+                    if (matchingDefault != null)
+                    {
+                        var defaultDict = ObjectToDict(matchingDefault);
+                        if (defaultDict.ContainsKey("folderName"))
+                        {
+                            string? correctFolderName = defaultDict["folderName"]?.ToString();
+                            string? currentFolderName = gameDict.ContainsKey("folderName") ? gameDict["folderName"]?.ToString() : null;
+
+                            if (!string.IsNullOrEmpty(correctFolderName) &&
+                                !correctFolderName.Equals(currentFolderName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                gameDict["folderName"] = correctFolderName;
+                                gameNeedsFix = true;
+                                System.Diagnostics.Debug.WriteLine($"Updated folderName from '{currentFolderName}' to '{correctFolderName}' for repository {repository}");
+                            }
+                        }
+                    }
                 }
 
                 // Check for missing or invalid properties
@@ -490,7 +592,7 @@ namespace N64RecompLauncher.Services
             repository = "Zelda64Recomp/Zelda64Recomp",
             branch = "dev",
             imageRes = "512",
-            folderName = "Zelda64Recomp",
+            folderName = "Zelda64Recompiled",
             customDefaultIconUrl = (string?)null },
 
         new { name = "Goemon 64",
