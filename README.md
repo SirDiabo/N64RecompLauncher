@@ -1,4 +1,4 @@
-﻿# N64Recomp Launcher
+﻿# N64Recomp Launcher with mods
 
 [![.NET 9](https://img.shields.io/badge/.NET-9-512BD4)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/github/license/SirDiabo/N64RecompLauncher)](https://github.com/SirDiabo/N64RecompLauncher/blob/main/LICENSE)
