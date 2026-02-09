@@ -90,15 +90,16 @@
 									Tag="{Binding}">
 								<Button.ContextMenu>
 									<ContextMenu>
-										<MenuItem Header="Download Mods"
-												  Click="OpenModManager_Click"
-												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Open GitHub Page"
 												  Click="OpenGitHubPage_Click"
 												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Show Changelog"
 												  Click="ShowChangelog_Click"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Browse Mods"
+										 		  Click="OpenModManager_Click"
+												  IsVisible="{Binding IsInstalled}"
+									 	 		  CommandParameter="{Binding}"/>
 										<MenuItem Header="Add Custom Image"
 												  Click="SetCustomIcon_Click"
 												  CommandParameter="{Binding}"/>
@@ -186,14 +187,15 @@
 							<TextBlock Text="⋯" Foreground="{DynamicResource ThemeText}" TextAlignment="Center" VerticalAlignment="Center"/>
 							<Button.ContextMenu>
 								<ContextMenu>
-									<MenuItem Header="Download Mods"
-											  Click="OpenModManager_Click"
-											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Open GitHub Page"
 											  Click="OpenGitHubPage_Click"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Show Changelog"
 											  Click="ShowChangelog_Click"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Browse Mods"
+											  Click="OpenModManager_Click"
+											  IsVisible="{Binding IsInstalled}"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Add Custom Image"
 											  Click="SetCustomIcon_Click"
