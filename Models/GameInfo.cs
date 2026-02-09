@@ -1886,6 +1886,18 @@ namespace N64RecompLauncher.Models
                     {
                         ZipFile.ExtractToDirectory(downloadPath, tempExtractPath, overwriteFiles: true);
 
+                        // Check for nested zip files
+                        var nestedZips = Directory.GetFiles(tempExtractPath, "*.zip", SearchOption.AllDirectories);
+                        foreach (var nestedZip in nestedZips)
+                        {
+                            var nestedExtractPath = Path.Combine(Path.GetDirectoryName(nestedZip), Path.GetFileNameWithoutExtension(nestedZip));
+                            Directory.CreateDirectory(nestedExtractPath);
+                            ZipFile.ExtractToDirectory(nestedZip, nestedExtractPath, overwriteFiles: true);
+
+                            // Delete the nested zip after extraction
+                            try { File.Delete(nestedZip); } catch { }
+                        }
+
                         var appBundle = Directory.GetDirectories(tempExtractPath, "*.app", SearchOption.AllDirectories)
                             .FirstOrDefault();
 
