@@ -651,28 +651,28 @@ namespace N64RecompLauncher.Services
             repository = "Rainchus/ChameleonTwist1-JP-Recomp",
             branch = "main",
             imageRes = "512",
-            folderName = "ChameleonTwistRecomp",
+            folderName = "ChameleonTwistRecompiled",
             customDefaultIconUrl = (string?)null },
 
         new { name = "Mega Man 64",
             repository = "MegaMan64Recomp/MegaMan64Recompiled",
             branch = "main",
             imageRes = "512",
-            folderName = "MegaMan64Recomp",
+            folderName = "MegaMan64Recompiled",
             customDefaultIconUrl = (string?)null },
 
         new { name = "Quest 64",
             repository = "Rainchus/Quest64-Recomp",
             branch = "main",
             imageRes = "512",
-            folderName = "Quest64Recomp",
+            folderName = "Quest64Recompiled",
             customDefaultIconUrl = (string?)null },
 
         new { name = "Space Station Silicon Valley",
             repository = "Cellenseres/SSSV_Recomp",
             branch = "main",
             imageRes = "512",
-            folderName = "SSSVRecomp",
+            folderName = "SSSVRecompiled",
             customDefaultIconUrl = (string?)null },
     };
 
