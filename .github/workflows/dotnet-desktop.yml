@@ -66,7 +66,7 @@ jobs:
       with:
         name: N64RecompLauncher-Windows-x64
         path: publish/win-x64
-        retention-days: 30
+        retention-days: 14
 
   build-linux:
     runs-on: ubuntu-latest
@@ -99,14 +99,14 @@ jobs:
       with:
         name: N64RecompLauncher-Linux-x64
         path: publish/linux-x64
-        retention-days: 30
+        retention-days: 14
 
     - name: Upload Linux ARM64
       uses: actions/upload-artifact@v4
       with:
         name: N64RecompLauncher-Linux-ARM64
         path: publish/linux-arm64
-        retention-days: 30
+        retention-days: 14
 
   build-macos:
     runs-on: macos-latest
@@ -136,53 +136,4 @@ jobs:
       with:
         name: N64RecompLauncher-macOS-x64
         path: publish/osx-x64
-        retention-days: 30
-
-  package-release:
-    needs: [build-windows, build-linux, build-macos]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Download Windows Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: N64RecompLauncher-Windows-x64
-        path: artifacts/windows-x64
-
-    - name: Download Linux x64 Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: N64RecompLauncher-Linux-x64
-        path: artifacts/linux-x64
-
-    - name: Download Linux ARM64 Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: N64RecompLauncher-Linux-ARM64
-        path: artifacts/linux-arm64
-
-    - name: Download macOS Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: N64RecompLauncher-macOS-x64
-        path: artifacts/macos-x64
-
-    - name: Create Release Packages
-      run: |
-        mkdir -p release-package
-        cd artifacts/windows-x64
-        zip -r ../../release-package/N64RecompLauncher-Windows-x64.zip .
-        cd ../linux-x64
-        tar -czf ../../release-package/N64RecompLauncher-Linux-x64.tar.gz .
-        cd ../linux-arm64
-        tar -czf ../../release-package/N64RecompLauncher-Linux-ARM64.tar.gz .
-        cd ../macos-x64
-        tar -czf ../../release-package/N64RecompLauncher-macOS-x64.tar.gz .
-
-    - name: Upload Combined Release
-      uses: actions/upload-artifact@v4
-      with:
-        name: N64RecompLauncher-All-Platforms
-        path: release-package/
-        retention-days: 90
+        retention-days: 14
