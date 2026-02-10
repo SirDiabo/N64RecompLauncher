@@ -8,36 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-debug:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
-
-    env:   
-      Solution_Name: N64RecompLauncher.sln
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 9.0.x
-
-    - name: Restore dependencies
-      run: dotnet restore ${{ env.Solution_Name }}
-
-    - name: Build Debug
-      run: dotnet build ${{ env.Solution_Name }} --configuration Debug --no-restore
-
-    - name: Test
-      run: dotnet test ${{ env.Solution_Name }} --configuration Debug --no-build --verbosity normal
-
   build-windows:
     runs-on: windows-latest
     
