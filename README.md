@@ -6,11 +6,6 @@
 ![N64Recomp Launcher Screenshot](Assets/LauncherScreenshot.png)
 A modern, user-friendly launcher application for managing and running N64 recompiled games. This tool streamlines the process of downloading, installing, and launching your favorite N64 titles.
 
-> ⚠️ **Platform Compatibility Notice**
-> - ✅ Windows: Works perfectly
-> - ✅ Linux: Working mostly properly
-> - ⚠️ macOS: Not yet supported
-
 ## ✨ Features
 
 - **Automated Updates**: Seamlessly download and install the latest releases from GitHub
