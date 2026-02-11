@@ -102,6 +102,7 @@ namespace N64RecompLauncher.Services
             { "Zelda64Recomp/Zelda64Recomp", "zelda-64-recompiled" },
             { "BanjoRecomp/BanjoRecomp", "banjo-recompiled" },
             { "sonicdcer/Starfox64Recomp", "starfox-64-recompiled" },
+            { "Francessco121/dino-recomp", "dinosaur-planet-recompiled" }
 
         };
 
