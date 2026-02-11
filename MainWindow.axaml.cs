@@ -892,8 +892,8 @@ namespace N64RecompLauncher
         {
             _settings.IconFill = true;
             _settings.UseGridView = true;
-            _settings.SlotSize = 276;
-            _settings.IconSize = 200;
+            _settings.SlotSize = 304;
+            _settings.IconSize = 220;
             _settings.IconMargin = 0;
             _settings.SlotTextMargin = 0;
             _settings.IconOpacity = 1.0f;
@@ -3010,17 +3010,6 @@ namespace N64RecompLauncher
                 controls.Add(listPanel);
                 listItems.Clear();
             }
-        }
-
-        private TextBlock CreateFormattedTextBlock(string text)
-        {
-            var textBlock = new SelectableTextBlock
-            {
-                Text = text,
-                FontSize = 14,
-                Foreground = new SolidColorBrush(Color.Parse("#B8B8B8"))
-            };
-            return textBlock;
         }
 
         private async Task<string> FetchChangelogAsync(string repository)
