@@ -908,32 +908,6 @@ namespace N64RecompLauncher.Services
             if (string.IsNullOrEmpty(_gamesFolder))
                 return;
 
-            var gameStatuses = Games
-                .Where(g => g != null && !string.IsNullOrEmpty(g.FolderName))
-                .Select(g => new {
-                    Game = g,
-                    IsInstalled = Directory.Exists(Path.Combine(_gamesFolder, g.FolderName)),
-                    LastPlayed = GetLastPlayedTime(g.FolderName)
-                })
-                .OrderBy(x => x.IsInstalled ? 0 : 1)
-                .ThenByDescending(x => x.LastPlayed)
-                .ThenBy(x => x.Game?.Name ?? "")
-                .Select(x => x.Game)
-                .ToList();
-
-            for (int i = 0; i < gameStatuses.Count; i++)
-            {
-                var game = gameStatuses[i];
-                if (game == null)
-                    continue;
-
-                var currentIndex = Games.IndexOf(game);
-                if (currentIndex != i && currentIndex != -1)
-                {
-                    Games.Move(currentIndex, i);
-                }
-            }
-
             if (!forceUpdateCheck)
             {
                 int cachedCount = Games.Count(g => !GitHubApiCache.NeedsUpdateCheck(g.Repository,

@@ -326,6 +326,41 @@
 		</Setter>
 	</Style>
 
+	<!-- ComboBox Style -->
+	<Style Selector="ComboBox">
+		<Setter Property="Background" Value="{DynamicResource ThemeDarker}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="CornerRadius" Value="4"/>
+		<Setter Property="Padding" Value="12,8"/>
+	</Style>
+
+	<Style Selector="ComboBox:pointerover /template/ Border#Background">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+	</Style>
+
+	<Style Selector="ComboBox:focus /template/ Border#Background">
+		<Setter Property="Background" Value="{DynamicResource ThemeDarker}"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+	</Style>
+
+	<Style Selector="ComboBoxItem">
+		<Setter Property="Background" Value="{DynamicResource ThemeDarker}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+		<Setter Property="Padding" Value="12,8"/>
+	</Style>
+
+	<Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource ThemeLighter}"/>
+	</Style>
+
+	<Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource ThemeBase}"/>
+		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
+	</Style>
+
 	<Style Selector="Button.modern:pointerover">
 		<Setter Property="Opacity" Value="0.85"/>
 		<Setter Property="Foreground" Value="{DynamicResource ThemeText}"/>
@@ -844,6 +879,27 @@
 					    <StackPanel Orientation="Horizontal"
 						       HorizontalAlignment="Right"
 							   VerticalAlignment="Center">
+
+							<!-- Sorting ComboBox -->	
+							<TextBlock Text="Sort by:" 
+									   Foreground="{DynamicResource ThemeTextSecondary}"
+									   FontSize="14"
+									   FontWeight="Medium"
+									   VerticalAlignment="Center"/>
+							<ComboBox x:Name="SortByComboBox"
+									  Foreground="{DynamicResource ThemeTextSecondary}"
+									  Background="{DynamicResource ThemeDarker}"
+									  BorderBrush="{DynamicResource ThemeBorder}"
+									  Margin="4,1,64,0"
+									  SelectionChanged="SortByComboBox_SelectionChanged">
+								<ComboBoxItem Content="Name (A-Z)" Tag="Name"/>
+								<ComboBoxItem Content="Name (Z-A)" Tag="NameDesc"/>
+								<ComboBoxItem Content="Installed First" Tag="Installed"/>
+								<ComboBoxItem Content="Not Installed First" Tag="NotInstalled"/>
+								<ComboBoxItem Content="Last Played" Tag="LastPlayed"/>
+								<ComboBoxItem Content="Experimental" Tag="Experimental" IsVisible="{Binding ShowExperimentalGames}"/>
+								<ComboBoxItem Content="Custom Games" Tag="Custom" IsVisible="{Binding ShowCustomGames}"/>
+							</ComboBox>
 
 							<!-- Version Text -->
 							<TextBlock Grid.Row="0"

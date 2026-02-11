@@ -41,6 +41,7 @@ namespace N64RecompLauncher
                 }
             }
         }
+        private string _currentSortBy = "Name";
         private bool _showExperimentalGames;
         public bool ShowExperimentalGames
         {
@@ -731,6 +732,8 @@ namespace N64RecompLauncher
             {
                 await _gameManager.LoadGamesAsync();
 
+                ApplySorting();
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     DataContext = this;
@@ -1236,6 +1239,21 @@ namespace N64RecompLauncher
                 if (ShowExperimentalCheckBox != null)
                     ShowExperimentalCheckBox.IsChecked = _settings.ShowExperimentalGames;
 
+                if (SortByComboBox != null)
+                {
+                    var savedSort = _settings.SortBy ?? "Name";
+                    _currentSortBy = savedSort;
+
+                    foreach (ComboBoxItem item in SortByComboBox.Items)
+                    {
+                        if (item.Tag as string == savedSort)
+                        {
+                            SortByComboBox.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
+
                 if (ShowCustomGamesCheckBox != null)
                     ShowCustomGamesCheckBox.IsChecked = _settings.ShowCustomGames;
 
@@ -1480,6 +1498,7 @@ namespace N64RecompLauncher
 
                 // Check game updates
                 await _gameManager.CheckAllUpdatesAsync();
+                ApplySorting();
 
                 // Restore original button state
                 if (button != null)
@@ -1826,6 +1845,7 @@ namespace N64RecompLauncher
             {
                 _gameManager.UnhideAllGames();
                 await _gameManager.LoadGamesAsync();
+                ApplySorting();
             }
             catch (Exception ex)
             {
@@ -1838,6 +1858,7 @@ namespace N64RecompLauncher
             try
             {
                 await _gameManager.HideAllNonInstalledGames();
+                ApplySorting();
             }
             catch (Exception ex)
             {
@@ -1850,6 +1871,7 @@ namespace N64RecompLauncher
             try
             {
                 await _gameManager.HideAllNonStableGames();
+                ApplySorting();
             }
             catch (Exception ex)
             {
@@ -1862,6 +1884,7 @@ namespace N64RecompLauncher
             try
             {
                 await _gameManager.OnlyShowExperimentalGames();
+                ApplySorting();
             }
             catch (Exception ex)
             {
@@ -1874,11 +1897,124 @@ namespace N64RecompLauncher
             try
             {
                 await _gameManager.OnlyShowCustomGames();
+                ApplySorting();
             }
             catch (Exception ex)
             {
                 _ = ShowMessageBoxAsync($"Failed to hide non-custom games: {ex.Message}", "Error");
             }
+        }
+
+        private void SortByComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.AddedItems.Count == 0) return;
+
+            if (SortByComboBox?.SelectedItem is ComboBoxItem item && item.Tag is string sortMode)
+            {
+                _currentSortBy = sortMode;
+                _settings.SortBy = sortMode;
+                OnSettingChanged();
+                ApplySorting();
+            }
+        }
+
+        private void ApplySorting()
+        {
+            if (_gameManager?.Games == null || _gameManager.Games.Count == 0)
+            {
+                Debug.WriteLine("ApplySorting: No games to sort");
+                return;
+            }
+
+            Debug.WriteLine($"ApplySorting: Sorting {_gameManager.Games.Count} games by {_currentSortBy}");
+
+            List<GameInfo> sortedGames;
+
+            switch (_currentSortBy)
+            {
+                case "Name":
+                    sortedGames = _gameManager.Games.OrderBy(g => g.Name ?? string.Empty).ToList();
+                    break;
+
+                case "NameDesc":
+                    sortedGames = _gameManager.Games.OrderByDescending(g => g.Name ?? string.Empty).ToList();
+                    break;
+
+                case "Installed":
+                    sortedGames = _gameManager.Games
+                        .OrderByDescending(g => g.IsInstalled)
+                        .ThenBy(g => g.Name ?? string.Empty)
+                        .ToList();
+                    break;
+
+                case "NotInstalled":
+                    sortedGames = _gameManager.Games
+                        .OrderBy(g => g.IsInstalled)
+                        .ThenBy(g => g.Name ?? string.Empty)
+                        .ToList();
+                    break;
+
+                case "LastPlayed":
+                    sortedGames = _gameManager.Games
+                        .OrderByDescending(g => GetLastPlayedTime(g))
+                        .ThenBy(g => g.Name ?? string.Empty)
+                        .ToList();
+                    break;
+
+                case "Experimental":
+                    sortedGames = _gameManager.Games
+                        .OrderByDescending(g => g.IsExperimental)
+                        .ThenBy(g => g.Name ?? string.Empty)
+                        .ToList();
+                    break;
+
+                case "Custom":
+                    sortedGames = _gameManager.Games
+                        .OrderByDescending(g => g.IsCustom)
+                        .ThenBy(g => g.Name ?? string.Empty)
+                        .ToList();
+                    break;
+
+                default:
+                    sortedGames = _gameManager.Games.OrderBy(g => g.Name ?? string.Empty).ToList();
+                    break;
+            }
+
+            _gameManager.Games.Clear();
+            foreach (var game in sortedGames)
+            {
+                _gameManager.Games.Add(game);
+            }
+
+            Debug.WriteLine($"ApplySorting: Completed sorting");
+        }
+
+        private DateTime GetLastPlayedTime(GameInfo game)
+        {
+            if (string.IsNullOrEmpty(game.FolderName) || _gameManager?.GamesFolder == null)
+                return DateTime.MinValue;
+
+            try
+            {
+                var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
+
+                if (File.Exists(lastPlayedPath))
+                {
+                    var content = File.ReadAllText(lastPlayedPath).Trim();
+                    if (DateTime.TryParseExact(content, "yyyy-MM-dd HH:mm:ss", null,
+                        System.Globalization.DateTimeStyles.None, out DateTime lastPlayed))
+                    {
+                        return lastPlayed;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to read LastPlayed for {game.Name}: {ex.Message}");
+            }
+
+            return DateTime.MinValue;
         }
 
         private async void HideGame_Click(object sender, RoutedEventArgs e)
@@ -1899,6 +2035,7 @@ namespace N64RecompLauncher
                 {
                     _gameManager.HideGame(game.Name);
                     await _gameManager.LoadGamesAsync();
+                    ApplySorting();
                 }
                 catch (Exception ex)
                 {
@@ -1992,6 +2129,7 @@ namespace N64RecompLauncher
                 _settings.ShowExperimentalGames = true;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
+                ApplySorting();
             }
         }
 
@@ -2003,6 +2141,7 @@ namespace N64RecompLauncher
                 _settings.ShowExperimentalGames = false;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
+                ApplySorting();
             }
         }
 
@@ -2014,6 +2153,7 @@ namespace N64RecompLauncher
                 _settings.ShowCustomGames = true;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
+                ApplySorting();
             }
         }
 
@@ -2025,6 +2165,7 @@ namespace N64RecompLauncher
                 _settings.ShowCustomGames = false;
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
+                ApplySorting();
             }
         }
 
@@ -2099,6 +2240,7 @@ namespace N64RecompLauncher
             {
                 await _gameManager.UpdateGamesFolderAsync(_settings.GamesPath);
                 await _gameManager.LoadGamesAsync();
+                ApplySorting();
             }
             catch (Exception ex)
             {
@@ -2135,6 +2277,7 @@ namespace N64RecompLauncher
                 {
                     await _gameManager.UpdateGamesFolderAsync(string.Empty);
                     await _gameManager.LoadGamesAsync();
+                    ApplySorting();
                 }
             }
             catch (Exception ex)
@@ -2176,6 +2319,7 @@ namespace N64RecompLauncher
                         {
                             await _gameManager.UpdateGamesFolderAsync(selectedPath);
                             await _gameManager.LoadGamesAsync();
+                            ApplySorting();
                         }
                     }
                 }
