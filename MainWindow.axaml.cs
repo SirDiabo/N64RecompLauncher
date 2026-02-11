@@ -460,6 +460,7 @@ namespace N64RecompLauncher
                     desktop.MainWindow != null)
                 {
                     var currentColor = isSecondary ? SecondaryColorBrush.Color : ThemeColorBrush.Color;
+                    var (h, s, l) = RgbToHsl(currentColor);
 
                     var pickerPanel = new StackPanel { Margin = new Thickness(20), Spacing = 15 };
 
@@ -475,25 +476,25 @@ namespace N64RecompLauncher
                     };
                     pickerPanel.Children.Add(previewBorder);
 
-                    // RGB Sliders
-                    var rSlider = CreateColorSlider("Red", currentColor.R, Colors.Red);
-                    var gSlider = CreateColorSlider("Green", currentColor.G, Colors.Green);
-                    var bSlider = CreateColorSlider("Blue", currentColor.B, Colors.Blue);
+                    // HSL Sliders
+                    var hSlider = CreateHslSlider("Hue", h, 0, 360, "°");
+                    var sSlider = CreateHslSlider("Saturation", s, 0, 100, "%");
+                    var lSlider = CreateHslSlider("Lightness", l, 0, 100, "%");
 
-                    pickerPanel.Children.Add(rSlider.panel);
-                    pickerPanel.Children.Add(gSlider.panel);
-                    pickerPanel.Children.Add(bSlider.panel);
+                    pickerPanel.Children.Add(hSlider.panel);
+                    pickerPanel.Children.Add(sSlider.panel);
+                    pickerPanel.Children.Add(lSlider.panel);
 
                     // Update preview on slider change
                     EventHandler<AvaloniaPropertyChangedEventArgs> updatePreview = (s, e) =>
                     {
-                        var newColor = Color.FromRgb((byte)rSlider.slider.Value, (byte)gSlider.slider.Value, (byte)bSlider.slider.Value);
+                        var newColor = HslToRgb(hSlider.slider.Value, sSlider.slider.Value, lSlider.slider.Value);
                         previewBorder.Background = new SolidColorBrush(newColor);
                     };
 
-                    rSlider.slider.PropertyChanged += updatePreview;
-                    gSlider.slider.PropertyChanged += updatePreview;
-                    bSlider.slider.PropertyChanged += updatePreview;
+                    hSlider.slider.PropertyChanged += updatePreview;
+                    sSlider.slider.PropertyChanged += updatePreview;
+                    lSlider.slider.PropertyChanged += updatePreview;
 
                     // Hex input
                     var hexPanel = new StackPanel { Spacing = 5 };
@@ -520,9 +521,10 @@ namespace N64RecompLauncher
                             if (!string.IsNullOrEmpty(text) && text.StartsWith("#") && text.Length == 7)
                             {
                                 var color = Color.Parse(text);
-                                rSlider.slider.Value = color.R;
-                                gSlider.slider.Value = color.G;
-                                bSlider.slider.Value = color.B;
+                                var (hue, sat, light) = RgbToHsl(color);
+                                hSlider.slider.Value = hue;
+                                sSlider.slider.Value = sat;
+                                lSlider.slider.Value = light;
                             }
                         }
                         catch { }
@@ -531,12 +533,13 @@ namespace N64RecompLauncher
                     // Update hex box when sliders change
                     EventHandler<AvaloniaPropertyChangedEventArgs> updateHex = (s, e) =>
                     {
-                        hexBox.Text = $"#{(byte)rSlider.slider.Value:X2}{(byte)gSlider.slider.Value:X2}{(byte)bSlider.slider.Value:X2}";
+                        var color = HslToRgb(hSlider.slider.Value, sSlider.slider.Value, lSlider.slider.Value);
+                        hexBox.Text = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
                     };
 
-                    rSlider.slider.PropertyChanged += updateHex;
-                    gSlider.slider.PropertyChanged += updateHex;
-                    bSlider.slider.PropertyChanged += updateHex;
+                    hSlider.slider.PropertyChanged += updateHex;
+                    sSlider.slider.PropertyChanged += updateHex;
+                    lSlider.slider.PropertyChanged += updateHex;
 
                     hexPanel.Children.Add(hexBox);
                     pickerPanel.Children.Add(hexPanel);
@@ -579,7 +582,7 @@ namespace N64RecompLauncher
 
                     applyButton.Click += (s, e) =>
                     {
-                        var finalColor = Color.FromRgb((byte)rSlider.slider.Value, (byte)gSlider.slider.Value, (byte)bSlider.slider.Value);
+                        var finalColor = HslToRgb(hSlider.slider.Value, sSlider.slider.Value, lSlider.slider.Value);
                         var hexColor = $"#{finalColor.R:X2}{finalColor.G:X2}{finalColor.B:X2}";
 
                         if (isSecondary)
@@ -603,7 +606,7 @@ namespace N64RecompLauncher
             });
         }
 
-        private (StackPanel panel, Slider slider) CreateColorSlider(string label, byte initialValue, Color thumbColor)
+        private (StackPanel panel, Slider slider) CreateHslSlider(string label, double initialValue, double min, double max, string unit)
         {
             var panel = new StackPanel { Spacing = 5 };
 
@@ -613,15 +616,15 @@ namespace N64RecompLauncher
                 Text = label,
                 Foreground = new SolidColorBrush(Colors.White),
                 FontSize = 12,
-                Width = 50
+                Width = 80
             });
 
             var valueText = new TextBlock
             {
-                Text = initialValue.ToString(),
+                Text = $"{(int)initialValue}{unit}",
                 Foreground = new SolidColorBrush(Colors.White),
                 FontSize = 12,
-                Width = 40,
+                Width = 50,
                 TextAlignment = TextAlignment.Right
             };
             headerPanel.Children.Add(valueText);
@@ -630,24 +633,95 @@ namespace N64RecompLauncher
 
             var slider = new Slider
             {
-                Minimum = 0,
-                Maximum = 255,
+                Minimum = min,
+                Maximum = max,
                 Value = initialValue,
                 Width = 260,
-                Foreground = new SolidColorBrush(thumbColor)
+                TickFrequency = 1,
+                IsSnapToTickEnabled = true
             };
 
             slider.PropertyChanged += (s, e) =>
             {
                 if (e.Property.Name == "Value")
                 {
-                    valueText.Text = ((int)slider.Value).ToString();
+                    valueText.Text = $"{(int)slider.Value}{unit}";
                 }
             };
 
             panel.Children.Add(slider);
 
             return (panel, slider);
+        }
+
+        // Convert RGB to HSL
+        private (double h, double s, double l) RgbToHsl(Color color)
+        {
+            double r = color.R / 255.0;
+            double g = color.G / 255.0;
+            double b = color.B / 255.0;
+
+            double max = Math.Max(r, Math.Max(g, b));
+            double min = Math.Min(r, Math.Min(g, b));
+            double delta = max - min;
+
+            double h = 0;
+            double s = 0;
+            double l = (max + min) / 2.0;
+
+            if (delta != 0)
+            {
+                s = l > 0.5 ? delta / (2.0 - max - min) : delta / (max + min);
+
+                if (max == r)
+                    h = ((g - b) / delta + (g < b ? 6 : 0)) / 6.0;
+                else if (max == g)
+                    h = ((b - r) / delta + 2) / 6.0;
+                else
+                    h = ((r - g) / delta + 4) / 6.0;
+            }
+
+            return (h * 360, s * 100, l * 100);
+        }
+
+        // Convert HSL to RGB
+        private Color HslToRgb(double h, double s, double l)
+        {
+            h = h / 360.0;
+            s = s / 100.0;
+            l = l / 100.0;
+
+            double r, g, b;
+
+            if (s == 0)
+            {
+                r = g = b = l;
+            }
+            else
+            {
+                double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                double p = 2 * l - q;
+
+                r = HueToRgb(p, q, h + 1.0 / 3.0);
+                g = HueToRgb(p, q, h);
+                b = HueToRgb(p, q, h - 1.0 / 3.0);
+            }
+
+            return Color.FromRgb(
+                (byte)Math.Round(r * 255),
+                (byte)Math.Round(g * 255),
+                (byte)Math.Round(b * 255)
+            );
+        }
+
+        private double HueToRgb(double p, double q, double t)
+        {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1.0 / 6.0) return p + (q - p) * 6 * t;
+            if (t < 1.0 / 2.0) return q;
+            if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6;
+            return p;
         }
 
         private void UpdateContinueButtonState()
