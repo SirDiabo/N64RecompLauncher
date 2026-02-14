@@ -81,12 +81,17 @@ namespace N64RecompLauncher.Services
 			_gamepadTimer.Start();
 		}
 
-		private void GamepadTimer_Tick(object? sender, EventArgs e)
-		{
-			if (!_isWindowActive)
-				return;
+        private void GamepadTimer_Tick(object? sender, EventArgs e)
+        {
+            if (!_isWindowActive)
+            {
+                ResetNavigationTimer();
+                _lastConfirmTime = DateTime.MinValue;
+                _lastCancelTime = DateTime.MinValue;
+                return;
+            }
 
-			SDL.SDL_GameControllerUpdate();
+            SDL.SDL_GameControllerUpdate();
 
 			foreach (var kvp in _gameControllers)
 			{
