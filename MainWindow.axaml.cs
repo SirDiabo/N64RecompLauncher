@@ -2920,42 +2920,93 @@ namespace N64RecompLauncher
             return controls;
         }
 
-        private List<SelectableTextBlock> ParseInlineMarkdown(string text)
+        private List<Control> ParseInlineMarkdown(string text)
         {
-            var blocks = new List<SelectableTextBlock>();
-            var textBlock = new SelectableTextBlock { FontSize = 14, Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")) };
-            var inlines = new Avalonia.Controls.Documents.InlineCollection();
+            var blocks = new List<Control>();
+            var panel = new WrapPanel { Orientation = Orientation.Horizontal };
 
             int i = 0;
             var currentText = new StringBuilder();
 
+            void FlushText()
+            {
+                if (currentText.Length > 0)
+                {
+                    panel.Children.Add(new SelectableTextBlock
+                    {
+                        Text = currentText.ToString(),
+                        FontSize = 14,
+                        Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap
+                    });
+                    currentText.Clear();
+                }
+            }
+
+            void AddLineBreak()
+            {
+                // Add all current panel content to blocks
+                if (panel.Children.Count > 0)
+                {
+                    blocks.Add(panel);
+                    panel = new WrapPanel { Orientation = Orientation.Horizontal };
+                }
+            }
+
             while (i < text.Length)
             {
+                // Check for line breaks
+                if (text[i] == '\n' || text[i] == '\r')
+                {
+                    FlushText();
+                    AddLineBreak();
+
+                    // Skip \r\n or \n\r combinations
+                    if (i + 1 < text.Length && (text[i + 1] == '\n' || text[i + 1] == '\r') && text[i] != text[i + 1])
+                    {
+                        i++;
+                    }
+                    i++;
+                    continue;
+                }
+
                 // Bold **text**
                 if (i < text.Length - 1 && text[i] == '*' && text[i + 1] == '*')
                 {
-                    if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                    FlushText();
                     i += 2;
                     var boldText = new StringBuilder();
                     while (i < text.Length - 1 && !(text[i] == '*' && text[i + 1] == '*')) { boldText.Append(text[i]); i++; }
                     if (i < text.Length - 1) i += 2;
-                    inlines.Add(new Avalonia.Controls.Documents.Run { Text = boldText.ToString(), FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Colors.White) });
+                    panel.Children.Add(new SelectableTextBlock
+                    {
+                        Text = boldText.ToString(),
+                        FontWeight = FontWeight.Bold,
+                        Foreground = new SolidColorBrush(Colors.White),
+                        FontSize = 14,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap
+                    });
                     continue;
                 }
 
                 // Inline code `text`
                 if (text[i] == '`')
                 {
-                    if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
+                    FlushText();
                     i++;
                     var codeText = new StringBuilder();
                     while (i < text.Length && text[i] != '`') { codeText.Append(text[i]); i++; }
                     if (i < text.Length) i++;
-                    inlines.Add(new Avalonia.Controls.Documents.Run
+                    panel.Children.Add(new SelectableTextBlock
                     {
                         Text = codeText.ToString(),
                         FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-                        Foreground = new SolidColorBrush(Color.Parse("#d4d4d4"))
+                        Foreground = new SolidColorBrush(Color.Parse("#d4d4d4")),
+                        FontSize = 14,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap
                     });
                     continue;
                 }
@@ -2966,13 +3017,32 @@ namespace N64RecompLauncher
                     var linkMatch = System.Text.RegularExpressions.Regex.Match(text.Substring(i), @"^\[([^\]]+)\]\(([^\)]+)\)");
                     if (linkMatch.Success)
                     {
-                        if (currentText.Length > 0) { inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() }); currentText.Clear(); }
-                        inlines.Add(new Avalonia.Controls.Documents.Run
+                        FlushText();
+                        var linkText = linkMatch.Groups[1].Value;
+                        var linkUrl = linkMatch.Groups[2].Value;
+
+                        var linkButton = new Button
                         {
-                            Text = linkMatch.Groups[1].Value,
+                            Content = linkText,
                             Foreground = new SolidColorBrush(Color.Parse("#0969da")),
-                            TextDecorations = TextDecorations.Underline
-                        });
+                            Background = Brushes.Transparent,
+                            BorderThickness = new Thickness(0),
+                            Padding = new Thickness(0),
+                            Cursor = new Cursor(StandardCursorType.Hand),
+                            FontSize = 14,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Tag = linkUrl
+                        };
+
+                        linkButton.Click += (s, e) =>
+                        {
+                            if (linkButton.Tag is string url)
+                            {
+                                try { OpenUrl(url); } catch { }
+                            }
+                        };
+
+                        panel.Children.Add(linkButton);
                         i += linkMatch.Length;
                         continue;
                     }
@@ -2982,12 +3052,11 @@ namespace N64RecompLauncher
                 i++;
             }
 
-            if (currentText.Length > 0) inlines.Add(new Avalonia.Controls.Documents.Run { Text = currentText.ToString() });
+            FlushText();
 
-            if (inlines.Count > 0)
+            if (panel.Children.Count > 0)
             {
-                textBlock.Inlines = inlines;
-                blocks.Add(textBlock);
+                blocks.Add(panel);
             }
 
             return blocks;
