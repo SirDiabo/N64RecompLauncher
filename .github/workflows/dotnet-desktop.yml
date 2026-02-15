@@ -83,6 +83,7 @@ jobs:
     
     env:
       Solution_Name: N64RecompLauncher.sln
+      App_Name: N64RecompLauncher
 
     steps:
     - name: Checkout
@@ -101,9 +102,53 @@ jobs:
     - name: Publish macOS x64
       run: dotnet publish ${{ env.Solution_Name }} -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/osx-x64
 
+    - name: Create macOS .app bundle
+      run: |
+        APP_BUNDLE="publish/${{ env.App_Name }}.app"
+        mkdir -p "$APP_BUNDLE/Contents/MacOS"
+        mkdir -p "$APP_BUNDLE/Contents/Resources"
+        
+        # Copy all published files to the app bundle
+        cp -r publish/osx-x64/* "$APP_BUNDLE/Contents/MacOS/"
+        
+        # Make the executable... executable
+        chmod +x "$APP_BUNDLE/Contents/MacOS/${{ env.App_Name }}"
+        
+        # Create Info.plist
+        cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>${{ env.App_Name }}</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.yourcompany.n64recomp</string>
+            <key>CFBundleName</key>
+            <string>${{ env.App_Name }}</string>
+            <key>CFBundleVersion</key>
+            <string>1.0.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.15</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+        </dict>
+        </plist>
+        EOF
+
+    - name: Create DMG (optional)
+      run: |
+        hdiutil create -volname "${{ env.App_Name }}" -srcfolder "publish/${{ env.App_Name }}.app" -ov -format UDZO "publish/${{ env.App_Name }}.dmg"
+
     - name: Upload macOS x64
       uses: actions/upload-artifact@v4
       with:
         name: N64RecompLauncher-macOS-x64
-        path: publish/osx-x64
+        path: |
+          publish/${{ env.App_Name }}.app
+          publish/${{ env.App_Name }}.dmg
         retention-days: 14
