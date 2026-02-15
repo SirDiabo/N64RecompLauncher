@@ -1116,25 +1116,18 @@
 											   HorizontalAlignment="Right"
 											   Margin="0,0,0,15"/>
 								
-									<!-- Theme Color Picker -->
-									<TextBlock Text="Theme Color"
+									<!-- Theme Color Pickers -->
+									<TextBlock Text="Theme Colors"
 											   FontSize="13"
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeTextSecondary}"
 											   Margin="0,0,0,8"/>
 
 									<Button Classes="options"
-											Content="Choose Theme Color"
+											Content="Choose Primary Color"
 											HorizontalAlignment="Stretch"
 											Margin="0,0,0,8"
 											Click="ThemeColorPicker_Click"/>
-
-									<!-- Secondary Color Picker -->
-									<TextBlock Text="Secondary Color"
-											   FontSize="13"
-											   FontWeight="SemiBold"
-											   Foreground="{DynamicResource ThemeTextSecondary}"
-											   Margin="0,4,0,8"/>
 
 									<Button Classes="options"
 											Content="Choose Secondary Color"
