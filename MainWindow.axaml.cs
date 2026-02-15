@@ -10,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using LibVLCSharp.Shared;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
 using System.Collections.ObjectModel;
@@ -52,6 +53,41 @@ namespace N64RecompLauncher
                 {
                     _isBackgroundImageStatic = value;
                     OnPropertyChanged(nameof(IsBackgroundImageStatic));
+                }
+            }
+        }
+        private System.Threading.CancellationTokenSource? _fadeTaskCts;
+        private const int FADE_DURATION_MS = 500;
+        private LibVLC? _libVLC;
+        private MediaPlayer? _musicPlayer;
+        private Media? _currentMedia;
+        private string _launcherMusicPath = string.Empty;
+        public string LauncherMusicPath
+        {
+            get => _launcherMusicPath;
+            set
+            {
+                if (_launcherMusicPath != value)
+                {
+                    _launcherMusicPath = value;
+                    OnPropertyChanged(nameof(LauncherMusicPath));
+                }
+            }
+        }
+        private float _musicVolume = 0.2f;
+        public float MusicVolume
+        {
+            get => _musicVolume;
+            set
+            {
+                if (Math.Abs(_musicVolume - value) > 0.001f)
+                {
+                    _musicVolume = value;
+                    OnPropertyChanged(nameof(MusicVolume));
+                    if (_musicPlayer != null)
+                    {
+                        _musicPlayer.Volume = (int)(value * 100);
+                    }
                 }
             }
         }
@@ -201,7 +237,18 @@ namespace N64RecompLauncher
 
             _gameManager = new GameManager();
 
-            // Initialize theme BEFORE other UI setup
+            // Initialize LibVLC
+            try
+            {
+                Core.Initialize();
+                _libVLC = new LibVLC();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to initialize LibVLC: {ex.Message}");
+            }
+
+            // Initialize theme
             ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
             SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings?.SecondaryColor ?? "#404040"));
             UpdateThemeColors();
@@ -223,6 +270,14 @@ namespace N64RecompLauncher
             {
                 string extension = Path.GetExtension(BackgroundImagePath).ToLower();
                 IsBackgroundImageStatic = extension != ".gif";
+            }
+
+            // Initialize music from settings
+            LauncherMusicPath = _settings?.LauncherMusicPath ?? string.Empty;
+            MusicVolume = _settings?.MusicVolume ?? 0.2f;
+            if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
+            {
+                PlayLauncherMusic(LauncherMusicPath);
             }
 
             _inputService = new InputService(this, _settings);
@@ -2517,6 +2572,158 @@ namespace N64RecompLauncher
             AppSettings.Save(_settings);
         }
 
+        private async void SelectLauncherMusic_Click(object sender, RoutedEventArgs e)
+        {
+            var storageProvider = StorageProvider;
+            var file = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select Launcher Music",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+            new FilePickerFileType("Audio Files")
+            {
+                Patterns = new[] { "*.mp3", "*.wav", "*.ogg", "*.flac", "*.m4a", "*.wma", "*.aac" }
+            }
+        }
+            });
+
+            if (file.Count > 0)
+            {
+                var selectedFile = file[0];
+                LauncherMusicPath = selectedFile.Path.LocalPath;
+                _settings.LauncherMusicPath = LauncherMusicPath;
+                AppSettings.Save(_settings);
+
+                PlayLauncherMusic(LauncherMusicPath);
+            }
+        }
+
+        private void ClearLauncherMusic_Click(object sender, RoutedEventArgs e)
+        {
+            StopLauncherMusic();
+            LauncherMusicPath = string.Empty;
+            _settings.LauncherMusicPath = string.Empty;
+            AppSettings.Save(_settings);
+        }
+
+        private void MusicVolumeSlider_ValueChanged(object sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            if (sender is Slider slider)
+            {
+                MusicVolume = (float)slider.Value;
+                _settings.MusicVolume = MusicVolume;
+                AppSettings.Save(_settings);
+            }
+        }
+
+        private void PlayLauncherMusic(string path)
+        {
+            try
+            {
+                if (_libVLC == null || !File.Exists(path))
+                    return;
+
+                StopLauncherMusic();
+
+                _currentMedia = new Media(_libVLC, new Uri(path));
+                _musicPlayer = new MediaPlayer(_currentMedia);
+
+                // Set volume (0-100)
+                _musicPlayer.Volume = (int)(MusicVolume * 100);
+
+                // Enable looping
+                _musicPlayer.EndReached += (sender, args) =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_musicPlayer != null && _currentMedia != null)
+                        {
+                            _musicPlayer.Stop();
+                            _musicPlayer.Play(_currentMedia);
+                        }
+                    });
+                };
+
+                _musicPlayer.Play();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to play launcher music: {ex.Message}");
+            }
+        }
+
+        private void StopLauncherMusic()
+        {
+            try
+            {
+                if (_musicPlayer != null)
+                {
+                    _musicPlayer.Stop();
+                    _musicPlayer.Dispose();
+                    _musicPlayer = null;
+                }
+
+                if (_currentMedia != null)
+                {
+                    _currentMedia.Dispose();
+                    _currentMedia = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to stop launcher music: {ex.Message}");
+            }
+        }
+
+        private async Task FadeMusicAsync(float targetVolume, int durationMs)
+        {
+            if (_musicPlayer == null)
+                return;
+
+            // Cancel any ongoing fade
+            _fadeTaskCts?.Cancel();
+            _fadeTaskCts = new System.Threading.CancellationTokenSource();
+            var token = _fadeTaskCts.Token;
+
+            try
+            {
+                int currentVolume = _musicPlayer.Volume;
+                int targetVolumeInt = (int)(targetVolume * 100);
+
+                if (currentVolume == targetVolumeInt)
+                    return;
+
+                int steps = 20;
+                int stepDelay = durationMs / steps;
+                float volumeStep = (targetVolumeInt - currentVolume) / (float)steps;
+
+                for (int i = 0; i < steps; i++)
+                {
+                    if (token.IsCancellationRequested || _musicPlayer == null)
+                        return;
+
+                    currentVolume = (int)(currentVolume + volumeStep);
+                    _musicPlayer.Volume = Math.Clamp(currentVolume, 0, 100);
+
+                    await Task.Delay(stepDelay, token);
+                }
+
+                if (_musicPlayer != null && !token.IsCancellationRequested)
+                {
+                    _musicPlayer.Volume = targetVolumeInt;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Fade was cancelled
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during music fade: {ex.Message}");
+            }
+        }
+
         private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
         {
             if (_isProcessingInput || !IsActive)
@@ -2678,6 +2885,11 @@ namespace N64RecompLauncher
             this.Activated -= MainWindow_Activated;
             this.Deactivated -= MainWindow_Deactivated;
 
+            // Stop Launcher Music
+            _fadeTaskCts?.Cancel();
+            _fadeTaskCts?.Dispose();
+            StopLauncherMusic();
+
             if (_inputService != null)
             {
                 _inputService.OnConfirm -= HandleConfirmAction;
@@ -2686,14 +2898,24 @@ namespace N64RecompLauncher
             }
         }
 
+        protected override void OnClosing(WindowClosingEventArgs e)
+        {
+            _fadeTaskCts?.Cancel();
+            StopLauncherMusic();
+            _libVLC?.Dispose();
+            base.OnClosing(e);
+        }
+
         private void MainWindow_Activated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(true);
+            _ = FadeMusicAsync(MusicVolume, FADE_DURATION_MS);
         }
 
         private void MainWindow_Deactivated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(false);
+            _ = FadeMusicAsync(0f, FADE_DURATION_MS);
         }
 
         private async void ShowChangelog_Click(object sender, RoutedEventArgs e)

@@ -1242,7 +1242,45 @@
 									<TextBlock Text="Set a custom background image (PNG, JPG, GIF supported)"
 											   FontSize="12"
 											   Foreground="{DynamicResource ThemeTextSecondary}"
-											   Margin="0,0,0,30"
+											   Margin="0,0,0,20"
+											   TextWrapping="Wrap"/>
+
+									<TextBlock Text="Launcher Music"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<Button Classes="options"
+											Content="Select Music"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,8"
+											Click="SelectLauncherMusic_Click"/>
+
+									<Button Classes="options"
+											Content="Clear Music"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,8"
+											Click="ClearLauncherMusic_Click"
+											IsEnabled="{Binding LauncherMusicPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+									<TextBlock Text="Music Volume"
+											   FontSize="13"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,0"/>
+
+									<Slider x:Name="MusicVolumeSlider"
+											Minimum="0"
+											Maximum="1"
+											Value="{Binding MusicVolume}"
+											TickFrequency="0.01"
+											IsSnapToTickEnabled="True"
+											ValueChanged="MusicVolumeSlider_ValueChanged"/>
+
+									<TextBlock Text="Looping background music (MP3, WAV, OGG supported)"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,20"
 											   TextWrapping="Wrap"/>
 
 									<TextBlock Text="Slot Scale"
