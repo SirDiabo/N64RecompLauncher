@@ -140,15 +140,9 @@ jobs:
         </plist>
         EOF
 
-    - name: Create DMG (optional)
-      run: |
-        hdiutil create -volname "${{ env.App_Name }}" -srcfolder "publish/${{ env.App_Name }}.app" -ov -format UDZO "publish/${{ env.App_Name }}.dmg"
-
     - name: Upload macOS x64
       uses: actions/upload-artifact@v4
       with:
         name: N64RecompLauncher-macOS-x64
-        path: |
-          publish/${{ env.App_Name }}.app
-          publish/${{ env.App_Name }}.dmg
+        path: publish/${{ env.App_Name }}.app
         retention-days: 14
