@@ -935,10 +935,17 @@
 			<!-- Games Content with Settings Panel Overlay -->
 			<Grid Grid.Row="1">
 
-				<!-- Animated Background 
-				<Image anim:ImageBehavior.AnimatedSource="avares://N64RecompLauncher/Assets/background.gif"
-					Stretch="Fill"
-					Opacity="0.15"/> -->
+				<!-- Background Image -->
+				<Panel>
+					<Image x:Name="CustomBackgroundImage"
+						anim:ImageBehavior.AnimatedSource="{Binding BackgroundImagePath}"
+						Stretch="Fill"
+						Opacity="0.15"/>
+					<Image x:Name="StaticBackgroundImage"
+						Source="{Binding BackgroundImagePath}"
+						Stretch="Fill"
+						Opacity="0.15"/>
+				</Panel>
 
 				<!-- Main Game List -->
 				<ScrollViewer VerticalScrollBarVisibility="Auto" x:Name="GameScrollViewer" Margin="30,20,30,30">
@@ -1207,6 +1214,31 @@
 											   FontSize="12"
 											   Foreground="{DynamicResource ThemeTextSecondary}"
 											   Margin="0,0,0,20"/>
+
+									<TextBlock Text="Background Image"
+											   FontSize="13"
+											   FontWeight="SemiBold"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<Button Classes="options"
+											Content="Select Image"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,8"
+											Click="SelectBackgroundImage_Click"/>
+
+									<Button Classes="options"
+											Content="Clear Background"
+											HorizontalAlignment="Stretch"
+											Margin="0,0,0,8"
+											Click="ClearBackgroundImage_Click"
+											IsEnabled="{Binding BackgroundImagePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+									<TextBlock Text="Set a custom background image (PNG, JPG, GIF supported)"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,30"
+											   TextWrapping="Wrap"/>
 
 									<TextBlock Text="Slot Scale"
 											   FontSize="13"

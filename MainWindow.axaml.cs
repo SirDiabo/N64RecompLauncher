@@ -29,6 +29,32 @@ namespace N64RecompLauncher
         public AppSettings Settings => _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
+        private string _backgroundImagePath;
+        public string BackgroundImagePath 
+        { 
+            get => _backgroundImagePath; 
+            set
+            {
+                if (_backgroundImagePath != value)
+                {
+                    _backgroundImagePath = value;
+                    OnPropertyChanged(nameof(BackgroundImagePath));
+                }
+            }
+        }
+        private bool _isBackgroundImageStatic;
+        public bool IsBackgroundImageStatic
+        {
+            get => _isBackgroundImageStatic;
+            set
+            {
+                if (_isBackgroundImageStatic != value)
+                {
+                    _isBackgroundImageStatic = value;
+                    OnPropertyChanged(nameof(IsBackgroundImageStatic));
+                }
+            }
+        }
         public bool IsFullscreen
         {
             get => _settings.StartFullscreen;
@@ -189,6 +215,14 @@ namespace N64RecompLauncher
             if (_settings.StartFullscreen)
             {
                 WindowState = WindowState.FullScreen;
+            }
+
+            // Initialize background image from settings
+            BackgroundImagePath = _settings?.BackgroundImagePath ?? string.Empty;
+            if (!string.IsNullOrEmpty(BackgroundImagePath))
+            {
+                string extension = Path.GetExtension(BackgroundImagePath).ToLower();
+                IsBackgroundImageStatic = extension != ".gif";
             }
 
             _inputService = new InputService(this);
@@ -2252,6 +2286,15 @@ namespace N64RecompLauncher
             }
         }
 
+        private void BackgroundPathTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_settings != null && sender is TextBox textBox)
+            {
+                _settings.BackgroundImagePath = textBox.Text ?? string.Empty;
+                OnSettingChanged();
+            }
+        }
+
         private System.Threading.CancellationTokenSource? _gamePathUpdateCts;
 
         private async void GamePathTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -2331,7 +2374,6 @@ namespace N64RecompLauncher
                 if (GitHubTokenTextBox != null)
                     GitHubTokenTextBox.Text = string.Empty;
                 OnSettingChanged();
-                _ = ShowMessageBoxAsync("GitHub API token cleared.", "Token Cleared");
             }
         }
 
@@ -2409,12 +2451,47 @@ namespace N64RecompLauncher
             try
             {
                 await _gameManager.ClearIconCacheAsync();
-                await ShowMessageBoxAsync("Icon cache cleared. Icons will be re-downloaded.", "Cache Cleared");
             }
             catch (Exception ex)
             {
                 await ShowMessageBoxAsync($"Failed to clear icon cache: {ex.Message}", "Error");
             }
+        }
+
+        private async void SelectBackgroundImage_Click(object sender, RoutedEventArgs e)
+        {
+            var storageProvider = StorageProvider;
+            var file = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select Background Image",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+            new FilePickerFileType("Image Files")
+            {
+                Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp" }
+            }
+        }
+            });
+
+            if (file.Count > 0)
+            {
+                var selectedFile = file[0];
+                BackgroundImagePath = selectedFile.Path.LocalPath;
+                _settings.BackgroundImagePath = BackgroundImagePath;
+
+                string extension = Path.GetExtension(BackgroundImagePath).ToLower();
+                IsBackgroundImageStatic = extension != ".gif";
+
+                AppSettings.Save(_settings);
+            }
+        }
+
+        private void ClearBackgroundImage_Click(object sender, RoutedEventArgs e)
+        {
+            BackgroundImagePath = string.Empty;
+            _settings.BackgroundImagePath = string.Empty;
+            AppSettings.Save(_settings);
         }
 
         private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
