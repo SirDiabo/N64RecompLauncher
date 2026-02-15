@@ -1057,7 +1057,7 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                var latestRelease = releases.FirstOrDefault(r => !r.prerelease);
+                var latestRelease = releases.FirstOrDefault();
                 if (latestRelease != null && !string.IsNullOrWhiteSpace(latestRelease.tag_name))
                 {
                     LatestVersion = latestRelease.tag_name;
@@ -1065,23 +1065,6 @@ namespace N64RecompLauncher.Models
 
                     string? newETag = response.Headers.ETag?.Tag;
                     GitHubApiCache.SetCache(Repository, latestRelease.tag_name, newETag ?? string.Empty, latestRelease);
-
-                    if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
-                        InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
-                    {
-                        Status = GameStatus.UpdateAvailable;
-                    }
-                    return;
-                }
-
-                var prerelease = releases.FirstOrDefault(r => r.prerelease);
-                if (prerelease != null && !string.IsNullOrWhiteSpace(prerelease.tag_name))
-                {
-                    LatestVersion = prerelease.tag_name;
-                    _cachedRelease = prerelease;
-
-                    string? newETag = response.Headers.ETag?.Tag;
-                    GitHubApiCache.SetCache(Repository, prerelease.tag_name, newETag ?? string.Empty, prerelease);
 
                     if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
                         InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
@@ -1328,8 +1311,7 @@ namespace N64RecompLauncher.Models
                             return;
                         }
 
-                        latestRelease = deserializedReleases.FirstOrDefault(r => !r.prerelease) ??
-                                        deserializedReleases.FirstOrDefault(r => r.prerelease);
+                        latestRelease = deserializedReleases.FirstOrDefault();
 
                         if (latestRelease == null)
                         {
