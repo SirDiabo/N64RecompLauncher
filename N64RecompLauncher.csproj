@@ -15,19 +15,18 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="AnimatedImage.Avalonia" Version="2.1.2" />
-		<PackageReference Include="AsyncImageLoader.Avalonia" Version="3.5.0" />
-		<PackageReference Include="Avalonia" Version="11.3.11" />
-		<PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
-		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
-		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.11" />
+		<PackageReference Include="AnimatedImage.Avalonia" Version="2.1.4" />
+		<PackageReference Include="AsyncImageLoader.Avalonia" Version="3.6.0" />
+		<PackageReference Include="Avalonia" Version="11.3.12" />
+		<PackageReference Include="Avalonia.Desktop" Version="11.3.12" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
+		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.12" />
 		<PackageReference Include="ppy.SDL2-CS" Version="1.0.82" />
-		<PackageReference Include="System.Text.Json" Version="10.0.2" />
-		<PackageReference Include="System.Drawing.Common" Version="10.0.2" />
-		<PackageReference Include="LibVLCSharp" Version="3.8.5" />
-		<PackageReference Include="LibVLCSharp.Avalonia" Version="3.8.5" />
-		<PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.20" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-		<PackageReference Include="VideoLAN.LibVLC.Linux" Version="3.0.20" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+		<PackageReference Include="System.Text.Json" Version="10.0.3" />
+		<PackageReference Include="System.Drawing.Common" Version="10.0.3" />
+		<PackageReference Include="LibVLCSharp" Version="3.9.5" />
+		<PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.5" />
+		<PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
 		<PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.0.20" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
 	</ItemGroup>
 
