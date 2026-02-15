@@ -25,7 +25,7 @@ namespace N64RecompLauncher
         public string SortBy { get; set; } = "LastPlayed";
         public bool StartFullscreen { get; set; } = false;
         public string BackgroundImagePath { get; set; } = string.Empty;
-
+        public bool EnableGamepadInput { get; set; } = true;
         private static readonly string SettingsPath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
             "settings.json"

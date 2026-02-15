@@ -39,11 +39,15 @@ namespace N64RecompLauncher.Services
         public event Action? OnConfirm;
         public event Action? OnCancel;
 
-        public InputService(Window mainWindow)
+        public InputService(Window mainWindow, AppSettings appSettings)
         {
             _mainWindow = mainWindow;
             InitializeSDL();
-            InitializeGamepadPolling();
+
+            if (appSettings.EnableGamepadInput)
+            {
+                InitializeGamepadPolling();
+            }
         }
 
         private void InitializeSDL()
@@ -68,6 +72,19 @@ namespace N64RecompLauncher.Services
                         System.Diagnostics.Debug.WriteLine($"Game controller {i} connected: {SDL.SDL_GameControllerName(controller)}");
                     }
                 }
+            }
+        }
+
+        public void SetGamepadEnabled(bool enabled)
+        {
+            if (enabled && _gamepadTimer == null)
+            {
+                InitializeGamepadPolling();
+            }
+            else if (!enabled && _gamepadTimer != null)
+            {
+                _gamepadTimer.Stop();
+                _gamepadTimer = null;
             }
         }
 

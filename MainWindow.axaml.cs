@@ -225,7 +225,7 @@ namespace N64RecompLauncher
                 IsBackgroundImageStatic = extension != ".gif";
             }
 
-            _inputService = new InputService(this);
+            _inputService = new InputService(this, _settings);
             _inputService.OnConfirm += HandleConfirmAction;
             _inputService.OnCancel += HandleCancelAction;
 
@@ -1374,6 +1374,9 @@ namespace N64RecompLauncher
                 if (StartFullscreenCheckBox != null)
                     StartFullscreenCheckBox.IsChecked = _settings.StartFullscreen;
 
+                if (EnableGamepadCheckBox != null)
+                    EnableGamepadCheckBox.IsChecked = _settings.EnableGamepadInput;
+
                 PlatformString = _settings.Platform switch
                 {
                     TargetOS.Auto => "Automatic",
@@ -2274,6 +2277,26 @@ namespace N64RecompLauncher
                 OnSettingChanged();
                 await _gameManager.LoadGamesAsync();
                 ApplySorting();
+            }
+        }
+
+        private void EnableGamepadCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.EnableGamepadInput = true;
+                _inputService?.SetGamepadEnabled(true);
+                OnSettingChanged();
+            }
+        }
+
+        private void EnableGamepadCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.EnableGamepadInput = false;
+                _inputService?.SetGamepadEnabled(false);
+                OnSettingChanged();
             }
         }
 

@@ -1034,6 +1034,18 @@
 									<TextBlock Text="Show Non-Recomp Games, compatible with this launcher."
 											   FontSize="12"
 											   Foreground="{DynamicResource ThemeTextSecondary}"
+											   Margin="0,0,0,8"/>
+
+									<CheckBox x:Name="EnableGamepadCheckBox"
+											  Content="Enable Gamepad Input"
+											  Foreground="{DynamicResource ThemeTextSecondary}"
+											  Margin="0,0,0,8"
+											  Checked="EnableGamepadCheckBox_Checked"
+											  Unchecked="EnableGamepadCheckBox_Unchecked" />
+
+									<TextBlock Text="Allow gamepad/controller navigation in the launcher"
+											   FontSize="12"
+											   Foreground="{DynamicResource ThemeTextSecondary}"
 											   Margin="0,0,0,25"/>
 
 									<TextBlock Text="Custom Games Path"
