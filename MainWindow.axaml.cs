@@ -10,7 +10,6 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using LibVLCSharp.Shared;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
 using System.Collections.ObjectModel;
@@ -18,6 +17,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Runtime.InteropServices;
+#if WINDOWS
+using NAudio.Wave;
+#endif
 
 namespace N64RecompLauncher
 {
@@ -58,9 +61,11 @@ namespace N64RecompLauncher
         }
         private System.Threading.CancellationTokenSource? _fadeTaskCts;
         private const int FADE_DURATION_MS = 500;
-        private LibVLC? _libVLC;
-        private MediaPlayer? _musicPlayer;
-        private Media? _currentMedia;
+        #if WINDOWS
+        private IWavePlayer? _waveOut;
+        private AudioFileReader? _audioFileReader;
+        #endif
+        private Process? _musicProcess;
         private string _launcherMusicPath = string.Empty;
         public string LauncherMusicPath
         {
@@ -84,10 +89,18 @@ namespace N64RecompLauncher
                 {
                     _musicVolume = value;
                     OnPropertyChanged(nameof(MusicVolume));
-                    if (_musicPlayer != null)
-                    {
-                        _musicPlayer.Volume = (int)(value * 100);
-                    }
+
+                #if WINDOWS
+                if (_audioFileReader != null)
+                {
+                    _audioFileReader.Volume = value;
+                }
+                #else
+                if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
+                {
+                    PlayLauncherMusic(LauncherMusicPath);
+                }
+                #endif
                 }
             }
         }
@@ -236,17 +249,6 @@ namespace N64RecompLauncher
             }
 
             _gameManager = new GameManager();
-
-            // Initialize LibVLC
-            try
-            {
-                Core.Initialize();
-                _libVLC = new LibVLC();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to initialize LibVLC: {ex.Message}");
-            }
 
             // Initialize theme
             ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
@@ -2621,31 +2623,18 @@ namespace N64RecompLauncher
         {
             try
             {
-                if (_libVLC == null || !File.Exists(path))
+                if (!File.Exists(path))
                     return;
 
                 StopLauncherMusic();
 
-                _currentMedia = new Media(_libVLC, new Uri(path));
-                _musicPlayer = new MediaPlayer(_currentMedia);
-
-                // Set volume (0-100)
-                _musicPlayer.Volume = (int)(MusicVolume * 100);
-
-                // Enable looping
-                _musicPlayer.EndReached += (sender, args) =>
-                {
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (_musicPlayer != null && _currentMedia != null)
-                        {
-                            _musicPlayer.Stop();
-                            _musicPlayer.Play(_currentMedia);
-                        }
-                    });
-                };
-
-                _musicPlayer.Play();
+                // Use runtime detection
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    PlayMusicWindows(path);
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    PlayMusicLinux(path);
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    PlayMusicMac(path);
             }
             catch (Exception ex)
             {
@@ -2653,21 +2642,168 @@ namespace N64RecompLauncher
             }
         }
 
+        private void PlayMusicWindows(string path)
+        {
+            #if WINDOWS
+            try
+            {
+                _audioFileReader = new AudioFileReader(path);
+                _audioFileReader.Volume = MusicVolume;
+
+                _waveOut = new WaveOutEvent();
+                _waveOut.Init(_audioFileReader);
+
+                // Enable looping
+                _waveOut.PlaybackStopped += (sender, args) =>
+                {
+                    if (_audioFileReader != null && _waveOut != null)
+                    {
+                        _audioFileReader.Position = 0;
+                        _waveOut.Play();
+                    }
+                };
+
+                _waveOut.Play();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"NAudio playback failed: {ex.Message}");
+            }
+        #else
+            Debug.WriteLine("Windows audio playback not available on this platform");
+        #endif
+        }
+
+        private void PlayMusicLinux(string path)
+        {
+            string[] players = { "ffplay", "mpv", "cvlc", "mplayer" };
+
+            foreach (var player in players)
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = player,
+                        Arguments = player switch
+                        {
+                            "ffplay" => $"-nodisp -autoexit -loop 0 -volume {(int)(MusicVolume * 100)} \"{path}\"",
+                            "mpv" => $"--no-video --loop=inf --volume={MusicVolume * 100} \"{path}\"",
+                            "cvlc" => $"--no-video --loop --volume {(int)(MusicVolume * 512)} \"{path}\"",
+                            "mplayer" => $"-loop 0 -volume {(int)(MusicVolume * 100)} \"{path}\"",
+                            _ => $"\"{path}\""
+                        },
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+
+                    _musicProcess = Process.Start(psi);
+                    if (_musicProcess != null)
+                    {
+                        _musicProcess.EnableRaisingEvents = true;
+                        Debug.WriteLine($"Playing music with {player}");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to start {player}: {ex.Message}");
+                    continue;
+                }
+            }
+
+            Debug.WriteLine("No suitable audio player found on Linux. Install one of: ffplay, mpv, vlc, mplayer");
+        }
+
+        private void PlayMusicMac(string path)
+        {
+            try
+            {
+                // afplay volume is 0-255 (0-1 range needs to be converted)
+                var volumeValue = MusicVolume * 255f;
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "afplay",
+                    Arguments = $"-v {volumeValue} \"{path}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                _musicProcess = Process.Start(psi);
+
+                if (_musicProcess != null)
+                {
+                    _musicProcess.EnableRaisingEvents = true;
+                    _musicProcess.Exited += (s, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
+                        {
+                            try
+                            {
+                                Dispatcher.UIThread.Post(() =>
+                                {
+                                    if (!string.IsNullOrEmpty(LauncherMusicPath))
+                                    {
+                                        PlayMusicMac(LauncherMusicPath);
+                                    }
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Failed to restart music: {ex.Message}");
+                            }
+                        }
+                    };
+
+                    Debug.WriteLine($"Playing music with afplay at volume {volumeValue}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"afplay failed: {ex.Message}");
+            }
+        }
+
         private void StopLauncherMusic()
         {
             try
             {
-                if (_musicPlayer != null)
+                #if WINDOWS
+                if (_waveOut != null)
                 {
-                    _musicPlayer.Stop();
-                    _musicPlayer.Dispose();
-                    _musicPlayer = null;
+                    _waveOut.Stop();
+                    _waveOut.Dispose();
+                    _waveOut = null;
                 }
 
-                if (_currentMedia != null)
+                if (_audioFileReader != null)
                 {
-                    _currentMedia.Dispose();
-                    _currentMedia = null;
+                    _audioFileReader.Dispose();
+                    _audioFileReader = null;
+                }
+                #endif
+
+                if (_musicProcess != null)
+                {
+                    try
+                    {
+                        if (!_musicProcess.HasExited)
+                        {
+                            _musicProcess.Kill();
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Process already exited, ignore
+                    }
+
+                    _musicProcess.Dispose();
+                    _musicProcess = null;
                 }
             }
             catch (Exception ex)
@@ -2678,50 +2814,54 @@ namespace N64RecompLauncher
 
         private async Task FadeMusicAsync(float targetVolume, int durationMs)
         {
-            if (_musicPlayer == null)
+        #if WINDOWS
+            if (_audioFileReader == null)
                 return;
 
-            // Cancel any ongoing fade
-            _fadeTaskCts?.Cancel();
-            _fadeTaskCts = new System.Threading.CancellationTokenSource();
-            var token = _fadeTaskCts.Token;
+        // Cancel any ongoing fade
+        _fadeTaskCts?.Cancel();
+        _fadeTaskCts = new System.Threading.CancellationTokenSource();
+        var token = _fadeTaskCts.Token;
 
-            try
+        try
+        {
+            float currentVolume = _audioFileReader.Volume;
+            float targetVol = targetVolume;
+
+            if (Math.Abs(currentVolume - targetVol) < 0.001f)
+                return;
+
+            int steps = 20;
+            int stepDelay = durationMs / steps;
+            float volumeStep = (targetVol - currentVolume) / steps;
+
+            for (int i = 0; i < steps; i++)
             {
-                int currentVolume = _musicPlayer.Volume;
-                int targetVolumeInt = (int)(targetVolume * 100);
-
-                if (currentVolume == targetVolumeInt)
+                if (token.IsCancellationRequested || _audioFileReader == null)
                     return;
 
-                int steps = 20;
-                int stepDelay = durationMs / steps;
-                float volumeStep = (targetVolumeInt - currentVolume) / (float)steps;
+                currentVolume += volumeStep;
+                _audioFileReader.Volume = Math.Clamp(currentVolume, 0f, 1f);
 
-                for (int i = 0; i < steps; i++)
-                {
-                    if (token.IsCancellationRequested || _musicPlayer == null)
-                        return;
-
-                    currentVolume = (int)(currentVolume + volumeStep);
-                    _musicPlayer.Volume = Math.Clamp(currentVolume, 0, 100);
-
-                    await Task.Delay(stepDelay, token);
-                }
-
-                if (_musicPlayer != null && !token.IsCancellationRequested)
-                {
-                    _musicPlayer.Volume = targetVolumeInt;
-                }
+                await Task.Delay(stepDelay, token);
             }
-            catch (OperationCanceledException)
+
+            if (_audioFileReader != null && !token.IsCancellationRequested)
             {
-                // Fade was cancelled
+                _audioFileReader.Volume = targetVol;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during music fade: {ex.Message}");
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Fade was cancelled
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error during music fade: {ex.Message}");
+        }
+            #else
+                await Task.CompletedTask;
+            #endif
         }
 
         private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
@@ -2902,7 +3042,6 @@ namespace N64RecompLauncher
         {
             _fadeTaskCts?.Cancel();
             StopLauncherMusic();
-            _libVLC?.Dispose();
             base.OnClosing(e);
         }
 

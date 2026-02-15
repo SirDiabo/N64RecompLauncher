@@ -14,6 +14,16 @@
 		<RuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-x64</RuntimeIdentifiers>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+		<DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+		<DefineConstants>$(DefineConstants);LINUX</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+		<DefineConstants>$(DefineConstants);OSX</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="AnimatedImage.Avalonia" Version="2.1.4" />
 		<PackageReference Include="AsyncImageLoader.Avalonia" Version="3.6.0" />
@@ -24,10 +34,7 @@
 		<PackageReference Include="ppy.SDL2-CS" Version="1.0.82" />
 		<PackageReference Include="System.Text.Json" Version="10.0.3" />
 		<PackageReference Include="System.Drawing.Common" Version="10.0.3" />
-		<PackageReference Include="LibVLCSharp" Version="3.9.5" />
-		<PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.5" />
-		<PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-		<PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.0.20" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+		<PackageReference Include="NAudio" Version="2.2.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
 	</ItemGroup>
 
 	<ItemGroup>
