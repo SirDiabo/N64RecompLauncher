@@ -66,6 +66,7 @@ namespace N64RecompLauncher
         private AudioFileReader? _audioFileReader;
         #endif
         private Process? _musicProcess;
+        private bool _musicPausedByDeactivation = false;
         private string _launcherMusicPath = string.Empty;
         public string LauncherMusicPath
         {
@@ -2805,6 +2806,8 @@ namespace N64RecompLauncher
                     _musicProcess.Dispose();
                     _musicProcess = null;
                 }
+
+                _musicPausedByDeactivation = false;
             }
             catch (Exception ex)
             {
@@ -2846,20 +2849,47 @@ namespace N64RecompLauncher
                 await Task.Delay(stepDelay, token);
             }
 
-            if (_audioFileReader != null && !token.IsCancellationRequested)
-            {
-                _audioFileReader.Volume = targetVol;
+                if (_audioFileReader != null && !token.IsCancellationRequested)
+                {
+                    _audioFileReader.Volume = targetVol;
+                }
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Fade was cancelled
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Error during music fade: {ex.Message}");
-        }
+            catch (OperationCanceledException)
+            {
+                // Fade was cancelled
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during music fade: {ex.Message}");
+            }
             #else
+                if (targetVolume < 0.01f)
+                {
+                    if (_musicProcess != null && !_musicProcess.HasExited)
+                    {
+                        try
+                        {
+                            _musicProcess.Kill();
+                            Debug.WriteLine("Music paused (process killed)");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Failed to pause music: {ex.Message}");
+                        }
+                    }
+                }
+                else if (targetVolume > 0.01f)
+                {
+                    if (_musicProcess == null || _musicProcess.HasExited)
+                    {
+                        if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
+                        {
+                            PlayLauncherMusic(LauncherMusicPath);
+                            Debug.WriteLine("Music resumed");
+                        }
+                    }
+                }
+    
                 await Task.CompletedTask;
             #endif
         }
@@ -3048,13 +3078,31 @@ namespace N64RecompLauncher
         private void MainWindow_Activated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(true);
-            _ = FadeMusicAsync(MusicVolume, FADE_DURATION_MS);
+
+            #if WINDOWS
+                        _ = FadeMusicAsync(MusicVolume, FADE_DURATION_MS);
+            #else
+                if (_musicPausedByDeactivation)
+                {
+                    _musicPausedByDeactivation = false;
+                    _ = FadeMusicAsync(MusicVolume, FADE_DURATION_MS);
+                }
+            #endif
         }
 
         private void MainWindow_Deactivated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(false);
-            _ = FadeMusicAsync(0f, FADE_DURATION_MS);
+
+            #if WINDOWS
+                        _ = FadeMusicAsync(0f, FADE_DURATION_MS);
+            #else
+                if (_musicProcess != null && !_musicProcess.HasExited)
+                {
+                    _musicPausedByDeactivation = true;
+                    _ = FadeMusicAsync(0f, FADE_DURATION_MS);
+                }
+            #endif
         }
 
         private async void ShowChangelog_Click(object sender, RoutedEventArgs e)
