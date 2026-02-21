@@ -788,7 +788,14 @@ namespace N64RecompLauncher.Services
             branch = "main",
             image = "512",
             folderName = "BigheadSMZ.ZeldaLAHD",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" }
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" },
+
+        new {name = "Dragon Ball Z Budokai",
+            repository = "WistfulHopes/DBZ1",
+            branch = "main",
+            image = "512",
+            folderName = "DBZ1Recompiled",
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" }
     };
 
             return (standard, experimental, custom);
