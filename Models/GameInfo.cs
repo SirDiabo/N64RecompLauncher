@@ -137,6 +137,7 @@ namespace N64RecompLauncher.Models
 
     public class GameInfo : INotifyPropertyChanged, IDisposable
     {
+        public event Action<Process?>? GameProcessStarted;
         private string? _latestVersion;
         private string? _installedVersion;
         private GameStatus _status = GameStatus.NotInstalled;
@@ -2579,7 +2580,8 @@ namespace N64RecompLauncher.Models
                     ? gamePath
                     : (Path.GetDirectoryName(executablePath) ?? gamePath));
 
-                Process.Start(startInfo);
+                var gameProcess = Process.Start(startInfo);
+                GameProcessStarted?.Invoke(gameProcess);
 
                 if (GameManager != null)
                 {

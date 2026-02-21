@@ -343,6 +343,7 @@ namespace N64RecompLauncher
                     Debug.WriteLine($"Games collection changed. Count: {_gameManager.Games?.Count ?? 0}");
                     foreach (var game in _gameManager.Games ?? new())
                     {
+                        SubscribeToGameEvents(game);
                         Debug.WriteLine($"Game: {game.Name}, IconUrl: {game.IconUrl}");
                     }
                 }
@@ -3290,6 +3291,42 @@ namespace N64RecompLauncher
                     _ = FadeMusicAsync(0f, FADE_DURATION_MS);
                 }
             #endif
+        }
+
+        private void SubscribeToGameEvents(GameInfo game)
+        {
+            // Unsubscribe
+            game.GameProcessStarted -= OnGameProcessStarted;
+            game.GameProcessStarted += OnGameProcessStarted;
+        }
+
+        private void OnGameProcessStarted(Process? process)
+        {
+            // Cut gamepad input
+            _inputService?.SetGamepadEnabled(false);
+
+            if (process == null)
+            {
+                // Can't track, re-enable after a safe delay
+                _ = Task.Delay(8000).ContinueWith(_ =>
+                    Dispatcher.UIThread.Post(() => _inputService?.SetGamepadEnabled(true)));
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await process.WaitForExitAsync();
+                }
+                catch { /* process may have already exited */ }
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    _inputService?.SetGamepadEnabled(true);
+                    _inputService?.SetWindowActive(true); // SDL focus state reset
+                });
+            });
         }
 
         private async void ShowChangelog_Click(object sender, RoutedEventArgs e)
