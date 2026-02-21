@@ -128,6 +128,18 @@ namespace N64RecompLauncher
                 }
             }
         }
+        public bool CloseAfterLaunch
+        {
+            get => _settings.CloseAfterLaunch;
+            set
+            {
+                if (_settings.CloseAfterLaunch != value)
+                {
+                    _settings.CloseAfterLaunch = value;
+                    OnPropertyChanged(nameof(CloseAfterLaunch));
+                }
+            }
+        }
         public IBrush WindowBackground
         {
             get
@@ -1171,6 +1183,10 @@ namespace N64RecompLauncher
                 {
                     await ShowMessageBoxAsync($"Failed to perform action for {game.Name}: {ex.Message}", "Action Error");
                 }
+                if (_settings.CloseAfterLaunch)
+                {
+                    Close();
+                }
             }
         }
 
@@ -1529,6 +1545,9 @@ namespace N64RecompLauncher
 
                 if (EnableGamepadCheckBox != null)
                     EnableGamepadCheckBox.IsChecked = _settings.EnableGamepadInput;
+
+                if (CloseAfterLaunchCheckBox != null)
+                    CloseAfterLaunchCheckBox.IsChecked = _settings.CloseAfterLaunch;
 
                 PlatformString = _settings.Platform switch
                 {
@@ -2495,6 +2514,26 @@ namespace N64RecompLauncher
             {
                 _settings.EnableGamepadInput = false;
                 _inputService?.SetGamepadEnabled(false);
+                OnSettingChanged();
+            }
+        }
+
+        private void CloseAfterLaunchCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.CloseAfterLaunch = true;
+                OnPropertyChanged(nameof(CloseAfterLaunch));
+                OnSettingChanged();
+            }
+        }
+
+        private void CloseAfterLaunchCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_settings != null)
+            {
+                _settings.CloseAfterLaunch = false;
+                OnPropertyChanged(nameof(CloseAfterLaunch));
                 OnSettingChanged();
             }
         }

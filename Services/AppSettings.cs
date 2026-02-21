@@ -26,6 +26,7 @@ namespace N64RecompLauncher
         public string GitHubApiToken { get; set; } = string.Empty;
         public string SortBy { get; set; } = "LastPlayed";
         public bool StartFullscreen { get; set; } = false;
+        public bool CloseAfterLaunch {  get; set; } = false;
         public string BackgroundImagePath { get; set; } = string.Empty;
         public string LauncherMusicPath { get; set; } = string.Empty;
         public float MusicVolume { get; set; } = 0.2f;

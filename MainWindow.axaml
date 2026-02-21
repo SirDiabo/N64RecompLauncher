@@ -1080,6 +1080,19 @@
 													   Margin="20,0,0,0"/>
 										</StackPanel>
 
+										<StackPanel Spacing="2">
+											<CheckBox x:Name="CloseAfterLaunchCheckBox"
+													  Content="Close After Launch"
+													  Foreground="{DynamicResource ThemeText}"
+													  FontSize="13" FontWeight="SemiBold"
+													  Checked="CloseAfterLaunchCheckBox_Checked"
+													  Unchecked="CloseAfterLaunchCheckBox_Unchecked"/>
+											<TextBlock Text="Close the launcher automatically after starting a game"
+													   FontSize="11"
+													   Foreground="{DynamicResource ThemeTextSecondary}"
+													   Margin="20,0,0,0"/>
+										</StackPanel>
+
 										<!-- Divider -->
 										<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,8,0,8"/>
 
