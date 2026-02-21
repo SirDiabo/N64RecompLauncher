@@ -652,14 +652,14 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "ChameleonTwistRecompiled",
-            customDefaultIconUrl = (string?)null },
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/c1f22f4c38899f51f1ed3ce20120bbd9.png" },
 
         new { name = "Mega Man 64",
             repository = "MegaMan64Recomp/MegaMan64Recompiled",
             branch = "main",
             imageRes = "512",
             folderName = "MegaMan64Recompiled",
-            customDefaultIconUrl = (string?)null },
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/850618e22f83f152773d2a3e51168812.png" },
 
         new { name = "Quest 64",
             repository = "Rainchus/Quest64-Recomp",
