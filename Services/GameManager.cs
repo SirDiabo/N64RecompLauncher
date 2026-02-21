@@ -652,14 +652,14 @@ namespace N64RecompLauncher.Services
             branch = "main",
             imageRes = "512",
             folderName = "ChameleonTwistRecompiled",
-            customDefaultIconUrl = (string?)null },
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/c1f22f4c38899f51f1ed3ce20120bbd9.png" },
 
         new { name = "Mega Man 64",
             repository = "MegaMan64Recomp/MegaMan64Recompiled",
             branch = "main",
             imageRes = "512",
             folderName = "MegaMan64Recompiled",
-            customDefaultIconUrl = (string?)null },
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/850618e22f83f152773d2a3e51168812.png" },
 
         new { name = "Quest 64",
             repository = "Rainchus/Quest64-Recomp",
@@ -788,7 +788,14 @@ namespace N64RecompLauncher.Services
             branch = "main",
             image = "512",
             folderName = "BigheadSMZ.ZeldaLAHD",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" }
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" },
+
+        new {name = "Dragon Ball Z Budokai",
+            repository = "WistfulHopes/DBZ1",
+            branch = "main",
+            image = "512",
+            folderName = "DBZ1Recompiled",
+            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" }
     };
 
             return (standard, experimental, custom);
