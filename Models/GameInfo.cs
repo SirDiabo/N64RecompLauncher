@@ -147,10 +147,8 @@ namespace N64RecompLauncher.Models
 
         public string? Name { get; set; }
         public string? Repository { get; set; }
-        public string? Branch { get; set; }
-        public string? ImageRes { get; set; }
         public string? FolderName { get; set; }
-        public string? CustomDefaultIconUrl { get; set; }
+        public string? GameIconUrl { get; set; }
         public bool IsExperimental { get; set; }
         public bool IsCustom { get; set; }
         private string? _customIconPath { get; set; }
@@ -216,17 +214,10 @@ namespace N64RecompLauncher.Models
         {
             get
             {
-                if (!string.IsNullOrEmpty(CustomDefaultIconUrl))
-                {
-                    return CustomDefaultIconUrl;
-                }
+                if (!string.IsNullOrEmpty(GameIconUrl))
+                    return GameIconUrl;
 
-                if (string.IsNullOrEmpty(Repository) || string.IsNullOrEmpty(Branch) || string.IsNullOrEmpty(ImageRes))
-                {
-                    return "/Assets/DefaultGame.png";
-                }
-
-                return $"https://raw.githubusercontent.com/{Repository}/{Branch}/icons/{ImageRes}.png";
+                return "/Assets/DefaultGame.png";
             }
         }
 

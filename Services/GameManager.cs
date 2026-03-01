@@ -227,10 +227,8 @@ namespace N64RecompLauncher.Services
                 {
                     { "name", string.Empty },
                     { "repository", string.Empty },
-                    { "branch", "main" },
-                    { "imageRes", "512" },
                     { "folderName", string.Empty },
-                    { "customDefaultIconUrl", null }
+                    { "gameIconUrl", null }
                 };
 
                 // Copy existing properties
@@ -242,6 +240,24 @@ namespace N64RecompLauncher.Services
                         JsonValueKind.Null => null,
                         _ => prop.Value.GetRawText()
                     };
+                }
+
+                // Migrate old properties to new schema
+                if (gameDict.ContainsKey("customDefaultIconUrl"))
+                {
+                    if (!gameDict.ContainsKey("gameIconUrl") || gameDict["gameIconUrl"] == null)
+                        gameDict["gameIconUrl"] = gameDict["customDefaultIconUrl"];
+                    gameDict.Remove("customDefaultIconUrl");
+                    gameNeedsFix = true;
+                }
+                if (gameDict.ContainsKey("branch")) { gameDict.Remove("branch"); gameNeedsFix = true; }
+                if (gameDict.ContainsKey("imageRes")) { gameDict.Remove("imageRes"); gameNeedsFix = true; }
+                if (gameDict.ContainsKey("repository") && "Francessco121/dino-recomp".Equals(gameDict["repository"]?.ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    gameDict["repository"] = "DinosaurPlanetRecomp/dino-recomp";
+                    gameDict["gameIconUrl"] = "https://raw.githubusercontent.com/DinosaurPlanetRecomp/dino-recomp/main/icons/64.png";
+                    gameNeedsFix = true;
+                    System.Diagnostics.Debug.WriteLine("Migrated Dinosaur Planet repository to DinosaurPlanetRecomp/dino-recomp");
                 }
 
                 // Check if folderName needs updating to match defaults
@@ -275,6 +291,19 @@ namespace N64RecompLauncher.Services
                                 gameDict["folderName"] = correctFolderName;
                                 gameNeedsFix = true;
                                 System.Diagnostics.Debug.WriteLine($"Updated folderName from '{currentFolderName}' to '{correctFolderName}' for repository {repository}");
+                            }
+                        }
+
+                        // Sync gameIconUrl from defaults if missing or null
+                        if (defaultDict.ContainsKey("gameIconUrl"))
+                        {
+                            string? defaultIconUrl = defaultDict["gameIconUrl"]?.ToString();
+                            bool currentIsEmpty = !gameDict.ContainsKey("gameIconUrl") || gameDict["gameIconUrl"] == null || string.IsNullOrEmpty(gameDict["gameIconUrl"]?.ToString());
+                            if (!string.IsNullOrEmpty(defaultIconUrl) && currentIsEmpty)
+                            {
+                                gameDict["gameIconUrl"] = defaultIconUrl;
+                                gameNeedsFix = true;
+                                System.Diagnostics.Debug.WriteLine($"Synced gameIconUrl from defaults for repository {repository}");
                             }
                         }
                     }
@@ -489,25 +518,25 @@ namespace N64RecompLauncher.Services
                     {
                         Name = (gameElement.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null) ?? string.Empty,
                         Repository = (gameElement.TryGetProperty("repository", out var repoElement) ? repoElement.GetString() : null) ?? string.Empty,
-                        Branch = (gameElement.TryGetProperty("branch", out var branchElement) ? branchElement.GetString() : null) ?? "main",
-                        ImageRes = (gameElement.TryGetProperty("imageRes", out var imgElement) ? imgElement.GetString() : null) ?? "512",
                         FolderName = (gameElement.TryGetProperty("folderName", out var folderElement) ? folderElement.GetString() : null) ?? string.Empty,
-                        CustomDefaultIconUrl = string.Empty,
+                        GameIconUrl = string.Empty,
                         IsExperimental = isExperimental,
                         IsCustom = isCustom,
                         GameManager = this,
                     };
 
-                    if (gameElement.TryGetProperty("customDefaultIconUrl", out var customDefaultUrlElement) &&
-                    customDefaultUrlElement.ValueKind != JsonValueKind.Null)
+                    if (gameElement.TryGetProperty("gameIconUrl", out var gameIconUrlElement) &&
+                        gameIconUrlElement.ValueKind != JsonValueKind.Null)
                     {
-                        game.CustomDefaultIconUrl = customDefaultUrlElement.GetString();
+                        game.GameIconUrl = gameIconUrlElement.GetString();
+                    }
+                    else if (gameElement.TryGetProperty("customDefaultIconUrl", out var legacyIconElement) &&
+                            legacyIconElement.ValueKind != JsonValueKind.Null)
+                    {
+                        game.GameIconUrl = legacyIconElement.GetString();
                     }
 
-                    if (!string.IsNullOrEmpty(game.Name) && !string.IsNullOrEmpty(game.Repository))
-                    {
-                        games.Add(game);
-                    }
+                    games.Add(game);
                 }
                 catch (Exception ex)
                 {
@@ -590,212 +619,154 @@ namespace N64RecompLauncher.Services
     {
         new { name = "Zelda 64",
             repository = "Zelda64Recomp/Zelda64Recomp",
-            branch = "dev",
-            imageRes = "512",
             folderName = "Zelda64Recompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/Zelda64Recomp/Zelda64Recomp/refs/heads/dev/icons/512.png" },
 
         new { name = "Goemon 64",
             repository = "klorfmorf/Goemon64Recomp",
-            branch = "dev",
-            imageRes = "512",
             folderName = "Goemon64Recompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/klorfmorf/Goemon64Recomp/refs/heads/dev/icons/512.png" },
 
         new { name = "Mario Kart 64",
             repository = "sonicdcer/MarioKart64Recomp",
-            branch = "main",
-            imageRes = "512",
             folderName = "MarioKart64Recompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/sonicdcer/MarioKart64Recomp/refs/heads/main/icons/512.png" },
 
         new { name = "Dinosaur Planet",
-            repository = "Francessco121/dino-recomp",
-            branch = "main",
-            imageRes = "64",
+            repository = "DinosaurPlanetRecomp/dino-recomp",
             folderName = "DinoPlanetRecompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/DinosaurPlanetRecomp/dino-recomp/refs/heads/main/icons/64.png" },
 
         new { name = "Dr. Mario 64",
             repository = "theboy181/drmario64_recomp_plus",
-            branch = "main",
-            imageRes = "512",
             folderName = "drmario64_recomp",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/theboy181/drmario64_recomp_plus/refs/heads/main/icons/512.png" },
 
         new { name = "Duke Nukem: Zero Hour",
             repository = "sonicdcer/DNZHRecomp",
-            branch = "main",
-            imageRes = "512",
             folderName = "DNZHRecompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/sonicdcer/DNZHRecomp/refs/heads/main/icons/512.png" },
 
         new { name = "Star Fox 64",
             repository = "sonicdcer/Starfox64Recomp",
-            branch = "main",
-            imageRes = "512",
             folderName = "Starfox64Recompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/sonicdcer/Starfox64Recomp/refs/heads/main/icons/512.png" },
 
         new  { name = "Banjo 64",
             repository = "BanjoRecomp/BanjoRecomp",
-            branch = "main",
-            imageRes = "app",
             folderName = "BanjoRecompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/BanjoRecomp/BanjoRecomp/refs/heads/main/icons/app.png" },
     };
 
             var experimental = new List<object>
     {
         new { name = "Chameleon Twist",
             repository = "Rainchus/ChameleonTwist1-JP-Recomp",
-            branch = "main",
-            imageRes = "512",
             folderName = "ChameleonTwistRecompiled",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/c1f22f4c38899f51f1ed3ce20120bbd9.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/c1f22f4c38899f51f1ed3ce20120bbd9.png" },
 
         new { name = "Mega Man 64",
             repository = "MegaMan64Recomp/MegaMan64Recompiled",
-            branch = "main",
-            imageRes = "512",
             folderName = "MegaMan64Recompiled",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/850618e22f83f152773d2a3e51168812.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/850618e22f83f152773d2a3e51168812.png" },
 
         new { name = "Quest 64",
             repository = "Rainchus/Quest64-Recomp",
-            branch = "main",
-            imageRes = "512",
             folderName = "Quest64Recompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/Rainchus/Quest64-Recomp/refs/heads/main/icons/512.png" },
 
         new { name = "Space Station Silicon Valley",
             repository = "Cellenseres/SSSV_Recomp",
-            branch = "main",
-            imageRes = "512",
             folderName = "SSSVRecompiled",
-            customDefaultIconUrl = (string?)null },
+            gameIconUrl  = "https://raw.githubusercontent.com/Cellenseres/SSSV_Recomp/refs/heads/main/icons/512.png" },
     };
 
             var custom = new List<object>
     {
         new { name = "Star Fox 64 (Starship)",
             repository = "harbourmasters/starship",
-            branch = "main",
-            imageRes = "512",
             folderName = "harbourmasters.starship",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/dc2ee2a5add7154447a4644326e33386/32/256x256.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/dc2ee2a5add7154447a4644326e33386/32/256x256.png" },
 
         new { name = "Zelda OoT (Ship of Harkinian)",
             repository = "harbourmasters/shipwright",
-            branch = "develop",
-            imageRes = "512",
             folderName = "harbourmasters.shipofharkinian",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/d1cd0a8c9b28f58703a097d5a25534e3/32/256x256.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/d1cd0a8c9b28f58703a097d5a25534e3/32/256x256.png" },
 
         new { name = "Mario Kart 64 (SpaghettiKart)",
             repository = "harbourmasters/spaghettikart",
-            branch = "main",
-            imageRes = "512",
             folderName = "harbourmasters.spaghettikkart",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/5e5e0bd5ad7c2ca72b0c5ff8b6debbba.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/5e5e0bd5ad7c2ca72b0c5ff8b6debbba.png" },
 
         new { name = "Zelda MM (2 Ship 2 Harkinian)",
             repository = "harbourmasters/2ship2harkinian",
-            branch = "develop",
-            imageRes = "512",
             folderName = "harbourmasters.2ship2harkinian",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/6c7dbdd98cd70f67f102524761f3b4d2/24/256x256.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/6c7dbdd98cd70f67f102524761f3b4d2/24/256x256.png" },
 
         new { name = "Super Mario 64 (Ghostship)",
             repository = "harbourmasters/ghostship",
-            branch = "develop",
-            imageRes = "512",
             folderName = "harbourmasters.ghostship",
-            customDefaultIconUrl = "https://github.com/HarbourMasters/Ghostship/blob/develop/port/textures/icons/g2ShipIcon.png?raw=true" },
+            gameIconUrl  = "https://raw.githubusercontent.com/HarbourMasters/Ghostship/refs/heads/develop/nx-logo.jpg" },
 
         new { name = "Sonic Unleashed Recompiled",
             repository = "hedge-dev/UnleashedRecomp",
-            branch = "main",
-            imageRes = "512",
             folderName = "Sonic Unleashed Recompiled",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/63a99723ebb3af94d52b474c3b21dbe1/24/512x512.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63a99723ebb3af94d52b474c3b21dbe1/24/512x512.png" },
 
         new { name = "Super Metroid Launcher",
             repository = "RadzPrower/Super-Metroid-Launcher",
-            branch = "master",
-            imageRes = "512",
             folderName = "RadzPrower.Super-Metroid-Launcher",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/26e3dcb90aa10011db5b660c463f325f/32/256x256.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/26e3dcb90aa10011db5b660c463f325f/32/256x256.png" },
 
         new { name = "Zelda: ALttP (Zelda 3 Launcher)",
             repository = "RadzPrower/Zelda-3-Launcher",
-            branch = "master",
-            imageRes = "512",
             folderName = "RadzPrower.Zelda-3-Launcher",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/1b39a10cc39ee53e5b2fdc1eda1eb5da.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/1b39a10cc39ee53e5b2fdc1eda1eb5da.png" },
 
         new { name = "WipeOut Phantom Edition",
             repository = "wipeout-phantom-edition/wipeout-phantom-edition",
-            branch = "main",
-            imageRes = "512",
             folderName = "WipeOut Phantom Edition",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9fcb5252180dc29b22976c5c63b322e7.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/9fcb5252180dc29b22976c5c63b322e7.png" },
 
         new { name = "Perfect Dark",
             repository = "fgsfdsfgs/perfect_dark",
-            branch = "port",
-            imageRes = "512",
             folderName = "fgsfdsfgs.perfect_dark",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/64314c17210c549a854f1f1c7adce8b6/32/256x256.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/64314c17210c549a854f1f1c7adce8b6/32/256x256.png" },
 
         new { name = "SM64 CoopDX",
             repository = "coop-deluxe/sm64coopdx",
-            branch = "main",
-            imageRes = "512",
             folderName = "coop-deluxe.sm64coopdx",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/e3dd863ef4277e82f712a5bd8fefe7d7.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/e3dd863ef4277e82f712a5bd8fefe7d7.png" },
 
         new { name = "LoD: Severed Chains",
             repository = "Legend-of-Dragoon-Modding/Severed-Chains",
-            branch = "main",
-            imageRes = "512",
             folderName = "Legend-of-Dragoon-Modding.Severed-Chains",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/ddc2c94d27d2c6d46b33acf21b21a641.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/ddc2c94d27d2c6d46b33acf21b21a641.png" },
 
         new { name = "REDRIVER 2",
             repository = "OpenDriver2/REDRIVER2",
-            branch = "master",
-            imageRes = "512",
             folderName = "OpenDriver2.REDRIVER2",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/ca0739bf1344242a820fe79d0ac17d65.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/ca0739bf1344242a820fe79d0ac17d65.png" },
 
         new { name = "Super Mario World",
             repository = "snesrev/smw",
-            branch = "main",
-            imageRes = "512",
             folderName = "snesrev.smw",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/5ba01c0e82cd96577309302faf900a0d/32/1024x1024.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/5ba01c0e82cd96577309302faf900a0d/32/1024x1024.png" },
 
         new {name = "Super Mario Bros. Remastered",
             repository = "JHDev2006/Super-Mario-Bros.-Remastered-Public",
-            branch = "main",
-            imageRes = "512",
             folderName = "JHDev2006.SuperMarioBrosRemastered",
-            customDefaultIconUrl = "https://raw.githubusercontent.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/refs/heads/main/icon.png" },
+            gameIconUrl  = "https://raw.githubusercontent.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/refs/heads/main/icon.png" },
 
         new {name = "Link's Awakening DX HD",
             repository = "BigheadSMZ/Zelda-LA-DX-HD-Updated",
-            branch = "main",
-            image = "512",
             folderName = "BigheadSMZ.ZeldaLAHD",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" },
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" },
 
         new {name = "Dragon Ball Z Budokai",
             repository = "WistfulHopes/DBZ1",
-            branch = "main",
-            image = "512",
             folderName = "DBZ1Recompiled",
-            customDefaultIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" }
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" }
     };
 
             return (standard, experimental, custom);
@@ -954,10 +925,8 @@ namespace N64RecompLauncher.Services
                         {
                             g.Name,
                             g.Repository,
-                            g.Branch,
-                            g.ImageRes,
                             g.FolderName,
-                            g.CustomDefaultIconUrl
+                            g.GameIconUrl
                         }).ToList(),
                     experimental = allGames
                         .Where(g => g.IsExperimental)
@@ -965,10 +934,8 @@ namespace N64RecompLauncher.Services
                         {
                             g.Name,
                             g.Repository,
-                            g.Branch,
-                            g.ImageRes,
                             g.FolderName,
-                            g.CustomDefaultIconUrl
+                            g.GameIconUrl
                         }).ToList(),
                     custom = Array.Empty<object>()
                 };

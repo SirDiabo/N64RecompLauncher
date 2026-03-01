@@ -51,10 +51,8 @@ Each game entry requires the following properties:
 
 - **`name`** - The display name of the game as it appears in the launcher
 - **`repository`** - The GitHub repository in the format `username/repository`
-- **`branch`** - The branch to fetch the game icon from (e.g., `main`, `dev`)
-- **`imageRes`** - The filename of the icon PNG located in the repository's `/icons` directory (e.g., `512` for `512.png`)
 - **`folderName`** - The folder name where the game will be downloaded and installed
-- **`customDefaultIconUrl`** *(Optional)* Overwrites the default Icon of each game. If left blank it will use the default recomp /blob/dev/icons/"imageRes".png, or be blank if not found. Leave as `null` if not needed
+- **`gameIconUrl`** URL of the game's icon image. If null, a default icon will be used.
 
 #### Example Configuration
 
@@ -64,28 +62,22 @@ Each game entry requires the following properties:
         {
             "name": "Example Game",
             "repository": "username/example-game-repo",
-            "branch": "main",
-            "imageRes": "512",
             "folderName": "ExampleGame",
-            "customDefaultIconUrl": null
+            "gameIconUrl": null
         },
         {
             "name": "Another Game",
             "repository": "anotheruser/another-game-repo",
-            "branch": "dev",
-            "imageRes": "256",
             "folderName": "AnotherGame",
-            "customDefaultIconUrl": "link/to/an/image.png"
+            "gameIconUrl": "link/to/an/image.png"
         }
     ],
     "experimental": [
         {
             "name": "Experimental Game",
             "repository": "expuser/experimental-game-repo",
-            "branch": "experimental",
-            "imageRes": "128",
             "folderName": "ExperimentalGame",
-            "customDefaultIconUrl": "link/to/a/different/image.jpg"
+            "gameIconUrl": "link/to/a/different/image.jpg"
         }
     ],
     "custom": []
