@@ -93,6 +93,10 @@
 									Tag="{Binding}">
 								<Button.ContextMenu>
 									<ContextMenu>
+										<MenuItem Header="Launch"
+												  Click="LaunchGameMenu_Click"
+												  CommandParameter="{Binding}"
+												  IsVisible="{Binding IsInstalled}"/>
 										<MenuItem Header="Open GitHub Page"
 												  Click="OpenGitHubPage_Click"
 												  CommandParameter="{Binding}"/>
@@ -190,6 +194,10 @@
 							<TextBlock Text="⋯" Foreground="{DynamicResource ThemeText}" TextAlignment="Center" VerticalAlignment="Center"/>
 							<Button.ContextMenu>
 								<ContextMenu>
+									<MenuItem Header="Launch"
+											  Click="LaunchGameMenu_Click"
+											  CommandParameter="{Binding}"
+											  IsVisible="{Binding IsInstalled}"/>
 									<MenuItem Header="Open GitHub Page"
 											  Click="OpenGitHubPage_Click"
 											  CommandParameter="{Binding}"/>

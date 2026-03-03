@@ -1959,6 +1959,20 @@ namespace N64RecompLauncher
                 _ = ShowMessageBoxAsync($"Failed to open mod manager: {ex.Message}", "Error");
             }
         }
+
+        private void LaunchGameMenu_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null)
+            {
+                _ = ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+            game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+        }
+
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
