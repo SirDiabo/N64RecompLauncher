@@ -101,7 +101,7 @@
 												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Browse Mods"
 										 		  Click="OpenModManager_Click"
-												  IsVisible="{Binding IsInstalled}"
+												  IsVisible="{Binding HasThunderstorePage}"
 									 	 		  CommandParameter="{Binding}"/>
 										<MenuItem Header="Add Custom Image"
 												  Click="SetCustomIcon_Click"
@@ -198,7 +198,7 @@
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Browse Mods"
 											  Click="OpenModManager_Click"
-											  IsVisible="{Binding IsInstalled}"
+											  IsVisible="{Binding HasThunderstorePage}"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Add Custom Image"
 											  Click="SetCustomIcon_Click"

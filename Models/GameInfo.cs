@@ -168,6 +168,7 @@ namespace N64RecompLauncher.Models
         }
         private string? _cachedDefaultIconPath;
         public bool HasCustomIcon => !string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath);
+        public bool HasThunderstorePage => ThunderstoreService.GetCommunityForRepository(Repository ?? string.Empty) != null;
 
         public string IconUrl
         {
