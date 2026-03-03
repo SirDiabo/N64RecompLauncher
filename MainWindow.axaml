@@ -97,6 +97,10 @@
 												  Click="LaunchGameMenu_Click"
 												  CommandParameter="{Binding}"
 												  IsVisible="{Binding IsInstalled}"/>
+										<MenuItem Header="Download"
+												  Click="LaunchGameMenu_Click"
+												  CommandParameter="{Binding}"
+												  IsVisible="{Binding !IsInstalled}"/>
 										<MenuItem Header="Open GitHub Page"
 												  Click="OpenGitHubPage_Click"
 												  CommandParameter="{Binding}"/>
@@ -198,6 +202,10 @@
 											  Click="LaunchGameMenu_Click"
 											  CommandParameter="{Binding}"
 											  IsVisible="{Binding IsInstalled}"/>
+									<MenuItem Header="Download"
+											  Click="LaunchGameMenu_Click"
+											  CommandParameter="{Binding}"
+											  IsVisible="{Binding !IsInstalled}"/>
 									<MenuItem Header="Open GitHub Page"
 											  Click="OpenGitHubPage_Click"
 											  CommandParameter="{Binding}"/>
