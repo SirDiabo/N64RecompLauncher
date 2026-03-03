@@ -4,9 +4,6 @@ using System.Text.Json.Serialization;
 
 namespace N64RecompLauncher.Models
 {
-    /// <summary>
-    /// Tracks installed mods for a game
-    /// </summary>
     public class InstalledModInfo
     {
         [JsonPropertyName("owner")]
