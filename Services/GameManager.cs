@@ -773,7 +773,7 @@ namespace N64RecompLauncher.Services
             folderName = "flyngmt.acgc_pcport",
             gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63d9e8a72c3a2f029c635f9b194839d2.png" },
 
-        new {name = "Banjo-Kazzoie Nuts and Bolts",
+        new {name = "Banjo-Kazooie: Nuts & Bolts",
             repository = "masterspike52/reNut",
             folderName = "masterspike52.re-nut",
             gameIconUrl  = "https://raw.githubusercontent.com/masterspike52/reNut/refs/heads/main/icon/app.ico" }
