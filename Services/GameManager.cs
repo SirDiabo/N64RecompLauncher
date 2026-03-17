@@ -768,14 +768,14 @@ namespace N64RecompLauncher.Services
             folderName = "DBZ1Recompiled",
             gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" },
 
-        new {name = "Animal Crossing",
+        new {name = "Animal Crossing (Game Cube)",
             repository = "flyngmt/ACGC-PC-Port",
-            folderName = "AnimalCrossing",
+            folderName = "flyngmt.acgc_pcport",
             gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63d9e8a72c3a2f029c635f9b194839d2.png" },
 
-        new {name = "Banjo-Kazzoie Nuts and Bolts re-Nut",
+        new {name = "Banjo-Kazzoie Nuts and Bolts",
             repository = "masterspike52/reNut",
-            folderName = "B&K re-nut",
+            folderName = "masterspike52.re-nut",
             gameIconUrl  = "https://raw.githubusercontent.com/masterspike52/reNut/refs/heads/main/icon/app.ico" }
     };
 
