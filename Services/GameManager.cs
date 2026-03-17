@@ -766,7 +766,12 @@ namespace N64RecompLauncher.Services
         new {name = "Dragon Ball Z Budokai",
             repository = "WistfulHopes/DBZ1",
             folderName = "DBZ1Recompiled",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" }
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" },
+
+        new {name = "Animal Crossing",
+            repository = "flyngmt/ACGC-PC-Port",
+            folderName = "AnimalCrossing",
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63d9e8a72c3a2f029c635f9b194839d2.png" }
     };
 
             return (standard, experimental, custom);
