@@ -771,7 +771,12 @@ namespace N64RecompLauncher.Services
         new {name = "Animal Crossing",
             repository = "flyngmt/ACGC-PC-Port",
             folderName = "AnimalCrossing",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63d9e8a72c3a2f029c635f9b194839d2.png" }
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63d9e8a72c3a2f029c635f9b194839d2.png" },
+
+        new {name = "Banjo-Kazzoie Nuts and Bolts re-Nut",
+            repository = "masterspike52/reNut",
+            folderName = "B&K re-nut",
+            gameIconUrl  = "https://raw.githubusercontent.com/masterspike52/reNut/refs/heads/main/icon/app.ico" }
     };
 
             return (standard, experimental, custom);
