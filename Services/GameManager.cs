@@ -656,6 +656,11 @@ namespace N64RecompLauncher.Services
             repository = "BanjoRecomp/BanjoRecomp",
             folderName = "BanjoRecompiled",
             gameIconUrl  = "https://raw.githubusercontent.com/BanjoRecomp/BanjoRecomp/refs/heads/main/icons/app.png" },
+            
+        new  { name = "Bomberman 64",
+            repository = "RevoSucks/BM64Recomp",
+            folderName = "BM64Recompiled",
+            gameIconUrl  = "https://raw.githubusercontent.com/RevoSucks/BM64Recomp/refs/heads/master/icons/512.png" },
     };
 
             var experimental = new List<object>
