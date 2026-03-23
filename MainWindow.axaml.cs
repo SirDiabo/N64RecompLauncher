@@ -1786,6 +1786,8 @@ namespace N64RecompLauncher
             }
         }
 
+        private DateTime? _lastUpdateTime = null;
+
         private async void CheckforUpdates_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1831,6 +1833,7 @@ namespace N64RecompLauncher
                 ApplySorting();
 
                 // Restore original button state
+                _lastUpdateTime = DateTime.Now;
                 if (button != null)
                 {
                     button.IsEnabled = true;
@@ -1848,18 +1851,32 @@ namespace N64RecompLauncher
                         Source = new Avalonia.Media.Imaging.Bitmap(
                             Avalonia.Platform.AssetLoader.Open(
                                 new Uri("avares://N64RecompLauncher/Assets/CheckForUpdates.png"))),
-                        Margin = new Thickness(0, 0, 12, 0)
-                    },
-                    new TextBlock
-                    {
-                        Text = "Check for Updates",
+                        Margin = new Thickness(0, 0, 12, 0),
                         VerticalAlignment = VerticalAlignment.Center
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Vertical,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Children =
+                        {
+                            new TextBlock
+                            {
+                                Text = "Up to Date",
+                                FontSize = 12,
+                                FontWeight = FontWeight.Bold
+                            },
+                            new TextBlock
+                            {
+                                Text = GetLastCheckedText(),
+                                FontSize = 11,
+                                Foreground = new SolidColorBrush(Color.Parse("#B8B8B8"))
+                            }
+                        }
                     }
                 }
                     };
                 }
-
-                await ShowMessageBoxAsync("Update check completed!", "Updates");
             }
             catch (Exception ex)
             {
@@ -1892,6 +1909,45 @@ namespace N64RecompLauncher
                     };
                 }
                 await ShowMessageBoxAsync($"Failed to check for updates: {ex.Message}", "Error");
+            }
+        }
+
+        private string GetLastCheckedText()
+        {
+            if (_lastUpdateTime == null)
+            {
+                return "Check for Updates";
+            }
+
+            var timeSince = DateTime.Now - _lastUpdateTime.Value;
+            
+            if (timeSince.TotalMinutes < 1)
+            {
+                return "Last Checked Just Now";
+            }
+            else if (timeSince.TotalMinutes < 2)
+            {
+                return "Last Checked 1 Minute Ago";
+            }
+            else if (timeSince.TotalMinutes < 60)
+            {
+                return $"Last Checked {timeSince.Minutes} Minutes Ago";
+            }
+            else if (timeSince.TotalHours < 2)
+            {
+                return "Last Checked 1 Hour Ago";
+            }
+            else if (timeSince.TotalHours < 24)
+            {
+                return $"Last Checked {timeSince.Hours} Hours Ago";
+            }
+            else if (timeSince.TotalDays < 2)
+            {
+                return "Last Checked 1 Day Ago";
+            }
+            else
+            {
+                return $"Last Checked {timeSince.Days} Days Ago";
             }
         }
 
