@@ -798,7 +798,12 @@ namespace N64RecompLauncher.Services
         new {name = "Banjo-Kazooie: Nuts & Bolts",
             repository = "masterspike52/reNut",
             folderName = "masterspike52.re-nut",
-            gameIconUrl  = "https://raw.githubusercontent.com/masterspike52/reNut/refs/heads/main/icon/app.ico" }
+            gameIconUrl  = "https://raw.githubusercontent.com/masterspike52/reNut/refs/heads/main/icon/app.ico" },
+
+        new {name = "Infinite Mario 64",
+            repository = "Brawmario/infinite-mario-64-ever",
+            folderName = "Brawmario.infinite-mario-64-ever",
+            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9b1347ebd516dd05210fcc9e8291b9d1.png" }
     };
 
             return (standard, experimental, custom);
