@@ -35,6 +35,23 @@ namespace N64RecompLauncher.Services
             }
         }
 
+        public bool IsDefaultGame(string repository)
+        {
+            if (string.IsNullOrEmpty(repository)) return false;
+
+            var defaults = GetDefaultGamesData();
+            var allDefaults = new List<object>();
+            allDefaults.AddRange(defaults.standard);
+            allDefaults.AddRange(defaults.experimental);
+            allDefaults.AddRange(defaults.custom);
+
+            return allDefaults.Any(g => {
+                var dict = ObjectToDict(g);
+                return dict.ContainsKey("repository") &&
+                       dict["repository"]?.ToString()?.Equals(repository, StringComparison.OrdinalIgnoreCase) == true;
+            });
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -700,7 +717,7 @@ namespace N64RecompLauncher.Services
 
         new { name = "Mario Kart 64 (SpaghettiKart)",
             repository = "harbourmasters/spaghettikart",
-            folderName = "harbourmasters.spaghettikkart",
+            folderName = "harbourmasters.spaghettikart",
             gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/5e5e0bd5ad7c2ca72b0c5ff8b6debbba.png" },
 
         new { name = "Zelda MM (2 Ship 2 Harkinian)",
@@ -1100,13 +1117,61 @@ namespace N64RecompLauncher.Services
 
             foreach (var game in Games)
             {
-                if ((game.IsExperimental == true || game.IsCustom == true) && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && game.IsExperimental == true && !settings.HiddenGames.Contains(game.Name))
                 {
                     settings.HiddenGames.Add(game.Name);
                 }
             }
             AppSettings.Save(settings);
             await LoadGamesAsync();
+        }
+
+        public List<GameInfo> GetDefaultGames()
+        {
+            var games = LoadGamesFromJson();
+            return games.Where(g => !g.IsCustom).ToList();
+        }
+
+        private List<GameInfo> LoadGamesFromJson()
+        {
+            var allGames = new List<GameInfo>();
+
+            try
+            {
+                if (!File.Exists(_gamesConfigPath))
+                {
+                    // Create default games.json if it doesn't exist
+                    _ = CreateDefaultGamesJsonAsync();
+                }
+
+                string json = File.ReadAllText(_gamesConfigPath);
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+
+                // Load standard games
+                if (root.TryGetProperty("standard", out var standardArray))
+                {
+                    allGames.AddRange(ParseGameArray(standardArray, isExperimental: false, isCustom: false));
+                }
+
+                // Load experimental games
+                if (root.TryGetProperty("experimental", out var experimentalArray))
+                {
+                    allGames.AddRange(ParseGameArray(experimentalArray, isExperimental: true, isCustom: false));
+                }
+
+                // Load custom games
+                if (root.TryGetProperty("custom", out var customArray))
+                {
+                    allGames.AddRange(ParseGameArray(customArray, isExperimental: false, isCustom: true));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error reading games.json: {ex.Message}");
+            }
+
+            return allGames;
         }
 
         public async Task OnlyShowExperimentalGames()

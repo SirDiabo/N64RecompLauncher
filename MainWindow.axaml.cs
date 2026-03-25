@@ -252,6 +252,7 @@ namespace N64RecompLauncher
                 }
             }
         }
+        private bool _isGamesManagerOpen = false;
         public string InfoTextLength = "*";
         private SolidColorBrush _themeColorBrush;
         public SolidColorBrush ThemeColorBrush
@@ -1054,6 +1055,12 @@ namespace N64RecompLauncher
             if (_isChangelogOpen)
             {
                 CloseChangelog();
+                return;
+            }
+
+            if (_isGamesManagerOpen)
+            {
+                CloseManageGames_Click(sender, e);
                 return;
             }
 
@@ -2137,7 +2144,7 @@ namespace N64RecompLauncher
             }
         }
 
-        private async void DeleteGame_Click(object sender, RoutedEventArgs e)
+        private async void DeleteGameFromLibrary_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
             var game = menuItem?.CommandParameter as GameInfo;
@@ -2879,6 +2886,934 @@ namespace N64RecompLauncher
             LauncherMusicPath = string.Empty;
             _settings.LauncherMusicPath = string.Empty;
             AppSettings.Save(_settings);
+        }
+
+        // Games Manager Tab Properties
+        public ObservableCollection<GameInfo> ManagerGames { get; set; } = [];
+        private GameInfo? _selectedGame;
+        public GameInfo? SelectedGame
+        {
+            get => _selectedGame;
+            set
+            {
+                if (_selectedGame != value)
+                {
+                    _selectedGame = value;
+                    OnPropertyChanged(nameof(SelectedGame));
+                    OnPropertyChanged(nameof(CanAddGame));
+                    OnPropertyChanged(nameof(CanUpdateGame));
+                    OnPropertyChanged(nameof(IsEditingCustomGame));
+                    OnPropertyChanged(nameof(CanEditAllFields));
+                    UpdateFormFieldsEnabled();
+                }
+            }
+        }
+        private string _validationStatus = string.Empty;
+        public string ValidationStatus
+        {
+            get => _validationStatus;
+            set
+            {
+                if (_validationStatus != value)
+                {
+                    _validationStatus = value;
+                    OnPropertyChanged(nameof(ValidationStatus));
+                    OnPropertyChanged(nameof(ValidationStatusColor));
+                }
+            }
+        }
+        public IBrush ValidationStatusColor => string.IsNullOrEmpty(_validationStatus) ? Brushes.Transparent :
+            _validationStatus.Contains("Error") ? new SolidColorBrush(Color.Parse("#ef4444")) :
+            _validationStatus.Contains("Warning") ? new SolidColorBrush(Color.Parse("#f59e0b")) :
+            new SolidColorBrush(Color.Parse("#10b981"));
+        public bool CanAddGame => SelectedGame == null && !string.IsNullOrEmpty(_selectedGame?.Name) &&
+            !string.IsNullOrEmpty(_selectedGame?.Repository) && !string.IsNullOrEmpty(_selectedGame?.FolderName);
+        public bool CanUpdateGame => SelectedGame != null && !string.IsNullOrEmpty(_selectedGame?.Name) &&
+            !string.IsNullOrEmpty(_selectedGame?.Repository) && !string.IsNullOrEmpty(_selectedGame?.FolderName);
+        
+        // Edit restrictions for different game types
+        public bool IsEditingCustomGame => SelectedGame?.IsCustom == true;
+        public bool CanEditAllFields => IsEditingCustomGame;
+
+        // Method to update form field enabled state
+        private void UpdateFormFieldsEnabled()
+        {
+            if (SelectedGame == null) return;
+
+            var nameBox = this.FindControl<TextBox>("NewGameNameTextBox");
+            var repoBox = this.FindControl<TextBox>("NewGameRepoTextBox");
+            var folderBox = this.FindControl<TextBox>("NewGameFolderTextBox");
+            var iconBox = this.FindControl<TextBox>("NewGameIconTextBox");
+            var isCustomBox = this.FindControl<CheckBox>("IsCustomCheckBox");
+            var isExperimentalBox = this.FindControl<CheckBox>("IsExperimentalCheckBox");
+
+            // For non-custom games, disable repository and folder name editing
+            bool canEditAll = SelectedGame.IsCustom;
+
+            if (repoBox != null) repoBox.IsEnabled = canEditAll;
+            if (folderBox != null) folderBox.IsEnabled = canEditAll;
+            if (isCustomBox != null) isCustomBox.IsEnabled = canEditAll;
+            if (isExperimentalBox != null) isExperimentalBox.IsEnabled = canEditAll;
+
+            // Name and icon URL can always be edited
+            if (nameBox != null) nameBox.IsEnabled = true;
+            if (iconBox != null) iconBox.IsEnabled = true;
+        }
+
+        // Games Manager Event Handlers
+        private async void AddGame_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedGame == null || string.IsNullOrEmpty(SelectedGame.Name) ||
+                string.IsNullOrEmpty(SelectedGame.Repository) || string.IsNullOrEmpty(SelectedGame.FolderName))
+            {
+                await ShowMessageBoxAsync("Please fill in all required fields (Name, Repository, Folder Name).", "Validation Error");
+                return;
+            }
+
+            try
+            {
+                var gamesData = await LoadGamesFromJsonAsync();
+                var customGames = gamesData.Where(g => g.IsCustom).ToList();
+
+                if (customGames.Any(g => g.Name == SelectedGame.Name || g.Repository == SelectedGame.Repository))
+                {
+                    await ShowMessageBoxAsync("A game with this name or repository already exists.", "Duplicate Game");
+                    return;
+                }
+
+                var newGame = new GameInfo
+                {
+                    Name = SelectedGame.Name,
+                    Repository = SelectedGame.Repository,
+                    FolderName = SelectedGame.FolderName,
+                    GameIconUrl = SelectedGame.GameIconUrl,
+                    IsCustom = true,
+                    IsExperimental = false,
+                    GameManager = _gameManager
+                };
+
+                customGames.Add(newGame);
+                await SaveGamesToJsonAsync(customGames);
+                await LoadGamesManagerAsync();
+                ClearGameForm_Click(sender, e);
+                await ShowMessageBoxAsync($"Game '{newGame.Name}' added successfully.", "Game Added");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to add game: {ex.Message}", "Error");
+            }
+        }
+
+        private async void UpdateGame_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedGame == null || string.IsNullOrEmpty(SelectedGame.Name) ||
+                string.IsNullOrEmpty(SelectedGame.Repository) || string.IsNullOrEmpty(SelectedGame.FolderName))
+            {
+                await ShowMessageBoxAsync("Please fill in all required fields (Name, Repository, Folder Name).", "Validation Error");
+                return;
+            }
+
+            try
+            {
+                var gamesData = await LoadGamesFromJsonAsync();
+                
+                // Get the default games from GameManager to identify truly custom games
+                var defaultGames = _gameManager.GetDefaultGames();
+                
+                // Filter to only truly custom games (not in default list)
+                var trulyCustomGames = gamesData.Where(g => g.IsCustom && 
+                    !defaultGames.Any(d => d.Name == g.Name && d.Repository == g.Repository)).ToList();
+                
+                // Find the game to update among truly custom games
+                var gameToUpdate = trulyCustomGames.FirstOrDefault(g => g.Name == SelectedGame.Name);
+
+                if (gameToUpdate == null)
+                {
+                    await ShowMessageBoxAsync("Game not found or cannot be modified.", "Error");
+                    return;
+                }
+
+                // Check for duplicates with other custom games (excluding the current game)
+                var otherCustomGames = trulyCustomGames.Where(g => g.Name != SelectedGame.Name).ToList();
+                if (otherCustomGames.Any(g => g.Name == SelectedGame.Name || g.Repository == SelectedGame.Repository))
+                {
+                    await ShowMessageBoxAsync("A game with this name or repository already exists.", "Duplicate Game");
+                    return;
+                }
+
+                // Update the game properties
+                gameToUpdate.Name = SelectedGame.Name;
+                gameToUpdate.Repository = SelectedGame.Repository;
+                gameToUpdate.FolderName = SelectedGame.FolderName;
+                gameToUpdate.GameIconUrl = SelectedGame.GameIconUrl;
+
+                // Save all games (preserving standard and experimental)
+                await SaveGamesToJsonAsync(
+                    gamesData.Where(g => !g.IsExperimental && !g.IsCustom).ToList(),
+                    gamesData.Where(g => g.IsExperimental && !g.IsCustom).ToList(),
+                    trulyCustomGames // Only save truly custom games
+                );
+
+                // Refresh the main game list and manager
+                await _gameManager.LoadGamesAsync();
+                ApplySorting();
+                await LoadGamesManagerAsync();
+                ClearGameForm_Click(sender, e);
+                await ShowMessageBoxAsync($"Game '{gameToUpdate.Name}' updated successfully.", "Game Updated");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to update game: {ex.Message}", "Error");
+            }
+        }
+
+        private async void DeleteGame_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var game = button?.Tag as GameInfo;
+
+            if (game == null || !game.IsCustom)
+            {
+                await ShowMessageBoxAsync("Cannot delete default games.", "Error");
+                return;
+            }
+
+            var result = await ShowMessageBoxAsync($"Are you sure you want to delete '{game.Name}'?", "Confirm Deletion", true);
+            if (!result) return;
+
+            try
+            {
+                var gamesData = await LoadGamesFromJsonAsync();
+                var customGames = gamesData.Where(g => g.IsCustom && g.Name != game.Name).ToList();
+
+                await SaveGamesToJsonAsync(customGames);
+                await LoadGamesManagerAsync();
+                await ShowMessageBoxAsync($"Game '{game.Name}' deleted successfully.", "Game Deleted");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to delete game: {ex.Message}", "Error");
+            }
+        }
+
+        private async void EditGame_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var game = button?.Tag as GameInfo;
+
+            if (game == null || !game.IsCustom)
+            {
+                await ShowMessageBoxAsync("Cannot edit default games.", "Error");
+                return;
+            }
+
+            SelectedGame = new GameInfo
+            {
+                Name = game.Name,
+                Repository = game.Repository,
+                FolderName = game.FolderName,
+                GameIconUrl = game.GameIconUrl,
+                IsCustom = game.IsCustom,
+                IsExperimental = game.IsExperimental
+            };
+        }
+
+        private void ClearGameForm_Click(object sender, RoutedEventArgs e)
+        {
+            SelectedGame = null;
+        }
+
+        private async void ImportGames_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Import Games JSON",
+                    FileTypeFilter = new[] { new FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } } },
+                    AllowMultiple = false
+                });
+
+                if (files?.Count > 0)
+                {
+                    var importedData = await File.ReadAllTextAsync(files[0].Path.LocalPath);
+                    var gamesData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(importedData);
+
+                    if (gamesData != null && (gamesData.ContainsKey("standard") || gamesData.ContainsKey("experimental") || gamesData.ContainsKey("custom")))
+                    {
+                        await SaveGamesToJsonAsync(gamesData);
+                        await LoadGamesManagerAsync();
+                        await ShowMessageBoxAsync("Games imported successfully.", "Import Complete");
+                    }
+                    else
+                    {
+                        await ShowMessageBoxAsync("Invalid games.json format.", "Import Error");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to import games: {ex.Message}", "Error");
+            }
+        }
+
+        private async void ExportGames_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var gamesData = await LoadGamesFromJsonAsync();
+                var exportData = new
+                {
+                    standard = gamesData.Where(g => !g.IsExperimental && !g.IsCustom).Select(g => new
+                    {
+                        g.Name,
+                        g.Repository,
+                        g.FolderName,
+                        g.GameIconUrl
+                    }).ToList(),
+                    experimental = gamesData.Where(g => g.IsExperimental && !g.IsCustom).Select(g => new
+                    {
+                        g.Name,
+                        g.Repository,
+                        g.FolderName,
+                        g.GameIconUrl
+                    }).ToList(),
+                    custom = gamesData.Where(g => g.IsCustom).Select(g => new
+                    {
+                        g.Name,
+                        g.Repository,
+                        g.FolderName,
+                        g.GameIconUrl
+                    }).ToList()
+                };
+
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games_export.json");
+                await File.WriteAllTextAsync(exportPath, JsonSerializer.Serialize(exportData, options));
+
+                await ShowMessageBoxAsync($"Games exported to {exportPath}", "Export Complete");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to export games: {ex.Message}", "Error");
+            }
+        }
+
+        private async void ValidateGames_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var gamesData = await LoadGamesFromJsonAsync();
+                var issues = new List<string>();
+
+                foreach (var game in gamesData)
+                {
+                    if (string.IsNullOrEmpty(game.Name)) issues.Add($"Game '{game.Name}' has empty name");
+                    if (string.IsNullOrEmpty(game.Repository)) issues.Add($"Game '{game.Name}' has empty repository");
+                    if (string.IsNullOrEmpty(game.FolderName)) issues.Add($"Game '{game.Name}' has empty folder name");
+                    if (game.GameIconUrl != null && !Uri.TryCreate(game.GameIconUrl, UriKind.Absolute, out _))
+                        issues.Add($"Game '{game.Name}' has invalid icon URL");
+                }
+
+                if (issues.Count == 0)
+                {
+                    ValidationStatus = "All games are valid.";
+                }
+                else
+                {
+                    ValidationStatus = $"Found {issues.Count} issue(s):\n{string.Join("\n", issues.Take(5))}";
+                    if (issues.Count > 5) ValidationStatus += $"\n... and {issues.Count - 5} more";
+                }
+            }
+            catch (Exception ex)
+            {
+                ValidationStatus = $"Validation error: {ex.Message}";
+            }
+        }
+
+        private async Task<List<GameInfo>> LoadGamesFromJsonAsync()
+        {
+            var gamesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
+            if (!File.Exists(gamesPath)) return [];
+
+            var json = await File.ReadAllTextAsync(gamesPath);
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            var games = new List<GameInfo>();
+
+            if (root.TryGetProperty("standard", out var standardArray))
+                games.AddRange(ParseGameArray(standardArray, false, false));
+            if (root.TryGetProperty("experimental", out var experimentalArray))
+                games.AddRange(ParseGameArray(experimentalArray, true, false));
+            if (root.TryGetProperty("custom", out var customArray))
+                games.AddRange(ParseGameArray(customArray, false, true));
+
+            return games;
+        }
+
+        private List<GameInfo> ParseGameArray(JsonElement array, bool isExperimental, bool isCustom)
+        {
+            var games = new List<GameInfo>();
+            foreach (var element in array.EnumerateArray())
+            {
+                var game = new GameInfo
+                {
+                    Name = element.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                    Repository = element.TryGetProperty("repository", out var r) ? r.GetString() ?? "" : "",
+                    FolderName = element.TryGetProperty("folderName", out var f) ? f.GetString() ?? "" : "",
+                    GameIconUrl = element.TryGetProperty("gameIconUrl", out var iconUrl) ? iconUrl.GetString() : null,
+                    IsExperimental = isExperimental,
+                    IsCustom = isCustom,
+                    GameManager = _gameManager
+                };
+                games.Add(game);
+            }
+            return games;
+        }
+
+        private async Task SaveGamesToJsonAsync(List<GameInfo> standardGames, List<GameInfo> experimentalGames, List<GameInfo> customGames)
+        {
+            var gamesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
+
+            var data = new
+            {
+                standard = standardGames.Select(g => new
+                {
+                    name = g.Name,
+                    repository = g.Repository,
+                    folderName = g.FolderName,
+                    gameIconUrl = g.GameIconUrl
+                }).ToList(),
+
+                experimental = experimentalGames.Select(g => new
+                {
+                    name = g.Name,
+                    repository = g.Repository,
+                    folderName = g.FolderName,
+                    gameIconUrl = g.GameIconUrl
+                }).ToList(),
+
+                custom = customGames.Select(g => new
+                {
+                    name = g.Name,
+                    repository = g.Repository,
+                    folderName = g.FolderName,
+                    gameIconUrl = g.GameIconUrl
+                }).ToList()
+            };
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            await File.WriteAllTextAsync(gamesPath, JsonSerializer.Serialize(data, options));
+        }
+
+        private async Task SaveGamesToJsonAsync(List<GameInfo> customGames)
+        {
+            var gamesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
+
+            // Load existing games to preserve standard and experimental arrays
+            var allGames = await LoadGamesFromJsonAsync();
+
+            var data = new
+            {
+                standard = allGames.Where(g => !g.IsExperimental && !g.IsCustom).Select(g => new
+                {
+                    name = g.Name,
+                    repository = g.Repository,
+                    folderName = g.FolderName,
+                    gameIconUrl = g.GameIconUrl
+                }).ToList(),
+
+                experimental = allGames.Where(g => g.IsExperimental && !g.IsCustom).Select(g => new
+                {
+                    name = g.Name,
+                    repository = g.Repository,
+                    folderName = g.FolderName,
+                    gameIconUrl = g.GameIconUrl
+                }).ToList(),
+
+                custom = customGames.Select(g => new
+                {
+                    name = g.Name,
+                    repository = g.Repository,
+                    folderName = g.FolderName,
+                    gameIconUrl = g.GameIconUrl
+                }).ToList()
+            };
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            await File.WriteAllTextAsync(gamesPath, JsonSerializer.Serialize(data, options));
+        }
+
+        private async Task SaveGamesToJsonAsync(Dictionary<string, JsonElement> gamesData)
+        {
+            var gamesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            await File.WriteAllTextAsync(gamesPath, JsonSerializer.Serialize(gamesData, options));
+        }
+
+        private async Task LoadGamesManagerAsync()
+        {
+            try
+            {
+                var gamesData = await LoadGamesFromJsonAsync();
+                ManagerGames.Clear();
+                foreach (var game in gamesData)
+                {
+                    ManagerGames.Add(game);
+                }
+                ValidateGames_Click(null, null);
+            }
+            catch (Exception ex)
+            {
+                ValidationStatus = $"Failed to load games: {ex.Message}";
+            }
+        }
+
+        private void GameNameTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ValidateGameForm();
+        }
+
+        private void GameRepoTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ValidateGameForm();
+        }
+
+        private void GameFolderTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ValidateGameForm();
+        }
+
+        private void GameIconTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ValidateGameForm();
+        }
+
+        private void ValidateGameForm()
+        {
+            if (SelectedGame == null) return;
+
+            var isValid = !string.IsNullOrEmpty(SelectedGame.Name) &&
+                         !string.IsNullOrEmpty(SelectedGame.Repository) &&
+                         !string.IsNullOrEmpty(SelectedGame.FolderName);
+
+            // Update validation status
+            if (string.IsNullOrEmpty(SelectedGame.Name))
+            {
+                ValidationStatus = "Error: Game name is required";
+            }
+            else if (string.IsNullOrEmpty(SelectedGame.Repository))
+            {
+                ValidationStatus = "Error: Repository is required";
+            }
+            else if (string.IsNullOrEmpty(SelectedGame.FolderName))
+            {
+                ValidationStatus = "Error: Folder name is required";
+            }
+            else if (!Uri.TryCreate(SelectedGame.Repository, UriKind.Absolute, out var repoUri) || 
+                     (repoUri.Scheme != Uri.UriSchemeHttp && repoUri.Scheme != Uri.UriSchemeHttps))
+            {
+                ValidationStatus = "Warning: Repository should be a valid URL";
+            }
+            else if (!IsValidFolderName(SelectedGame.FolderName))
+            {
+                ValidationStatus = "Warning: Folder name contains invalid characters";
+            }
+            else
+            {
+                ValidationStatus = "All fields are valid";
+            }
+
+            OnPropertyChanged(nameof(CanAddGame));
+            OnPropertyChanged(nameof(CanUpdateGame));
+        }
+
+        private bool IsValidFolderName(string folderName)
+        {
+            if (string.IsNullOrWhiteSpace(folderName))
+                return false;
+
+            // Check for invalid characters
+            var invalidChars = Path.GetInvalidFileNameChars();
+            if (folderName.IndexOfAny(invalidChars) >= 0)
+                return false;
+
+            // Check for reserved names
+            var reservedNames = new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
+            if (reservedNames.Contains(folderName.ToUpper()))
+                return false;
+
+            return true;
+        }
+
+        private async void DeleteGameFromManager_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var game = button?.Tag as GameInfo;
+
+            if (game == null || !game.IsCustom)
+            {
+                await ShowMessageBoxAsync("Cannot delete default games.", "Error");
+                return;
+            }
+
+            var result = await ShowMessageBoxAsync($"Are you sure you want to delete '{game.Name}'?", "Confirm Deletion", true);
+            if (!result) return;
+
+            try
+            {
+                var gamesData = await LoadGamesFromJsonAsync();
+                var customGames = gamesData.Where(g => g.IsCustom && g.Name != game.Name).ToList();
+
+                await SaveGamesToJsonAsync(customGames);
+                await LoadGamesManagerAsync();
+                await ShowMessageBoxAsync($"Game '{game.Name}' deleted successfully.", "Game Deleted");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to delete game: {ex.Message}", "Error");
+            }
+        }
+
+        private void ManageGamesButton_Click(object sender, RoutedEventArgs e)
+        {
+
+            if (_isGamesManagerOpen)
+            {
+                CloseManageGames_Click(sender, e);
+                return;
+            }
+
+            // Hide other panels
+            SettingsPanel.IsVisible = false;
+            ChangelogPanel.IsVisible = false;
+
+            // Show Manage Games panel
+            _isGamesManagerOpen = true;
+            var manageGamesPanel = this.FindControl<Border>("ManageGamesPanel");
+            if (manageGamesPanel != null)
+            {
+                manageGamesPanel.IsVisible = true;
+            }
+
+            // Update header text
+            HeaderTitleText.Text = "Manage Games";
+
+            // Initialize tabs
+            SwitchToManageGamesTab(null, null);
+
+            // Load games from games.json
+            LoadGamesFromJson();
+        }
+
+        private async void LoadGamesFromJson()
+        {
+            try
+            {
+                var games = await LoadGamesFromJsonAsync();
+
+                var stableGames = games.Where(g => !g.IsExperimental && !g.IsCustom).ToList();
+                var experimentalGames = games.Where(g => g.IsExperimental && !g.IsCustom).ToList();
+                var customGames = games.Where(g => g.IsCustom).ToList();
+
+                // Pass all custom games over, but only user created ones get the Remove button
+                UpdateGamesListControl("StableGamesListControl", stableGames);
+                UpdateGamesListControl("ExperimentalGamesListControl", experimentalGames);
+                UpdateGamesListControl("CustomGamesListControl", customGames);
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Error loading games: {ex.Message}", "Error");
+            }
+        }
+
+        private void UpdateGamesListControl(string controlName, List<GameInfo> games)
+        {
+            var gamesListControl = this.FindControl<ItemsControl>(controlName);
+            if (gamesListControl != null)
+            {
+                var gameViewModels = games.Select(g => new
+                {
+                    Name = g.Name,
+                    Repository = g.Repository,
+                    FolderName = g.FolderName,
+                    GameIconUrl = g.GameIconUrl,
+                    IconUrl = g.IconUrl,
+                    IsInstalled = !string.IsNullOrEmpty(g.FolderName) && Directory.Exists(Path.Combine(_settings.GamesPath ?? string.Empty, g.FolderName)),
+                    CanRemove = g.IsCustom && !_gameManager.IsDefaultGame(g.Repository ?? string.Empty)
+                }).ToList();
+
+                gamesListControl.ItemsSource = gameViewModels;
+            }
+        }
+
+        private void SwitchToManageGamesTab(object sender, RoutedEventArgs e)
+        {
+            var manageGamesTab = this.FindControl<ScrollViewer>("ManageGamesTab");
+            var createEditTab = this.FindControl<ScrollViewer>("CreateEditTab");
+
+            if (manageGamesTab != null && createEditTab != null)
+            {
+                manageGamesTab.IsVisible = true;
+                createEditTab.IsVisible = false;
+
+                // Update form state
+                var formTitle = this.FindControl<TextBlock>("FormTitleText");
+                var createEditButton = this.FindControl<Button>("CreateEditButton");
+
+                if (formTitle != null) formTitle.Text = "Create New Entry";
+                if (createEditButton != null) createEditButton.Content = "Create Entry";
+
+                ClearForm();
+            }
+        }
+
+        private void SwitchToCreateEditTab(object sender, RoutedEventArgs e)
+        {
+            var manageGamesTab = this.FindControl<ScrollViewer>("ManageGamesTab");
+            var createEditTab = this.FindControl<ScrollViewer>("CreateEditTab");
+
+            if (manageGamesTab != null && createEditTab != null)
+            {
+                manageGamesTab.IsVisible = false;
+                createEditTab.IsVisible = true;
+
+                var cancelButton = this.FindControl<Button>("CancelButton");
+                if (cancelButton != null) cancelButton.IsVisible = true;
+            }
+        }
+
+        private async void CreateNewEntry_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var name = this.FindControl<TextBox>("NewGameNameTextBox")?.Text?.Trim();
+                var repository = this.FindControl<TextBox>("NewGameRepoTextBox")?.Text?.Trim();
+                var folderName = this.FindControl<TextBox>("NewGameFolderTextBox")?.Text?.Trim();
+                var iconUrl = this.FindControl<TextBox>("NewGameIconTextBox")?.Text?.Trim();
+
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(repository) || string.IsNullOrEmpty(folderName))
+                {
+                    _ = ShowMessageBoxAsync("Please fill in all required fields (Name, Repository, Folder Name)", "Validation Error");
+                    return;
+                }
+
+                var games = await LoadGamesFromJsonAsync();
+                var standardGames = games.Where(g => !g.IsExperimental && !g.IsCustom).ToList();
+                var experimentalGames = games.Where(g => g.IsExperimental && !g.IsCustom).ToList();
+                var customGames = games.Where(g => g.IsCustom).ToList();
+
+                if (!string.IsNullOrEmpty(_editingGameRepository))
+                {
+                    // Update Existing Record
+                    var gameToUpdate = games.FirstOrDefault(g => g.Repository == _editingGameRepository);
+                    if (gameToUpdate == null)
+                    {
+                        _ = ShowMessageBoxAsync("Could not find the game to update.", "Error");
+                        return;
+                    }
+
+                    // Verify a different game doesn't already have the new name
+                    if (name != _editingGameName && games.Any(g => g.Name == name))
+                    {
+                        _ = ShowMessageBoxAsync("A game with this name already exists.", "Duplicate Name");
+                        return;
+                    }
+
+                    gameToUpdate.Name = name;
+                    gameToUpdate.FolderName = folderName;
+                    gameToUpdate.GameIconUrl = iconUrl;
+
+                    await SaveGamesToJsonAsync(standardGames, experimentalGames, customGames);
+                    _ = ShowMessageBoxAsync("Game entry updated successfully", "Game Updated");
+                }
+                else
+                {
+                    // Create New Record
+                    if (games.Any(g => g.Name == name || g.Repository == repository || g.FolderName == folderName))
+                    {
+                        _ = ShowMessageBoxAsync("A game with this name, repository, or folder name already exists", "Duplicate Game");
+                        return;
+                    }
+
+                    var newGame = new GameInfo
+                    {
+                        Name = name,
+                        Repository = repository,
+                        FolderName = folderName,
+                        GameIconUrl = iconUrl,
+                        IsCustom = true,
+                        IsExperimental = false
+                    };
+
+                    customGames.Add(newGame);
+                    await SaveGamesToJsonAsync(standardGames, experimentalGames, customGames);
+                    _ = ShowMessageBoxAsync("New game entry created successfully", "Game Added");
+                }
+
+                LoadGamesFromJson();
+                ClearForm();
+                SwitchToManageGamesTab(null, null);
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Error saving game entry: {ex.Message}", "Error");
+            }
+        }
+
+        private void EditGameEntry_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is var gameData)
+            {
+                try
+                {
+                    var nameProp = gameData.GetType().GetProperty("Name");
+                    var repoProp = gameData.GetType().GetProperty("Repository");
+                    var folderProp = gameData.GetType().GetProperty("FolderName");
+                    var iconProp = gameData.GetType().GetProperty("GameIconUrl");
+
+                    var name = nameProp?.GetValue(gameData) as string;
+                    var repository = repoProp?.GetValue(gameData) as string;
+                    var folderName = folderProp?.GetValue(gameData) as string;
+                    var iconUrl = iconProp?.GetValue(gameData) as string;
+
+                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(repository) || string.IsNullOrEmpty(folderName))
+                    {
+                        _ = ShowMessageBoxAsync("Unable to extract game information for editing.", "Error");
+                        return;
+                    }
+
+                    SwitchToCreateEditTab(null, null);
+
+                    var formTitle = this.FindControl<TextBlock>("FormTitleText");
+                    var nameBox = this.FindControl<TextBox>("NewGameNameTextBox");
+                    var repoBox = this.FindControl<TextBox>("NewGameRepoTextBox");
+                    var folderBox = this.FindControl<TextBox>("NewGameFolderTextBox");
+                    var iconBox = this.FindControl<TextBox>("NewGameIconTextBox");
+                    var cancelButton = this.FindControl<Button>("CancelButton");
+                    var createEditButton = this.FindControl<Button>("CreateEditButton");
+
+                    if (formTitle != null) formTitle.Text = "Edit Game Entry";
+                    if (nameBox != null) nameBox.Text = name;
+                    if (repoBox != null)
+                    {
+                        repoBox.Text = repository;
+                        repoBox.IsEnabled = false;
+                    }
+                    if (folderBox != null) folderBox.Text = folderName;
+                    if (iconBox != null) iconBox.Text = iconUrl ?? "";
+                    if (cancelButton != null) cancelButton.IsVisible = true;
+                    if (createEditButton != null) createEditButton.Content = "Update Entry";
+
+                    _editingGameName = name;
+                    _editingGameRepository = repository;
+                }
+                catch (Exception ex)
+                {
+                    _ = ShowMessageBoxAsync($"Error preparing edit form: {ex.Message}", "Error");
+                }
+            }
+        }
+
+        private string? _editingGameName = null;
+        private string? _editingGameRepository = null;
+
+        private async void CancelForm_Click(object sender, RoutedEventArgs e)
+        {
+            ClearForm();
+            SwitchToManageGamesTab(null, null);
+        }
+
+        private void ClearForm()
+        {
+            var nameBox = this.FindControl<TextBox>("NewGameNameTextBox");
+            var repoBox = this.FindControl<TextBox>("NewGameRepoTextBox");
+            var folderBox = this.FindControl<TextBox>("NewGameFolderTextBox");
+            var iconBox = this.FindControl<TextBox>("NewGameIconTextBox");
+            var createEditButton = this.FindControl<Button>("CreateEditButton");
+            var formTitle = this.FindControl<TextBlock>("FormTitleText");
+            var validationStatus = this.FindControl<TextBlock>("ValidationStatusText");
+
+            if (nameBox != null) nameBox.Text = "";
+            if (repoBox != null) { repoBox.Text = ""; repoBox.IsEnabled = true; }
+            if (folderBox != null) folderBox.Text = "";
+            if (iconBox != null) iconBox.Text = "";
+            if (createEditButton != null) createEditButton.Content = "Create Entry";
+            if (formTitle != null) formTitle.Text = "Create New Entry";
+            if (validationStatus != null) validationStatus.Text = "";
+
+            _editingGameName = null;
+            _editingGameRepository = null;
+        }
+
+        private async void RemoveGameEntry_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is var gameData)
+            {
+                try
+                {
+                    var repoProp = gameData.GetType().GetProperty("Repository");
+                    var nameProp = gameData.GetType().GetProperty("Name");
+
+                    var repository = repoProp?.GetValue(gameData) as string;
+                    var gameName = nameProp?.GetValue(gameData) as string;
+
+                    if (string.IsNullOrEmpty(repository) || string.IsNullOrEmpty(gameName)) return;
+
+                    var confirm = await ShowMessageBoxAsync(
+                        $"Are you sure you want to remove '{gameName}' from your games list?\n\nThis will only remove it from the launcher, not delete your files.",
+                        "Confirm Removal",
+                        true);
+
+                    if (!confirm) return;
+
+                    var games = await LoadGamesFromJsonAsync();
+                    var gameToRemove = games.FirstOrDefault(g => g.Repository == repository);
+
+                    if (gameToRemove != null)
+                    {
+                        if (_gameManager.IsDefaultGame(repository))
+                        {
+                            await ShowMessageBoxAsync("You can only remove custom games. Default games cannot be removed from this menu.", "Cannot Remove");
+                            return;
+                        }
+
+                        games.Remove(gameToRemove);
+
+                        await SaveGamesToJsonAsync(
+                            games.Where(g => !g.IsExperimental && !g.IsCustom).ToList(),
+                            games.Where(g => g.IsExperimental && !g.IsCustom).ToList(),
+                            games.Where(g => g.IsCustom).ToList()
+                        );
+
+                        await _gameManager.LoadGamesAsync();
+                        ApplySorting();
+                        LoadGamesFromJson();
+
+                        _ = ShowMessageBoxAsync($"'{gameName}' was removed successfully.", "Removed");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _ = ShowMessageBoxAsync($"Error removing game: {ex.Message}", "Error");
+                }
+            }
+        }
+
+        private void CloseManageGames_Click(object sender, RoutedEventArgs e)
+        {
+            _isGamesManagerOpen = false;
+
+            // Hide Manage Games panel
+            var manageGamesPanel = this.FindControl<Border>("ManageGamesPanel");
+            if (manageGamesPanel != null)
+            {
+                manageGamesPanel.IsVisible = false;
+            }
+
+            // Show main content
+            HeaderTitleText.Text = "Library";
         }
 
         private void MusicVolumeSlider_ValueChanged(object sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
