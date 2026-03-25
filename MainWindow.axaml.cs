@@ -4112,8 +4112,18 @@ namespace N64RecompLauncher
                 switch (e.Key)
                 {
                     case Key.Space:
-                        HandleConfirmAction();
-                        e.Handled = true;
+                        // Check if a text input control has focus
+                        var focusedElement = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+                        if (focusedElement is TextBox)
+                        {
+                            // Let space pass through to text input controls
+                        }
+                        else
+                        {
+                            // Handle space as confirm action for other controls
+                            HandleConfirmAction();
+                            e.Handled = true;
+                        }
                         break;
 
                     case Key.LeftShift:
