@@ -2709,7 +2709,7 @@ namespace N64RecompLauncher
         {
             try
             {
-                string githubTokenUrl = "https://github.com/settings/personal-access-tokens/new?expires_in=none&name=N64+Recomp+Launcher&description=Token+for+increased+API+rate+limits";
+                string githubTokenUrl = "https://github.com/settings/tokens/new?description=N64Recomp+Launcher+Token+for+increased+API+rate+limits";
                 OpenUrl(githubTokenUrl);
             }
             catch (Exception ex)
