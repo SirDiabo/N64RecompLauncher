@@ -2698,6 +2698,19 @@ namespace N64RecompLauncher
             }
         }
 
+        private void CreateGitHubToken_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string githubTokenUrl = "https://github.com/settings/personal-access-tokens/new?expires_in=none&name=N64+Recomp+Launcher&description=Token+for+increased+API+rate+limits";
+                OpenUrl(githubTokenUrl);
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to open GitHub token page: {ex.Message}", "Error");
+            }
+        }
+
         private void ClearGitHubToken_Click(object sender, RoutedEventArgs e)
         {
             if (_settings != null)

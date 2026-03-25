@@ -1616,6 +1616,12 @@
 												 Text="{Binding Settings.GitHubApiToken, Mode=TwoWay}"/>
 
 										<Button Classes="options"
+												Content="Create GitHub Token"
+												HorizontalAlignment="Stretch"
+												Click="CreateGitHubToken_Click"
+												FontSize="12"/>
+
+										<Button Classes="options"
 												Content="Clear Token"
 												HorizontalAlignment="Stretch"
 												Click="ClearGitHubToken_Click"
