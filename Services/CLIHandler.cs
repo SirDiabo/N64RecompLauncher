@@ -404,7 +404,7 @@ namespace N64RecompLauncher
                 else if (executables.Count == 1)
                 {
                     game.SelectedExecutable = executables[0];
-                    game.SaveSelectedExecutable(game.SelectedExecutable, _gameManager.GamesFolder);
+                    game.SaveSelectedExecutable(game.SelectedExecutable, gamesFolder);
                 }
             }
 
@@ -692,6 +692,11 @@ namespace N64RecompLauncher
 
             try
             {
+                if (string.IsNullOrEmpty(game.FolderName))
+                {
+                    return PrintError("Game folder is not configured.");
+                }
+
                 var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
 
                 if (Directory.Exists(gamePath))

@@ -23,12 +23,12 @@ namespace N64RecompLauncher
 {
     public partial class ModManagerWindow : Window, INotifyPropertyChanged
     {
-        private readonly GameInfo _game;
-        private readonly string _gamesFolder;
+        private readonly GameInfo _game = new();
+        private readonly string _gamesFolder = string.Empty;
         private readonly AppSettings _settings;
         private readonly ThunderstoreService _thunderstoreService;
         private readonly string? _community;
-        private ModsManifest _modsManifest;
+        private ModsManifest _modsManifest = new();
         private string _modsManifestPath = string.Empty;
         private List<ModPackageViewModel> _allMods = new();
         private string _searchText = string.Empty;

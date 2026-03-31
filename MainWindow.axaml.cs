@@ -29,13 +29,13 @@ namespace N64RecompLauncher
     {
         private readonly GameManager _gameManager;
         public ObservableCollection<GameInfo> Games => _gameManager?.Games ?? new ObservableCollection<GameInfo>();
-        public AppSettings _settings;
-        public App _app;
+        public AppSettings _settings = new();
+        public App _app = null!;
         public AppSettings Settings => _settings;
         private bool isSettingsPanelOpen = false;
         public string IconFillStretch = "Uniform";
-        private string _backgroundImagePath;
-        private string _backgroundImageUri;
+        private string _backgroundImagePath = string.Empty;
+        private string _backgroundImageUri = string.Empty;
         public string BackgroundImagePath
         {
             get => _backgroundImagePath;
@@ -191,7 +191,7 @@ namespace N64RecompLauncher
                 }
             }
         }
-        private string _currentVersionString;
+        private string _currentVersionString = string.Empty;
         public string currentVersionString
         {
             get => _currentVersionString;
@@ -204,7 +204,7 @@ namespace N64RecompLauncher
                 }
             }
         }
-        private string _platformstring;
+        private string _platformstring = string.Empty;
         public string PlatformString
         {             
             get => _platformstring;
@@ -254,7 +254,7 @@ namespace N64RecompLauncher
         }
         private bool _isGamesManagerOpen = false;
         public string InfoTextLength = "*";
-        private SolidColorBrush _themeColorBrush;
+        private SolidColorBrush _themeColorBrush = new(Colors.Transparent);
         public SolidColorBrush ThemeColorBrush
         {
             get => _themeColorBrush;
@@ -268,7 +268,7 @@ namespace N64RecompLauncher
                 }
             }
         }
-        private SolidColorBrush _secondaryColorBrush;
+        private SolidColorBrush _secondaryColorBrush = new(Colors.Transparent);
         public SolidColorBrush SecondaryColorBrush
         {
             get => _secondaryColorBrush;
@@ -316,11 +316,11 @@ namespace N64RecompLauncher
             }
 
             // Initialize background image from settings
-            BackgroundImagePath = _settings?.BackgroundImagePath ?? string.Empty;
+            BackgroundImagePath = _settings.BackgroundImagePath ?? string.Empty;
 
             // Initialize music from settings
-            LauncherMusicPath = _settings?.LauncherMusicPath ?? string.Empty;
-            MusicVolume = _settings?.MusicVolume ?? 0.2f;
+            LauncherMusicPath = _settings.LauncherMusicPath ?? string.Empty;
+            MusicVolume = _settings.MusicVolume;
             if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
             {
                 PlayLauncherMusic(LauncherMusicPath);
@@ -1410,7 +1410,7 @@ namespace N64RecompLauncher
             contextMenu.Open(sourceButton);
         }
 
-        private void SelectDifferentExecutable_Click(object sender, RoutedEventArgs e)
+        private async void SelectDifferentExecutable_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
             var game = menuItem?.CommandParameter as GameInfo;
@@ -1432,7 +1432,14 @@ namespace N64RecompLauncher
             if (gameCard != null)
             {
                 game.AvailableExecutables = null; // Reset to trigger fresh scan
-                _ = game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+                try
+                {
+                    await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+                }
+                catch (Exception ex)
+                {
+                    await ShowMessageBoxAsync($"Failed to relaunch {game.Name}: {ex.Message}", "Launch Error");
+                }
             }
         }
 
@@ -1447,23 +1454,23 @@ namespace N64RecompLauncher
             }
         }
 
-        private void ContinueButton_Click(object sender, RoutedEventArgs e)
+        private async void ContinueButton_Click(object sender, RoutedEventArgs e)
         {
             var latestGame = _gameManager.GetLatestPlayedInstalledGame();
             if (latestGame != null)
             {
                 try
                 {
-                    _ = latestGame.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+                    await latestGame.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
                 }
                 catch (Exception ex)
                 {
-                    _ = ShowMessageBoxAsync($"Failed to launch {latestGame.Name}: {ex.Message}", "Launch Error");
+                    await ShowMessageBoxAsync($"Failed to launch {latestGame.Name}: {ex.Message}", "Launch Error");
                 }
             }
             else
             {
-                _ = ShowMessageBoxAsync("No installed games found to continue.", "No Game Found");
+                await ShowMessageBoxAsync("No installed games found to continue.", "No Game Found");
             }
         }
 
@@ -1526,9 +1533,9 @@ namespace N64RecompLauncher
                     var savedSort = _settings.SortBy ?? "Name";
                     _currentSortBy = savedSort;
 
-                    foreach (ComboBoxItem item in SortByComboBox.Items)
+                    foreach (var entry in SortByComboBox.Items)
                     {
-                        if (item.Tag as string == savedSort)
+                        if (entry is ComboBoxItem item && item.Tag as string == savedSort)
                         {
                             SortByComboBox.SelectedItem = item;
                             break;
@@ -1962,7 +1969,7 @@ namespace N64RecompLauncher
         {
             var menuItem = sender as MenuItem;
             var game = menuItem?.CommandParameter as GameInfo;
-            if (game != null)
+            if (game != null && !string.IsNullOrEmpty(game.FolderName))
             {
                 try
                 {
@@ -1973,6 +1980,10 @@ namespace N64RecompLauncher
                 {
                     _ = ShowMessageBoxAsync($"Failed to open folder: {ex.Message}", "Action Error");
                 }
+            }
+            else
+            {
+                _ = ShowMessageBoxAsync("Unable to identify the game folder.", "Action Error");
             }
         }
 
@@ -2012,28 +2023,36 @@ namespace N64RecompLauncher
                 return;
             }
 
-            try
-            {
-                var modManagerWindow = new ModManagerWindow(game, _gameManager.GamesFolder);
-                modManagerWindow.ShowDialog(this);
-            }
-            catch (Exception ex)
-            {
-                _ = ShowMessageBoxAsync($"Failed to open mod manager: {ex.Message}", "Error");
-            }
+                try
+                {
+                    var modManagerWindow = new ModManagerWindow(game, _gameManager.GamesFolder);
+                    _ = modManagerWindow.ShowDialog(this);
+                }
+                catch (Exception ex)
+                {
+                    _ = ShowMessageBoxAsync($"Failed to open mod manager: {ex.Message}", "Error");
+                }
         }
 
-        private void LaunchGameMenu_Click(object sender, RoutedEventArgs e)
+        private async void LaunchGameMenu_Click(object sender, RoutedEventArgs e)
         {
             var menuItem = sender as MenuItem;
             var game = menuItem?.CommandParameter as GameInfo;
 
             if (game == null)
             {
-                _ = ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
                 return;
             }
-            game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+
+            try
+            {
+                await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to launch {game.Name}: {ex.Message}", "Launch Error");
+            }
         }
 
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)
@@ -2166,6 +2185,12 @@ namespace N64RecompLauncher
             {
                 try
                 {
+                    if (string.IsNullOrEmpty(game.FolderName))
+                    {
+                        await ShowMessageBoxAsync($"Failed to delete {game.Name}: game folder is not configured.", "Deletion Failed");
+                        return;
+                    }
+
                     var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
 
                     if (Directory.Exists(gamePath))
@@ -2239,8 +2264,10 @@ namespace N64RecompLauncher
                     }
                         }
                     };
-                    var okButton = ((StackPanel)messageBox.Content).Children[1] as Button;
-                    okButton.Click += (s, e) => messageBox.Close();
+                    if (((StackPanel)messageBox.Content).Children[1] is Button okButton)
+                    {
+                        okButton.Click += (s, e) => messageBox.Close();
+                    }
                     await messageBox.ShowDialog(desktop.MainWindow);
                 }
             });
@@ -2411,7 +2438,7 @@ namespace N64RecompLauncher
 
         private DateTime GetLastPlayedTime(GameInfo game)
         {
-            if (string.IsNullOrEmpty(game.FolderName) || _gameManager?.GamesFolder == null)
+            if (string.IsNullOrEmpty(game.FolderName))
                 return DateTime.MinValue;
 
             try
@@ -2518,21 +2545,22 @@ namespace N64RecompLauncher
                         }
                     };
 
-                    var buttonPanel = ((StackPanel)messageBox.Content).Children[1] as StackPanel;
-                    var yesButton = buttonPanel.Children[0] as Button;
-                    var noButton = buttonPanel.Children[1] as Button;
-
-                    yesButton.Click += (s, e) =>
+                    if (((StackPanel)messageBox.Content).Children[1] is StackPanel buttonPanel &&
+                        buttonPanel.Children[0] is Button yesButton &&
+                        buttonPanel.Children[1] is Button noButton)
                     {
-                        result = true;
-                        messageBox.Close();
-                    };
+                        yesButton.Click += (s, e) =>
+                        {
+                            result = true;
+                            messageBox.Close();
+                        };
 
-                    noButton.Click += (s, e) =>
-                    {
-                        result = false;
-                        messageBox.Close();
-                    };
+                        noButton.Click += (s, e) =>
+                        {
+                            result = false;
+                            messageBox.Close();
+                        };
+                    }
 
                     await messageBox.ShowDialog(desktop.MainWindow);
                     return result;

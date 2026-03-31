@@ -18,8 +18,8 @@ namespace N64RecompLauncher.Services
 
         public ObservableCollection<GameInfo> Games { get; set; } = [];
         public HttpClient HttpClient => _httpClient;
-        public string? GamesFolder => _gamesFolder;
-        public string? CacheFolder => _cacheFolder;
+        public string GamesFolder => _gamesFolder;
+        public string CacheFolder => _cacheFolder;
 
         private string _CurrentVersionString = string.Empty;
         public string CurrentVersionString

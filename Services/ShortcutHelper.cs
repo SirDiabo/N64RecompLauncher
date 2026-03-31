@@ -5,15 +5,19 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace N64RecompLauncher.Services
 {
     public static class ShortcutHelper
     {
-        public static void CreateGameShortcut(GameInfo game, string launcherPath, string cacheDirectory)
+        public static void CreateGameShortcut(GameInfo game, string launcherPath, string? cacheDirectory)
         {
+            if (string.IsNullOrWhiteSpace(game?.Name))
+                throw new ArgumentException("Game name is required.", nameof(game));
+
             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string iconPath = PrepareIcon(game, cacheDirectory);
+            string? iconPath = PrepareIcon(game, cacheDirectory);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -29,12 +33,15 @@ namespace N64RecompLauncher.Services
             }
         }
 
-        private static string PrepareIcon(GameInfo game, string cacheDirectory)
+        private static string? PrepareIcon(GameInfo game, string? cacheDirectory)
         {
+            if (string.IsNullOrWhiteSpace(cacheDirectory))
+                return null;
+
             string iconsDir = Path.Combine(cacheDirectory, "ShortcutIcons");
             Directory.CreateDirectory(iconsDir);
 
-            string sourcePath = null;
+            string? sourcePath = null;
 
             // Try cached default icon
             if (!string.IsNullOrEmpty(game.IconUrl) && File.Exists(game.IconUrl))
@@ -79,6 +86,7 @@ namespace N64RecompLauncher.Services
             return sourcePath;
         }
 
+        [SupportedOSPlatform("windows")]
         private static void ConvertToIco(string sourcePath, string icoPath)
         {
             try
@@ -126,11 +134,12 @@ namespace N64RecompLauncher.Services
             }
         }
 
-        private static void CreateWindowsShortcut(string desktopPath, string launcherPath, GameInfo game, string iconPath)
+        [SupportedOSPlatform("windows")]
+        private static void CreateWindowsShortcut(string desktopPath, string launcherPath, GameInfo game, string? iconPath)
         {
             // Escape game name for command line
-            string gameName = game.Name.Replace("\"", "");
-            string shortcutPath = Path.Combine(desktopPath, $"{SanitizeFileName(game.Name)}.lnk");
+            string gameName = game.Name!.Replace("\"", "");
+            string shortcutPath = Path.Combine(desktopPath, $"{SanitizeFileName(game.Name!)}.lnk");
 
             string psScript = $@"
                 $WshShell = New-Object -ComObject WScript.Shell
@@ -157,19 +166,21 @@ namespace N64RecompLauncher.Services
             process?.WaitForExit();
         }
 
-        private static void CreateLinuxDesktopFile(string desktopPath, string launcherPath, GameInfo game, string iconPath)
+        private static void CreateLinuxDesktopFile(string desktopPath, string launcherPath, GameInfo game, string? iconPath)
         {
-            string desktopFileName = $"{SanitizeFileName(game.Name)}.desktop";
+            string safeGameName = game.Name!;
+            string desktopFileName = $"{SanitizeFileName(safeGameName)}.desktop";
             string desktopFilePath = Path.Combine(desktopPath, desktopFileName);
+            string escapedGameName = safeGameName.Replace("\"", "\\\"");
 
             string desktopFileContent = $@"[Desktop Entry]
                 Type=Application
-                Name={game.Name}
-                Exec=""{launcherPath}"" --run {game.Name}
+                Name={safeGameName}
+                Exec=""{launcherPath}"" --run ""{escapedGameName}""
                 Icon={iconPath ?? ""}
                 Terminal=false
                 Categories=Game;
-                Comment=Launch {game.Name} via N64 Recomp Launcher
+                Comment=Launch {safeGameName} via N64 Recomp Launcher
                 ";
 
             File.WriteAllText(desktopFilePath, desktopFileContent);

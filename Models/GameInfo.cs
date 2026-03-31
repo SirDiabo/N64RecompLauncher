@@ -520,8 +520,10 @@ namespace N64RecompLauncher.Models
                         }
                     };
 
-                    var okButton = ((StackPanel)messageBox.Content).Children[1] as Button;
-                    okButton.Click += (s, e) => messageBox.Close();
+                    if (((StackPanel)messageBox.Content).Children[1] is Button okButton)
+                    {
+                        okButton.Click += (s, e) => messageBox.Close();
+                    }
 
                     await messageBox.ShowDialog(desktop.MainWindow);
                 }
@@ -586,7 +588,7 @@ namespace N64RecompLauncher.Models
                 else if (isInstalled)
                 {
                     // Installed games: check if needs update (more frequent - every 6 hours by default)
-                    if (GitHubApiCache.NeedsUpdateCheck(Repository, isInstalledGame: true))
+                    if (GitHubApiCache.NeedsUpdateCheck(Repository ?? string.Empty, isInstalledGame: true))
                     {
                         await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
                     }
@@ -600,7 +602,7 @@ namespace N64RecompLauncher.Models
                 else
                 {
                     // Not-installed games: check less frequently (once per day)
-                    if (GitHubApiCache.NeedsUpdateCheck(Repository, isInstalledGame: false))
+                    if (GitHubApiCache.NeedsUpdateCheck(Repository ?? string.Empty, isInstalledGame: false))
                     {
                         await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
                     }
@@ -1094,6 +1096,12 @@ namespace N64RecompLauncher.Models
 
         public async Task PerformActionAsync(HttpClient httpClient, string gamesFolder, bool isPortable, AppSettings settings)
         {
+            if (string.IsNullOrEmpty(FolderName))
+            {
+                await ShowMessageBoxAsync("Game configuration is invalid (missing folder name).", "Configuration Error");
+                return;
+            }
+
             string gamePath = Path.Combine(gamesFolder, FolderName);
             string portableFilePath = Path.Combine(gamePath, "portable.txt");
             string disabledPortableFilePath = Path.Combine(gamePath, "portable_disabled.txt");
@@ -1177,12 +1185,13 @@ namespace N64RecompLauncher.Models
                         }
                     };
 
-                    var buttonPanel = ((StackPanel)messageBox.Content).Children[1] as StackPanel;
-                    var yesButton = buttonPanel.Children[0] as Button;
-                    var noButton = buttonPanel.Children[1] as Button;
-
-                    yesButton.Click += (s, e) => { userChoice = true; messageBox.Close(); };
-                    noButton.Click += (s, e) => { userChoice = false; messageBox.Close(); };
+                    if (((StackPanel)messageBox.Content).Children[1] is StackPanel buttonPanel &&
+                        buttonPanel.Children[0] is Button yesButton &&
+                        buttonPanel.Children[1] is Button noButton)
+                    {
+                        yesButton.Click += (s, e) => { userChoice = true; messageBox.Close(); };
+                        noButton.Click += (s, e) => { userChoice = false; messageBox.Close(); };
+                    }
 
                     await messageBox.ShowDialog(desktop.MainWindow);
                 }
@@ -1232,12 +1241,13 @@ namespace N64RecompLauncher.Models
                         }
                     };
 
-                    var buttonPanel = ((StackPanel)messageBox.Content).Children[1] as StackPanel;
-                    var yesButton = buttonPanel.Children[0] as Button;
-                    var noButton = buttonPanel.Children[1] as Button;
-
-                    yesButton.Click += (s, e) => { userChoice = true; messageBox.Close(); };
-                    noButton.Click += (s, e) => { userChoice = false; messageBox.Close(); };
+                    if (((StackPanel)messageBox.Content).Children[1] is StackPanel buttonPanel &&
+                        buttonPanel.Children[0] is Button yesButton &&
+                        buttonPanel.Children[1] is Button noButton)
+                    {
+                        yesButton.Click += (s, e) => { userChoice = true; messageBox.Close(); };
+                        noButton.Click += (s, e) => { userChoice = false; messageBox.Close(); };
+                    }
 
                     await messageBox.ShowDialog(desktop.MainWindow);
                 }
@@ -1868,7 +1878,8 @@ namespace N64RecompLauncher.Models
                         var nestedZips = Directory.GetFiles(tempExtractPath, "*.zip", SearchOption.AllDirectories);
                         foreach (var nestedZip in nestedZips)
                         {
-                            var nestedExtractPath = Path.Combine(Path.GetDirectoryName(nestedZip), Path.GetFileNameWithoutExtension(nestedZip));
+                            var nestedZipDirectory = Path.GetDirectoryName(nestedZip) ?? tempExtractPath;
+                            var nestedExtractPath = Path.Combine(nestedZipDirectory, Path.GetFileNameWithoutExtension(nestedZip));
                             Directory.CreateDirectory(nestedExtractPath);
                             ZipFile.ExtractToDirectory(nestedZip, nestedExtractPath, overwriteFiles: true);
 
@@ -2099,7 +2110,7 @@ namespace N64RecompLauncher.Models
 
                 if (process?.ExitCode != 0)
                 {
-                    string errorOutput = process.StandardError.ReadToEnd();
+                    string errorOutput = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
                     throw new Exception($"Tar extraction failed: {errorOutput}");
                 }
             }
@@ -2423,6 +2434,9 @@ namespace N64RecompLauncher.Models
                     {
                         Architecture.Arm64 => "Linux-ARM64",
                         Architecture.X64 => "Linux-X64",
+                        Architecture.X86 => "Linux-X86",
+                        Architecture.Arm => "Linux-ARM",
+                        _ => "Linux-X64"
                     };
                 }
 

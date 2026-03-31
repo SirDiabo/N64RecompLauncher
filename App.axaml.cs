@@ -21,8 +21,7 @@ namespace N64RecompLauncher;
 
 public class App : Application, INotifyPropertyChanged
 {
-
-    private string _currentVersionString;
+    private string _currentVersionString = string.Empty;
 
     public string currentVersionString
     {
@@ -46,22 +45,22 @@ public class App : Application, INotifyPropertyChanged
 
     private class GitHubAsset
     {
-        public string name { get; set; }
-        public string browser_download_url { get; set; }
+        public string name { get; set; } = string.Empty;
+        public string browser_download_url { get; set; } = string.Empty;
     }
 
     private class GitHubRelease
     {
-        public string tag_name { get; set; }
-        public GitHubAsset[] assets { get; set; }
+        public string tag_name { get; set; } = string.Empty;
+        public GitHubAsset[] assets { get; set; } = [];
     }
 
     private class UpdateCheckInfo
     {
         public DateTime LastCheckTime { get; set; }
-        public string LastKnownVersion { get; set; }
-        public string CurrentVersion { get; set; }
-        public string ETag { get; set; }
+        public string LastKnownVersion { get; set; } = string.Empty;
+        public string CurrentVersion { get; set; } = string.Empty;
+        public string ETag { get; set; } = string.Empty;
         public bool UpdateAvailable { get; set; }
     }
 
@@ -454,21 +453,22 @@ public class App : Application, INotifyPropertyChanged
                 }
             };
 
-            var buttonPanel = ((StackPanel)messageBox.Content).Children[1] as StackPanel;
-            var yesButton = buttonPanel.Children[0] as Button;
-            var noButton = buttonPanel.Children[1] as Button;
-
-            yesButton.Click += (s, e) =>
+            if (((StackPanel)messageBox.Content).Children[1] is StackPanel buttonPanel &&
+                buttonPanel.Children[0] is Button yesButton &&
+                buttonPanel.Children[1] is Button noButton)
             {
-                result = true;
-                messageBox.Close();
-            };
+                yesButton.Click += (s, e) =>
+                {
+                    result = true;
+                    messageBox.Close();
+                };
 
-            noButton.Click += (s, e) =>
-            {
-                result = false;
-                messageBox.Close();
-            };
+                noButton.Click += (s, e) =>
+                {
+                    result = false;
+                    messageBox.Close();
+                };
+            }
 
             await messageBox.ShowDialog(desktop.MainWindow);
             return result;
@@ -498,8 +498,10 @@ public class App : Application, INotifyPropertyChanged
                 }
             };
 
-            var okButton = ((StackPanel)messageBox.Content).Children[1] as Button;
-            okButton.Click += (s, e) => messageBox.Close();
+            if (((StackPanel)messageBox.Content).Children[1] is Button okButton)
+            {
+                okButton.Click += (s, e) => messageBox.Close();
+            }
 
             await messageBox.ShowDialog(desktop.MainWindow);
         }
@@ -929,7 +931,8 @@ public class App : Application, INotifyPropertyChanged
 
     private async Task CreateAndRunUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo)
     {
-        string applicationExecutable = Process.GetCurrentProcess().MainModule.FileName;
+        string applicationExecutable = Process.GetCurrentProcess().MainModule?.FileName
+            ?? throw new InvalidOperationException("Could not determine the current application executable path.");
         string backupDir = Path.Combine(currentAppDirectory, "backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -1123,11 +1126,14 @@ rm -- ""$0""
 
             using (var process = Process.Start(chmodProcess))
             {
-                await process.WaitForExitAsync();
-                if (process.ExitCode != 0)
+                if (process != null)
                 {
-                    var error = await process.StandardError.ReadToEndAsync();
-                    Trace.WriteLine($"chmod failed for updater script: {error}");
+                    await process.WaitForExitAsync();
+                    if (process.ExitCode != 0)
+                    {
+                        var error = await process.StandardError.ReadToEndAsync();
+                        Trace.WriteLine($"chmod failed for updater script: {error}");
+                    }
                 }
             }
         }
@@ -1167,6 +1173,9 @@ rm -- ""$0""
             {
                 Architecture.Arm64 => "Linux-ARM64",
                 Architecture.X64 => "Linux-X64",
+                Architecture.X86 => "Linux-X86",
+                Architecture.Arm => "Linux-ARM",
+                _ => "Linux-X64"
             };
         }
 
