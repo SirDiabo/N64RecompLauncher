@@ -2561,8 +2561,12 @@ namespace N64RecompLauncher.Models
 
                     startInfo.UseShellExecute = false;
                     startInfo.WorkingDirectory = gamePath;
-                    startInfo.FileName = "/bin/bash";
-                    startInfo.Arguments = $"-lc {QuoteShellArgument(runnerCommand)}";
+                    startInfo.FileName = runnerCommand.FileName;
+
+                    foreach (var argument in runnerCommand.Arguments)
+                    {
+                        startInfo.ArgumentList.Add(argument);
+                    }
                 }
                 else
                 {
@@ -2697,14 +2701,21 @@ namespace N64RecompLauncher.Models
             return false;
         }
 
-        private static string QuoteShellArgument(string value)
+        private sealed class RunnerCommandSpec
         {
-            return $"'{value.Replace("'", "'\"'\"'")}'";
+            public required string FileName { get; init; }
+            public required List<string> Arguments { get; init; }
         }
 
-        private static string BuildWindowsRunnerCommand(string commandTemplate, string executablePath, string gamePath)
+        private static readonly Dictionary<string, Func<string, string, string>> RunnerPlaceholderResolvers = new(StringComparer.Ordinal)
         {
-            var executableDirectory = Path.GetDirectoryName(executablePath) ?? gamePath;
+            ["{exe}"] = (executablePath, _) => executablePath,
+            ["{gamePath}"] = (_, gamePath) => gamePath,
+            ["{exeDir}"] = (executablePath, gamePath) => Path.GetDirectoryName(executablePath) ?? gamePath
+        };
+
+        private static RunnerCommandSpec BuildWindowsRunnerCommand(string commandTemplate, string executablePath, string gamePath)
+        {
             var resolvedCommand = commandTemplate.Trim();
 
             if (!resolvedCommand.Contains("{exe}", StringComparison.Ordinal) &&
@@ -2714,13 +2725,104 @@ namespace N64RecompLauncher.Models
                 resolvedCommand += " {exe}";
             }
 
-            return resolvedCommand
-                .Replace("{exe}", QuoteShellArgument(executablePath), StringComparison.Ordinal)
-                .Replace("{gamePath}", QuoteShellArgument(gamePath), StringComparison.Ordinal)
-                .Replace("{exeDir}", QuoteShellArgument(executableDirectory), StringComparison.Ordinal);
+            var tokens = SplitRunnerCommand(resolvedCommand);
+            if (tokens.Count == 0 || string.IsNullOrWhiteSpace(tokens[0]))
+            {
+                throw new InvalidOperationException("The Linux Windows-runner command is empty.");
+            }
+
+            var resolvedTokens = tokens
+                .Select(token => ReplaceRunnerPlaceholders(token, executablePath, gamePath))
+                .ToList();
+
+            return new RunnerCommandSpec
+            {
+                FileName = resolvedTokens[0],
+                Arguments = resolvedTokens.Skip(1).ToList()
+            };
         }
 
-        private static string? GetWindowsRunnerCommand(AppSettings settings, string executablePath, string gamePath)
+        private static List<string> SplitRunnerCommand(string command)
+        {
+            var tokens = new List<string>();
+            var current = new StringBuilder();
+            bool inSingleQuotes = false;
+            bool inDoubleQuotes = false;
+            bool escaping = false;
+
+            foreach (var character in command)
+            {
+                if (escaping)
+                {
+                    current.Append(character);
+                    escaping = false;
+                    continue;
+                }
+
+                if (character == '\\' && !inSingleQuotes)
+                {
+                    escaping = true;
+                    continue;
+                }
+
+                if (character == '"' && !inSingleQuotes)
+                {
+                    inDoubleQuotes = !inDoubleQuotes;
+                    continue;
+                }
+
+                if (character == '\'' && !inDoubleQuotes)
+                {
+                    inSingleQuotes = !inSingleQuotes;
+                    continue;
+                }
+
+                if (char.IsWhiteSpace(character) && !inSingleQuotes && !inDoubleQuotes)
+                {
+                    if (current.Length > 0)
+                    {
+                        tokens.Add(current.ToString());
+                        current.Clear();
+                    }
+
+                    continue;
+                }
+
+                current.Append(character);
+            }
+
+            if (escaping || inSingleQuotes || inDoubleQuotes)
+            {
+                throw new InvalidOperationException("The Linux Windows-runner command contains an unmatched quote or trailing escape character.");
+            }
+
+            if (current.Length > 0)
+            {
+                tokens.Add(current.ToString());
+            }
+
+            return tokens;
+        }
+
+        private static string ReplaceRunnerPlaceholders(string token, string executablePath, string gamePath)
+        {
+            var resolvedToken = token;
+
+            foreach (var placeholder in RunnerPlaceholderResolvers)
+            {
+                if (resolvedToken.Contains(placeholder.Key, StringComparison.Ordinal))
+                {
+                    resolvedToken = resolvedToken.Replace(
+                        placeholder.Key,
+                        placeholder.Value(executablePath, gamePath),
+                        StringComparison.Ordinal);
+                }
+            }
+
+            return resolvedToken;
+        }
+
+        private static RunnerCommandSpec? GetWindowsRunnerCommand(AppSettings settings, string executablePath, string gamePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 return null;
@@ -2755,7 +2857,11 @@ namespace N64RecompLauncher.Models
                     {
                         var protonExe = Path.Combine(protonDir, "proton");
                         if (File.Exists(protonExe))
-                            return BuildWindowsRunnerCommand($"{QuoteShellArgument(protonExe)} run {{exe}}", executablePath, gamePath);
+                            return new RunnerCommandSpec
+                            {
+                                FileName = protonExe,
+                                Arguments = ["run", executablePath]
+                            };
                     }
                 }
             }
