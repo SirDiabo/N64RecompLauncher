@@ -803,7 +803,12 @@ namespace N64RecompLauncher.Services
         new {name = "Infinite Mario 64",
             repository = "Brawmario/infinite-mario-64-ever",
             folderName = "Brawmario.infinite-mario-64-ever",
-            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9b1347ebd516dd05210fcc9e8291b9d1.png" }
+            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9b1347ebd516dd05210fcc9e8291b9d1.png" },
+        
+        new {name = "Sonic Forever",
+            repository = "ElspethThePict/S1Forever",
+            folderName = "ElspethThePict.S1Forever",
+            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/7884a9652e94555c70f96b6be63be216.png" }
     };
 
             return (standard, experimental, custom);
