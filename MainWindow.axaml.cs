@@ -2453,7 +2453,7 @@ namespace N64RecompLauncher
             {
                 try
                 {
-                    _gameManager.HideGame(game.Name);
+                    _gameManager.HideGame(game);
                     await _gameManager.LoadGamesAsync();
                     ApplySorting();
                 }

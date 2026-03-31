@@ -9,7 +9,7 @@ namespace N64RecompLauncher.Services
 {
     public class GameManager : INotifyPropertyChanged, IDisposable
     {
-        public AppSettings _settings;
+        public AppSettings _settings = new();
         private readonly HttpClient _httpClient;
         private bool _disposed = false;
         private string _gamesFolder;
@@ -21,7 +21,7 @@ namespace N64RecompLauncher.Services
         public string? GamesFolder => _gamesFolder;
         public string? CacheFolder => _cacheFolder;
 
-        private string _CurrentVersionString;
+        private string _CurrentVersionString = string.Empty;
         public string CurrentVersionString
         {
             get => _CurrentVersionString;
@@ -814,24 +814,41 @@ namespace N64RecompLauncher.Services
             return (standard, experimental, custom);
         }
 
+        private string BuildDefaultGamesJson()
+        {
+            var defaultData = GetDefaultGamesData();
+
+            var data = new
+            {
+                standard = defaultData.standard,
+                experimental = defaultData.experimental,
+                custom = defaultData.custom
+            };
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            return JsonSerializer.Serialize(data, options);
+        }
+
+        private void CreateDefaultGamesJson()
+        {
+            try
+            {
+                string json = BuildDefaultGamesJson();
+                File.WriteAllText(_gamesConfigPath, json);
+                System.Diagnostics.Debug.WriteLine($"Default games.json created at {_gamesConfigPath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating default games.json: {ex.Message}");
+            }
+        }
+
         private async Task CreateDefaultGamesJsonAsync()
         {
             try
             {
-                var defaultData = GetDefaultGamesData();
-
-                var data = new
-                {
-                    standard = defaultData.standard,
-                    experimental = defaultData.experimental,
-                    custom = defaultData.custom
-                };
-
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(data, options);
-
+                string json = BuildDefaultGamesJson();
                 await File.WriteAllTextAsync(_gamesConfigPath, json).ConfigureAwait(false);
-
                 System.Diagnostics.Debug.WriteLine($"Default games.json created at {_gamesConfigPath}");
             }
             catch (Exception ex)
@@ -884,12 +901,12 @@ namespace N64RecompLauncher.Services
 
         public GameInfo? FindGameByName(string name)
         {
-            return Games.FirstOrDefault(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            return Games.FirstOrDefault(g => string.Equals(g.Name, name, StringComparison.OrdinalIgnoreCase));
         }
 
         public GameInfo? FindGameByFolderName(string folderName)
         {
-            return Games.FirstOrDefault(predicate: g => g.FolderName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
+            return Games.FirstOrDefault(g => string.Equals(g.FolderName, folderName, StringComparison.OrdinalIgnoreCase));
         }
 
         public void OnPropertyChanged(string propertyName)
@@ -912,7 +929,7 @@ namespace N64RecompLauncher.Services
             var filteredGames = allGames
             .Where(game => game != null && (!game.IsExperimental || settings.ShowExperimentalGames))
             .Where(game => game != null && (!game.IsCustom || settings.ShowCustomGames))
-            .Where(game => game != null && !settings.HiddenGames.Contains(game.Name ?? string.Empty))
+            .Where(game => game != null && !IsGameHidden(settings, game))
             .ToList();
 
             Games.Clear();
@@ -930,7 +947,7 @@ namespace N64RecompLauncher.Services
 
             if (!forceUpdateCheck)
             {
-                int cachedCount = Games.Count(g => !GitHubApiCache.NeedsUpdateCheck(g.Repository,
+                int cachedCount = Games.Count(g => !GitHubApiCache.NeedsUpdateCheck(g.Repository ?? string.Empty,
                     Directory.Exists(Path.Combine(_gamesFolder, g.FolderName ?? ""))));
                 int apiCallCount = Games.Count - cachedCount;
                 System.Diagnostics.Debug.WriteLine($"LoadGamesAsync: {cachedCount} games using cache, {apiCallCount} will check for updates");
@@ -1073,15 +1090,48 @@ namespace N64RecompLauncher.Services
             return DateTime.MinValue;
         }
 
-        public void HideGame(string gameName)
+        private static string GetHiddenGameKey(GameInfo game)
         {
-            if (string.IsNullOrEmpty(gameName))
+            if (!string.IsNullOrWhiteSpace(game.FolderName))
+                return $"folder:{game.FolderName}";
+
+            if (!string.IsNullOrWhiteSpace(game.Repository))
+                return $"repo:{game.Repository}";
+
+            return $"name:{game.Name ?? string.Empty}";
+        }
+
+        private static bool IsGameHidden(AppSettings settings, GameInfo game)
+        {
+            if (settings?.HiddenGames == null)
+                return false;
+
+            var hiddenKey = GetHiddenGameKey(game);
+            return settings.HiddenGames.Contains(hiddenKey) ||
+                   (!string.IsNullOrWhiteSpace(game.Name) && settings.HiddenGames.Contains(game.Name));
+        }
+
+        private static void AddHiddenGame(AppSettings settings, GameInfo game)
+        {
+            if (settings?.HiddenGames == null)
+                return;
+
+            var hiddenKey = GetHiddenGameKey(game);
+            if (!settings.HiddenGames.Contains(hiddenKey))
+            {
+                settings.HiddenGames.Add(hiddenKey);
+            }
+        }
+
+        public void HideGame(GameInfo game)
+        {
+            if (game == null)
                 return;
 
             var settings = AppSettings.Load();
-            if (!settings.HiddenGames.Contains(gameName))
+            if (!IsGameHidden(settings, game))
             {
-                settings.HiddenGames.Add(gameName);
+                AddHiddenGame(settings, game);
                 AppSettings.Save(settings);
                 FilterGames(settings);
             }
@@ -1108,9 +1158,9 @@ namespace N64RecompLauncher.Services
 
             foreach (var game in Games)
             {
-                if (game != null && game.Status == GameStatus.NotInstalled && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && game.Status == GameStatus.NotInstalled && !IsGameHidden(settings, game))
                 {
-                    settings.HiddenGames.Add(game.Name);
+                    AddHiddenGame(settings, game);
                 }
             }
             AppSettings.Save(settings);
@@ -1127,9 +1177,9 @@ namespace N64RecompLauncher.Services
 
             foreach (var game in Games)
             {
-                if (game != null && game.IsExperimental == true && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && game.IsExperimental == true && !IsGameHidden(settings, game))
                 {
-                    settings.HiddenGames.Add(game.Name);
+                    AddHiddenGame(settings, game);
                 }
             }
             AppSettings.Save(settings);
@@ -1150,8 +1200,7 @@ namespace N64RecompLauncher.Services
             {
                 if (!File.Exists(_gamesConfigPath))
                 {
-                    // Create default games.json if it doesn't exist
-                    _ = CreateDefaultGamesJsonAsync();
+                    CreateDefaultGamesJson();
                 }
 
                 string json = File.ReadAllText(_gamesConfigPath);
@@ -1197,9 +1246,9 @@ namespace N64RecompLauncher.Services
 
             foreach (var game in Games)
             {
-                if (game != null && game.IsExperimental == false && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && game.IsExperimental == false && !IsGameHidden(settings, game))
                 {
-                    settings.HiddenGames.Add(game.Name);
+                    AddHiddenGame(settings, game);
                 }
             }
             AppSettings.Save(settings);
@@ -1219,9 +1268,9 @@ namespace N64RecompLauncher.Services
 
             foreach (var game in Games)
             {
-                if (game != null && !game.IsCustom && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && !game.IsCustom && !IsGameHidden(settings, game))
                 {
-                    settings.HiddenGames.Add(game.Name);
+                    AddHiddenGame(settings, game);
                 }
             }
             AppSettings.Save(settings);
@@ -1241,9 +1290,9 @@ namespace N64RecompLauncher.Services
 
             foreach (var game in Games)
             {
-                if (game != null && game.IsCustom && !settings.HiddenGames.Contains(game.Name))
+                if (game != null && game.IsCustom && !IsGameHidden(settings, game))
                 {
-                    settings.HiddenGames.Add(game.Name);
+                    AddHiddenGame(settings, game);
                 }
             }
 
@@ -1258,7 +1307,7 @@ namespace N64RecompLauncher.Services
 
             for (int i = Games.Count - 1; i >= 0; i--)
             {
-                if (Games[i] != null && settings.HiddenGames.Contains(Games[i].Name))
+                if (Games[i] != null && IsGameHidden(settings, Games[i]))
                 {
                     Games.RemoveAt(i);
                 }

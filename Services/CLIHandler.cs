@@ -330,37 +330,25 @@ namespace N64RecompLauncher
             }
 
             var settings = AppSettings.Load();
+            var gamesFolder = _gameManager.GamesFolder;
+            if (string.IsNullOrEmpty(gamesFolder) || string.IsNullOrEmpty(game.FolderName))
+            {
+                return PrintError("Game folder is not configured.");
+            }
 
             // Check if need to select executable
-            var storedExe = game.LoadSelectedExecutable(_gameManager.GamesFolder);
+            var storedExe = game.LoadSelectedExecutable(gamesFolder);
 
             if (string.IsNullOrEmpty(storedExe))
             {
                 // Check if there are multiple executables
-                var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
-                var executables = new List<string>();
+                var gamePath = Path.Combine(gamesFolder, game.FolderName);
+                GameInfo.EnsureExecutableAtRoot(gamePath);
 
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                var executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out _);
+                if (executables.Count == 0)
                 {
-                    executables = Directory.GetFiles(gamePath, "*.exe", SearchOption.TopDirectoryOnly).ToList();
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    var appBundles = Directory.GetDirectories(gamePath, "*.app", SearchOption.TopDirectoryOnly);
-                    executables.AddRange(appBundles);
-                }
-                else // Linux
-                {
-                    executables.AddRange(Directory.GetFiles(gamePath, "*.x86_64", SearchOption.TopDirectoryOnly));
-                    executables.AddRange(Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly));
-                    executables.AddRange(Directory.GetFiles(gamePath, "*.arm64", SearchOption.TopDirectoryOnly));
-                    executables.AddRange(Directory.GetFiles(gamePath, "*.aarch64", SearchOption.TopDirectoryOnly));
-                }
-
-                var launchBat = Path.Combine(gamePath, "launch.bat");
-                if (File.Exists(launchBat) && !executables.Contains(launchBat))
-                {
-                    executables.Add(launchBat);
+                    executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.AllDirectories, out _);
                 }
 
                 if (executables.Count > 1)
@@ -428,7 +416,7 @@ namespace N64RecompLauncher
             {
                 await game.PerformActionAsync(
                     _gameManager.HttpClient,
-                    _gameManager.GamesFolder,
+                    gamesFolder,
                     settings.IsPortable,
                     settings);
 

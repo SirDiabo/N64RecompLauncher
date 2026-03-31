@@ -200,6 +200,9 @@ namespace N64RecompLauncher.Models
 
                 try
                 {
+                    if (string.IsNullOrEmpty(GameManager.GamesFolder))
+                        return false;
+
                     var gamePath = Path.Combine(GameManager.GamesFolder, FolderName);
                     var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
                     return File.Exists(selectedExePath);
@@ -1916,7 +1919,7 @@ namespace N64RecompLauncher.Models
 
                         if (!string.IsNullOrEmpty(tarGzFile))
                         {
-                            ExtractTarGz(tarGzFile, gamePath);
+                            await ExtractTarGz(tarGzFile, gamePath).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1935,7 +1938,7 @@ namespace N64RecompLauncher.Models
             }
             else if (assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
             {
-                ExtractTarGz(downloadPath, gamePath);
+                await ExtractTarGz(downloadPath, gamePath).ConfigureAwait(false);
             }
 
             try
@@ -1974,18 +1977,18 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static void ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
+        static async Task ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
         {
             Directory.CreateDirectory(destinationDirectoryPath);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                ExtractTarGzWindows(sourceFilePath, destinationDirectoryPath);
+                await ExtractTarGzWindows(sourceFilePath, destinationDirectoryPath).ConfigureAwait(false);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
                      RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                ExtractTarGzUnix(sourceFilePath, destinationDirectoryPath);
+                await ExtractTarGzUnix(sourceFilePath, destinationDirectoryPath).ConfigureAwait(false);
             }
             else
             {
@@ -1993,7 +1996,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static async void ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
+        static async Task ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -2009,6 +2012,23 @@ namespace N64RecompLauncher.Models
                 });
                 throw;
             }
+        }
+
+        static string GetSafeExtractionPath(string destinationDirectoryPath, string archivePath)
+        {
+            var sanitizedArchivePath = archivePath.Replace('/', Path.DirectorySeparatorChar)
+                .Replace('\\', Path.DirectorySeparatorChar);
+            var fullDestinationRoot = Path.GetFullPath(destinationDirectoryPath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullDestinationPath = Path.GetFullPath(Path.Combine(fullDestinationRoot, sanitizedArchivePath));
+
+            if (!fullDestinationPath.StartsWith(fullDestinationRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+                !fullDestinationPath.Equals(fullDestinationRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException($"Archive entry escapes the destination directory: {archivePath}");
+            }
+
+            return fullDestinationPath;
         }
 
         static void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
@@ -2027,7 +2047,7 @@ namespace N64RecompLauncher.Models
 
                 var fileType = headerBytes[156];
 
-                var destPath = Path.Combine(destinationDirectoryPath, fileName);
+                var destPath = GetSafeExtractionPath(destinationDirectoryPath, fileName);
 
                 if (fileType == '5')
                 {
@@ -2035,7 +2055,13 @@ namespace N64RecompLauncher.Models
                 }
                 else
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                    var destinationDirectory = Path.GetDirectoryName(destPath);
+                    if (string.IsNullOrEmpty(destinationDirectory))
+                    {
+                        throw new InvalidDataException($"Invalid archive entry path: {fileName}");
+                    }
+
+                    Directory.CreateDirectory(destinationDirectory);
 
                     using var fileStream = File.Create(destPath);
                     int blocksToRead = (int)Math.Ceiling((double)fileSize / 512);
@@ -2054,7 +2080,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static async void ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
+        static async Task ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
         {
             try
             {
@@ -2138,6 +2164,16 @@ namespace N64RecompLauncher.Models
         {
             var relativePath = Path.GetRelativePath(rootPath, targetPath);
             return relativePath.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar);
+        }
+
+        internal static void EnsureExecutableAtRoot(string gamePath)
+        {
+            TryEnsureExecutableAtRoot(gamePath);
+        }
+
+        internal static List<string> GetExecutableCandidates(string gamePath, SearchOption searchOption, out bool needsWine)
+        {
+            return FindExecutableCandidates(gamePath, searchOption, out needsWine);
         }
 
         static List<string> FindExecutableCandidates(string path, SearchOption searchOption, out bool needsWine)
