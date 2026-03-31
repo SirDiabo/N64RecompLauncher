@@ -876,6 +876,15 @@
 							IsVisible="{Binding ShowCustomGames}">
 						<TextBlock Text="Custom Games Only"/>
 					</Button>
+
+					<Button x:Name="OnlyN64RecompGamesButton"
+							Classes="settings"
+							Width="216"
+							HorizontalAlignment="Left"
+							Click="OnlyN64RecompGamesButton_Click"
+							IsVisible="{Binding ShowCustomGames}">
+						<TextBlock Text="N64Recomp Only"/>
+					</Button>
 				</StackPanel>
 				
 				<!-- Footer Links -->

@@ -2124,53 +2124,108 @@ namespace N64RecompLauncher.Models
             }
         }
 
+        static bool IsLauncherMetadataFile(string path)
+        {
+            var fileName = Path.GetFileName(path);
+            return fileName.Equals("version.txt", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("portable.txt", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("portable_disabled.txt", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("LastPlayed.txt", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("selected_executable.txt", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static int GetPathDepth(string rootPath, string targetPath)
+        {
+            var relativePath = Path.GetRelativePath(rootPath, targetPath);
+            return relativePath.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar);
+        }
+
+        static List<string> FindExecutableCandidates(string path, SearchOption searchOption, out bool needsWine)
+        {
+            needsWine = false;
+
+            if (!Directory.Exists(path))
+                return [];
+
+            var executables = new List<string>();
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                executables.AddRange(Directory.GetFiles(path, "*.exe", searchOption));
+
+                var launchBatFiles = Directory.GetFiles(path, "launch.bat", searchOption);
+                executables.AddRange(launchBatFiles);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                executables.AddRange(Directory.GetDirectories(path, "*.app", searchOption));
+                executables.AddRange(Directory.GetFiles(path, "*", searchOption)
+                    .Where(f =>
+                    {
+                        try
+                        {
+                            return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
+                        }
+                        catch { return false; }
+                    }));
+            }
+            else
+            {
+                var allFiles = Directory.GetFiles(path, "*", searchOption);
+
+                executables.AddRange(allFiles.Where(f =>
+                {
+                    var fileName = Path.GetFileName(f).ToLowerInvariant();
+                    return fileName.EndsWith(".x86_64") ||
+                           fileName.EndsWith(".appimage") ||
+                           fileName.EndsWith(".arm64") ||
+                           fileName.EndsWith(".aarch64");
+                }));
+
+                executables.AddRange(allFiles.Where(f =>
+                {
+                    var fileName = Path.GetFileName(f).ToLowerInvariant();
+
+                    if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64") ||
+                        fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64") ||
+                        fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
+                        fileName.EndsWith(".so") || fileName.EndsWith(".json") ||
+                        fileName.EndsWith(".exe"))
+                    {
+                        return false;
+                    }
+
+                    try
+                    {
+                        return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
+                    }
+                    catch { return false; }
+                }));
+
+                if (executables.Count == 0)
+                {
+                    var exeFiles = allFiles.Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (exeFiles.Count > 0)
+                    {
+                        executables.AddRange(exeFiles);
+                        needsWine = true;
+                    }
+                }
+            }
+
+            return executables
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(f => GetPathDepth(path, f))
+                .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
         static bool HasTopLevelExecutable(string path)
         {
             if (!Directory.Exists(path))
                 return false;
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return Directory.GetFiles(path, "*.exe", SearchOption.TopDirectoryOnly).Any();
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                if (Directory.GetDirectories(path, "*.app", SearchOption.TopDirectoryOnly).Any())
-                    return true;
-                return Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly)
-                    .Any(f => !Path.HasExtension(f) && new FileInfo(f).Length > 1024);
-            }
-            else // Linux
-            {
-                var topLevelFiles = Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly);
-
-                // Check for common Linux executable extensions
-                if (topLevelFiles.Any(f =>
-                {
-                    var lower = f.ToLowerInvariant();
-                    return lower.EndsWith(".appimage") ||
-                           lower.EndsWith(".x86_64") ||
-                           lower.EndsWith(".arm64") ||
-                           lower.EndsWith(".aarch64");
-                }))
-                    return true;
-
-                // Check for extensionless executables (common on Linux)
-                return topLevelFiles.Any(f =>
-                {
-                    try
-                    {
-                        var name = Path.GetFileName(f);
-                        // Skip known non-executable files
-                        if (name.EndsWith(".txt") || name.EndsWith(".json") ||
-                            name.EndsWith(".dll") || name.EndsWith(".so") || name.EndsWith(".a"))
-                            return false;
-
-                        return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
-                    }
-                    catch { return false; }
-                });
-            }
+            return FindExecutableCandidates(path, SearchOption.TopDirectoryOnly, out _).Count > 0;
         }
 
         static void TryEnsureExecutableAtRoot(string gamePath)
@@ -2178,96 +2233,56 @@ namespace N64RecompLauncher.Models
             if (!Directory.Exists(gamePath))
                 return;
 
-            if (HasTopLevelExecutable(gamePath))
-                return;
-
-            // Check if there's a single subdirectory with all content
-            var topLevelDirs = Directory.GetDirectories(gamePath, "*", SearchOption.TopDirectoryOnly);
-            var topLevelFiles = Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
-                .Where(f => !Path.GetFileName(f).Equals("version.txt", StringComparison.OrdinalIgnoreCase) &&
-                            !Path.GetFileName(f).Equals("portable.txt", StringComparison.OrdinalIgnoreCase) &&
-                            !Path.GetFileName(f).Equals("portable_disabled.txt", StringComparison.OrdinalIgnoreCase) &&
-                            !Path.GetFileName(f).Equals("LastPlayed.txt", StringComparison.OrdinalIgnoreCase) &&
-                            !Path.GetFileName(f).Equals("selected_executable.txt", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            // If only one subdirectory and no other files, move its contents up
-            if (topLevelDirs.Length == 1 && topLevelFiles.Count == 0)
+            while (!HasTopLevelExecutable(gamePath))
             {
-                var singleDir = topLevelDirs[0];
+                var topLevelDirs = Directory.GetDirectories(gamePath, "*", SearchOption.TopDirectoryOnly);
+                var topLevelFiles = Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
+                    .Where(f => !IsLauncherMetadataFile(f))
+                    .ToList();
 
-                try
+                bool flattened = false;
+
+                if (topLevelDirs.Length == 1)
                 {
-                    var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                    Directory.Move(singleDir, tempDir);
+                    var singleDir = topLevelDirs[0];
+                    var singleDirCandidates = FindExecutableCandidates(singleDir, SearchOption.AllDirectories, out _);
 
-                    MoveDirectoryContents(tempDir, gamePath);
-
-                    try { Directory.Delete(tempDir, true); } catch { }
-
-                    Debug.WriteLine($"Moved contents from subdirectory to root: {singleDir}");
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Failed to flatten directory structure: {ex.Message}");
-                }
-            }
-
-            // Otherwise, look for executable and move it to root if needed
-            string? candidateFile = null;
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                candidateFile = Directory.GetFiles(gamePath, "*.exe", SearchOption.AllDirectories)
-                    .FirstOrDefault(f => !IsInRootDirectory(f, gamePath));
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                var appBundle = Directory.GetDirectories(gamePath, "*.app", SearchOption.AllDirectories)
-                    .FirstOrDefault(f => !IsInRootDirectory(f, gamePath));
-
-                if (!string.IsNullOrEmpty(appBundle))
-                {
-                    try
+                    if (singleDirCandidates.Count > 0)
                     {
-                        var destPath = Path.Combine(gamePath, Path.GetFileName(appBundle));
-                        Directory.Move(appBundle, destPath);
-                        Debug.WriteLine($"Moved .app bundle to root: {appBundle}");
+                        try
+                        {
+                            var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+                            Directory.Move(singleDir, tempDir);
+
+                            MoveDirectoryContents(tempDir, gamePath);
+
+                            try { Directory.Delete(tempDir, true); } catch { }
+
+                            Debug.WriteLine($"Moved contents from subdirectory to root: {singleDir}");
+                            flattened = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Failed to flatten directory structure: {ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Failed to move .app bundle: {ex.Message}");
-                    }
-                    return;
                 }
-            }
-            else // Linux
-            {
-                var allFiles = Directory.GetFiles(gamePath, "*", SearchOption.AllDirectories)
+
+                if (flattened)
+                    continue;
+
+                var nestedCandidates = FindExecutableCandidates(gamePath, SearchOption.AllDirectories, out _)
                     .Where(f => !IsInRootDirectory(f, gamePath))
                     .ToList();
 
-                candidateFile = allFiles.FirstOrDefault(f =>
-                {
-                    var name = Path.GetFileName(f).ToLowerInvariant();
-                    return name.EndsWith(".x86_64") || name.EndsWith(".appimage") ||
-                           name.EndsWith(".arm64") || name.EndsWith(".aarch64");
-                });
+                if (nestedCandidates.Count == 0)
+                    return;
 
-                // Fallback to .exe for Wine/Proton
-                if (candidateFile == null)
-                {
-                    candidateFile = allFiles.FirstOrDefault(f =>
-                        f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-                }
-            }
-
-            // If we found an executable in a subdirectory, check if we should flatten
-            if (!string.IsNullOrEmpty(candidateFile))
-            {
+                var candidateFile = nestedCandidates[0];
                 var parentDir = Path.GetDirectoryName(candidateFile);
-                if (!string.IsNullOrEmpty(parentDir) && topLevelDirs.Contains(parentDir))
+
+                if (!string.IsNullOrEmpty(parentDir) &&
+                    topLevelDirs.Contains(parentDir, StringComparer.OrdinalIgnoreCase))
                 {
                     try
                     {
@@ -2279,12 +2294,20 @@ namespace N64RecompLauncher.Models
                         try { Directory.Delete(tempDir, true); } catch { }
 
                         Debug.WriteLine($"Flattened directory containing executable: {parentDir}");
+                        continue;
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Failed to flatten directory: {ex.Message}");
                     }
                 }
+
+                if (topLevelFiles.Count > 0)
+                {
+                    Debug.WriteLine("Leaving wrapper folder structure in place because nested executable cannot be safely flattened.");
+                }
+
+                return;
             }
         }
 
@@ -2400,91 +2423,14 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
+                TryEnsureExecutableAtRoot(gamePath);
+
                 // Find all available executables
-                var executables = new List<string>();
-                bool needsWine = false;
+                var executables = FindExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out bool needsWine);
 
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (executables.Count == 0)
                 {
-                    executables = Directory.GetFiles(gamePath, "*.exe", SearchOption.TopDirectoryOnly).ToList();
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    var appBundles = Directory.GetDirectories(gamePath, "*.app", SearchOption.TopDirectoryOnly);
-                    executables.AddRange(appBundles);
-
-                    // Also add non-app executables
-                    executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
-                        .Where(f => {
-                            try
-                            {
-                                return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
-                            }
-                            catch { return false; }
-                        }));
-                }
-                else // Linux
-                {
-                    // First check for native Linux executables
-                    var x86_64Files = Directory.GetFiles(gamePath, "*.x86_64", SearchOption.TopDirectoryOnly);
-                    executables.AddRange(x86_64Files);
-
-                    var appImages = Directory.GetFiles(gamePath, "*.appimage", SearchOption.TopDirectoryOnly);
-                    executables.AddRange(appImages);
-
-                    var arm64Files = Directory.GetFiles(gamePath, "*.arm64", SearchOption.TopDirectoryOnly);
-                    executables.AddRange(arm64Files);
-
-                    var aarch64Files = Directory.GetFiles(gamePath, "*.aarch64", SearchOption.TopDirectoryOnly);
-                    executables.AddRange(aarch64Files);
-
-                    executables.AddRange(Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
-                        .Where(f =>
-                        {
-                            var fileName = Path.GetFileName(f).ToLowerInvariant();
-
-                            if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64") ||
-                                fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64") ||
-                                fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
-                                fileName.EndsWith(".so") || fileName.EndsWith(".json") ||
-                                fileName.EndsWith(".exe"))
-                            {
-                                return false;
-                            }
-                            try
-                            {
-                                return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
-                            }
-                            catch { return false; }
-                        }));
-
-                    // If no native Linux executables found, check for .exe files with Wine/Proton
-                    if (executables.Count == 0)
-                    {
-                        var exeFiles = Directory.GetFiles(gamePath, "*.exe", SearchOption.TopDirectoryOnly);
-                        if (exeFiles.Length > 0)
-                        {
-                            if (!IsWineOrProtonAvailable())
-                            {
-                                await ShowMessageBoxAsync(
-                                    "Only a Windows .exe file was found, which requires Wine or Proton.\n\n" +
-                                    "Please install Wine or Steam (which includes Proton) to run this game.",
-                                    "Wine/Proton Not Found");
-                                return;
-                            }
-
-                            // Use Wine/Proton to run the .exe
-                            executables.AddRange(exeFiles);
-                            needsWine = true;
-                        }
-                    }
-                }
-
-                // Check for launch.bat
-                var launchBatPath = Path.Combine(gamePath, "launch.bat");
-                if (File.Exists(launchBatPath) && !executables.Contains(launchBatPath))
-                {
-                    executables.Add(launchBatPath);
+                    executables = FindExecutableCandidates(gamePath, SearchOption.AllDirectories, out needsWine);
                 }
 
                 if (executables.Count == 0)
@@ -2492,6 +2438,15 @@ namespace N64RecompLauncher.Models
                     await ShowMessageBoxAsync(
                         $"No executable found for {Name} in:\n{gamePath}\n\nThe game may not have installed correctly.",
                         "Executable Not Found");
+                    return;
+                }
+
+                if (needsWine && !IsWineOrProtonAvailable())
+                {
+                    await ShowMessageBoxAsync(
+                        "Only a Windows .exe file was found, which requires Wine or Proton.\n\n" +
+                        "Please install Wine or Steam (which includes Proton) to run this game.",
+                        "Wine/Proton Not Found");
                     return;
                 }
 

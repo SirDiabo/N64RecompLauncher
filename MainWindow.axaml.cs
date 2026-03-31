@@ -2312,6 +2312,19 @@ namespace N64RecompLauncher
             }
         }
 
+        private async void OnlyN64RecompGamesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await _gameManager.OnlyShowN64RecompGames();
+                ApplySorting();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to hide custom games: {ex.Message}", "Error");
+            }
+        }
+
         private void SortByComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (e.AddedItems.Count == 0) return;

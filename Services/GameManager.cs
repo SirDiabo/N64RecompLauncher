@@ -1223,6 +1223,29 @@ namespace N64RecompLauncher.Services
             await LoadGamesAsync();
         }
 
+        public async Task OnlyShowN64RecompGames()
+        {
+            var settings = AppSettings.Load();
+            settings.HiddenGames.Clear();
+            AppSettings.Save(settings);
+
+            await LoadGamesAsync();
+
+            if (Games == null)
+                return;
+
+            foreach (var game in Games)
+            {
+                if (game != null && game.IsCustom && !settings.HiddenGames.Contains(game.Name))
+                {
+                    settings.HiddenGames.Add(game.Name);
+                }
+            }
+
+            AppSettings.Save(settings);
+            await LoadGamesAsync();
+        }
+
         private void FilterGames(AppSettings settings)
         {
             if (Games == null || settings?.HiddenGames == null)
