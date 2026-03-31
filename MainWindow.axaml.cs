@@ -214,9 +214,11 @@ namespace N64RecompLauncher
                 {
                     _platformstring = value;
                     OnPropertyChanged(nameof(PlatformString));
+                    OnPropertyChanged(nameof(IsLinuxPlatform));
                 }
             }
         }
+        public bool IsLinuxPlatform => PlatformString.Contains("Linux", StringComparison.OrdinalIgnoreCase);
 
         private bool _isContinueVisible;
         public bool IsContinueVisible
@@ -1552,6 +1554,9 @@ namespace N64RecompLauncher
                 if (GamePathTextBox != null)
                     GamePathTextBox.Text = _settings.GamesPath;
 
+                if (LinuxWindowsLaunchCommandTextBox != null)
+                    LinuxWindowsLaunchCommandTextBox.Text = _settings.LinuxWindowsLaunchCommand;
+
                 if (StartFullscreenCheckBox != null)
                     StartFullscreenCheckBox.IsChecked = _settings.StartFullscreen;
 
@@ -2675,6 +2680,15 @@ namespace N64RecompLauncher
             }
         }
 
+        private void LinuxWindowsLaunchCommandTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_settings != null && sender is TextBox textBox)
+            {
+                _settings.LinuxWindowsLaunchCommand = textBox.Text?.Trim() ?? string.Empty;
+                OnSettingChanged();
+            }
+        }
+
         private System.Threading.CancellationTokenSource? _gamePathUpdateCts;
 
         private async void GamePathTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -3581,7 +3595,7 @@ namespace N64RecompLauncher
                     FolderName = g.FolderName,
                     GameIconUrl = g.GameIconUrl,
                     IconUrl = g.IconUrl,
-                    IsInstalled = !string.IsNullOrEmpty(g.FolderName) && Directory.Exists(Path.Combine(_settings.GamesPath ?? string.Empty, g.FolderName)),
+                    IsInstalled = !string.IsNullOrEmpty(g.FolderName) && Directory.Exists(Path.Combine(_gameManager.GamesFolder, g.FolderName)),
                     CanRemove = g.IsCustom && !_gameManager.IsDefaultGame(g.Repository ?? string.Empty)
                 }).ToList();
 

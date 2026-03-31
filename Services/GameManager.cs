@@ -196,31 +196,10 @@ namespace N64RecompLauncher.Services
                         continue;
 
                     var defaultDict = ObjectToDict(defaultGame);
-                    string? correctFolderName = defaultDict.ContainsKey("folderName") ? defaultDict["folderName"]?.ToString() : null;
                     string? currentFolderName = gameElement.TryGetProperty("folderName", out var folderElement) ? folderElement.GetString() : null;
 
-                    if (string.IsNullOrEmpty(correctFolderName) || string.IsNullOrEmpty(currentFolderName))
+                    if (string.IsNullOrEmpty(currentFolderName))
                         continue;
-
-                    if (!correctFolderName.Equals(currentFolderName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Attempt to rename folder
-                        var oldPath = Path.Combine(_gamesFolder, currentFolderName);
-                        var newPath = Path.Combine(_gamesFolder, correctFolderName);
-
-                        if (Directory.Exists(oldPath) && !Directory.Exists(newPath))
-                        {
-                            try
-                            {
-                                Directory.Move(oldPath, newPath);
-                                System.Diagnostics.Debug.WriteLine($"Renamed folder: {currentFolderName} -> {correctFolderName}");
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Failed to rename folder {currentFolderName}: {ex.Message}");
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -277,7 +256,7 @@ namespace N64RecompLauncher.Services
                     System.Diagnostics.Debug.WriteLine("Migrated Dinosaur Planet repository to DinosaurPlanetRecomp/dino-recomp");
                 }
 
-                // Check if folderName needs updating to match defaults
+                // Fill missing folder names from defaults without overwriting user edits
                 var defaultGames = GetDefaultGamesData();
                 var allDefaults = new List<object>();
                 allDefaults.AddRange(defaultGames.standard);
@@ -303,11 +282,11 @@ namespace N64RecompLauncher.Services
                             string? currentFolderName = gameDict.ContainsKey("folderName") ? gameDict["folderName"]?.ToString() : null;
 
                             if (!string.IsNullOrEmpty(correctFolderName) &&
-                                !correctFolderName.Equals(currentFolderName, StringComparison.OrdinalIgnoreCase))
+                                string.IsNullOrWhiteSpace(currentFolderName))
                             {
                                 gameDict["folderName"] = correctFolderName;
                                 gameNeedsFix = true;
-                                System.Diagnostics.Debug.WriteLine($"Updated folderName from '{currentFolderName}' to '{correctFolderName}' for repository {repository}");
+                                System.Diagnostics.Debug.WriteLine($"Filled missing folderName with '{correctFolderName}' for repository {repository}");
                             }
                         }
 

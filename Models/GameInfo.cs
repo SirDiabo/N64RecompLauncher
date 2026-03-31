@@ -1153,7 +1153,7 @@ namespace N64RecompLauncher.Models
                 {
                     var messageBox = new Window
                     {
-                        Title = "Wine/Proton Not Found",
+                        Title = "Windows Runner Not Found",
                         Width = 500,
                         Height = 220,
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -1164,9 +1164,9 @@ namespace N64RecompLauncher.Models
             {
                 new TextBlock
                 {
-                    Text = "This game requires Wine or Proton to run, but neither was detected on your system.\n\n" +
-                           "Please install Wine or Steam (which includes Proton) to run Windows games on Linux.\n\n" +
-                           "Do you want to download anyway? The game will not launch without Wine/Proton.",
+                    Text = "This game requires a Linux Windows-runner to launch, but none was detected.\n\n" +
+                           "Install Wine/Proton or set a custom command in Settings for Bottles or another launcher.\n\n" +
+                           "Do you want to download anyway? The game will not launch without a configured runner.",
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 0, 0, 20)
                 },
@@ -1211,7 +1211,7 @@ namespace N64RecompLauncher.Models
                 {
                     var messageBox = new Window
                     {
-                        Title = "Wine/Proton Required",
+                        Title = "Windows Runner Required",
                         Width = 500,
                         Height = 200,
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -1222,7 +1222,7 @@ namespace N64RecompLauncher.Models
                     {
                         new TextBlock
                         {
-                            Text = "This game requires Wine/Proton to run. Wine/Proton was detected on your system and will be used to launch the game.\n\nWant to download?",
+                            Text = "This game requires a Linux Windows-runner to launch. A compatible runner was detected or configured and will be used.\n\nWant to download?",
                             TextWrapping = TextWrapping.Wrap,
                             Margin = new Thickness(0, 0, 0, 20)
                         },
@@ -1396,7 +1396,7 @@ namespace N64RecompLauncher.Models
 
                     if (isWindowsFile)
                     {
-                        if (!IsWineOrProtonAvailable())
+                        if (!IsWindowsRunnerAvailable(settings))
                         {
                             bool shouldContinueAnyway = await ShowWineNotFoundWarning();
                             if (!shouldContinueAnyway)
@@ -2199,6 +2199,8 @@ namespace N64RecompLauncher.Models
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 executables.AddRange(Directory.GetFiles(path, "*.exe", searchOption));
+                executables.AddRange(Directory.GetFiles(path, "*.bat", searchOption));
+                executables.AddRange(Directory.GetFiles(path, "*.cmd", searchOption));
 
                 var launchBatFiles = Directory.GetFiles(path, "launch.bat", searchOption);
                 executables.AddRange(launchBatFiles);
@@ -2237,6 +2239,7 @@ namespace N64RecompLauncher.Models
                         fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64") ||
                         fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
                         fileName.EndsWith(".so") || fileName.EndsWith(".json") ||
+                        fileName.EndsWith(".sh") ||
                         fileName.EndsWith(".exe"))
                     {
                         return false;
@@ -2258,6 +2261,8 @@ namespace N64RecompLauncher.Models
                         needsWine = true;
                     }
                 }
+
+                executables.AddRange(allFiles.Where(f => f.EndsWith(".sh", StringComparison.OrdinalIgnoreCase)));
             }
 
             return executables
@@ -2491,12 +2496,14 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                if (needsWine && !IsWineOrProtonAvailable())
+                var settings = AppSettings.Load();
+
+                if (needsWine && !IsWindowsRunnerAvailable(settings))
                 {
                     await ShowMessageBoxAsync(
-                        "Only a Windows .exe file was found, which requires Wine or Proton.\n\n" +
-                        "Please install Wine or Steam (which includes Proton) to run this game.",
-                        "Wine/Proton Not Found");
+                        "Only a Windows executable was found, but no Linux Windows-runner is configured or detected.\n\n" +
+                        "Install Wine/Proton or set a custom command in Settings to launch Windows games.",
+                        "Windows Runner Not Found");
                     return;
                 }
 
@@ -2545,26 +2552,17 @@ namespace N64RecompLauncher.Models
                 }
                 else if (needsWine && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
-                    var wineCommand = GetWineCommand();
-                    if (wineCommand == null)
+                    var runnerCommand = GetWindowsRunnerCommand(settings, executablePath, gamePath);
+                    if (runnerCommand == null)
                     {
-                        await ShowMessageBoxAsync("Wine/Proton was detected earlier but is no longer available.", "Wine/Proton Error");
+                        await ShowMessageBoxAsync("A Linux Windows-runner was detected earlier but is no longer available.", "Windows Runner Error");
                         return;
                     }
 
                     startInfo.UseShellExecute = false;
                     startInfo.WorkingDirectory = gamePath;
-
-                    if (wineCommand.Contains("proton"))
-                    {
-                        startInfo.FileName = wineCommand;
-                        startInfo.Arguments = $"run \"{executablePath}\"";
-                    }
-                    else
-                    {
-                        startInfo.FileName = wineCommand;
-                        startInfo.Arguments = $"\"{executablePath}\"";
-                    }
+                    startInfo.FileName = "/bin/bash";
+                    startInfo.Arguments = $"-lc {QuoteShellArgument(runnerCommand)}";
                 }
                 else
                 {
@@ -2656,6 +2654,17 @@ namespace N64RecompLauncher.Models
             }
         }
 
+        private static bool IsWindowsRunnerAvailable(AppSettings? settings = null)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(settings?.LinuxWindowsLaunchCommand))
+                return true;
+
+            return IsWineOrProtonAvailable();
+        }
+
         private static bool IsWineOrProtonAvailable()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -2688,6 +2697,72 @@ namespace N64RecompLauncher.Models
             return false;
         }
 
+        private static string QuoteShellArgument(string value)
+        {
+            return $"'{value.Replace("'", "'\"'\"'")}'";
+        }
+
+        private static string BuildWindowsRunnerCommand(string commandTemplate, string executablePath, string gamePath)
+        {
+            var executableDirectory = Path.GetDirectoryName(executablePath) ?? gamePath;
+            var resolvedCommand = commandTemplate.Trim();
+
+            if (!resolvedCommand.Contains("{exe}", StringComparison.Ordinal) &&
+                !resolvedCommand.Contains("{gamePath}", StringComparison.Ordinal) &&
+                !resolvedCommand.Contains("{exeDir}", StringComparison.Ordinal))
+            {
+                resolvedCommand += " {exe}";
+            }
+
+            return resolvedCommand
+                .Replace("{exe}", QuoteShellArgument(executablePath), StringComparison.Ordinal)
+                .Replace("{gamePath}", QuoteShellArgument(gamePath), StringComparison.Ordinal)
+                .Replace("{exeDir}", QuoteShellArgument(executableDirectory), StringComparison.Ordinal);
+        }
+
+        private static string? GetWindowsRunnerCommand(AppSettings settings, string executablePath, string gamePath)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return null;
+
+            if (!string.IsNullOrWhiteSpace(settings.LinuxWindowsLaunchCommand))
+            {
+                return BuildWindowsRunnerCommand(settings.LinuxWindowsLaunchCommand, executablePath, gamePath);
+            }
+
+            if (IsCommandAvailable("wine64"))
+                return BuildWindowsRunnerCommand("wine64 {exe}", executablePath, gamePath);
+
+            if (IsCommandAvailable("wine"))
+                return BuildWindowsRunnerCommand("wine {exe}", executablePath, gamePath);
+
+            // Check for Proton
+            var steamPaths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common"),
+            };
+
+            foreach (var steamPath in steamPaths)
+            {
+                if (Directory.Exists(steamPath))
+                {
+                    var protonDirs = Directory.GetDirectories(steamPath, "Proton*", SearchOption.TopDirectoryOnly)
+                        .OrderByDescending(d => d)
+                        .ToList();
+
+                    foreach (var protonDir in protonDirs)
+                    {
+                        var protonExe = Path.Combine(protonDir, "proton");
+                        if (File.Exists(protonExe))
+                            return BuildWindowsRunnerCommand($"{QuoteShellArgument(protonExe)} run {{exe}}", executablePath, gamePath);
+                    }
+                }
+            }
+
+            return null;
+        }
+
         private static bool IsCommandAvailable(string command)
         {
             try
@@ -2711,41 +2786,6 @@ namespace N64RecompLauncher.Models
             catch { }
 
             return false;
-        }
-
-        private static string? GetWineCommand()
-        {
-            if (IsCommandAvailable("wine64"))
-                return "wine64";
-            if (IsCommandAvailable("wine"))
-                return "wine";
-
-            // Check for Proton
-            var steamPaths = new[]
-            {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common"),
-            };
-
-            foreach (var steamPath in steamPaths)
-            {
-                if (Directory.Exists(steamPath))
-                {
-                    // Get latest Proton version
-                    var protonDirs = Directory.GetDirectories(steamPath, "Proton*", SearchOption.TopDirectoryOnly)
-                        .OrderByDescending(d => d)
-                        .ToList();
-
-                    foreach (var protonDir in protonDirs)
-                    {
-                        var protonExe = Path.Combine(protonDir, "proton");
-                        if (File.Exists(protonExe))
-                            return protonExe;
-                    }
-                }
-            }
-
-            return null;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

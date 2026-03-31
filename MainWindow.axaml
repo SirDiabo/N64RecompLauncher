@@ -1195,7 +1195,7 @@
 													 CornerRadius="4"
 													 Margin="0,0,44,0"
 													 TextChanged="GamePathTextBox_TextChanged"
-													 Text="{Binding Settings.GamePath, Mode=TwoWay}"/>
+													 Text="{Binding Settings.GamesPath, Mode=TwoWay}"/>
 											<Button Classes="options"
 													HorizontalAlignment="Right"
 													Width="40"
@@ -1247,6 +1247,29 @@
 												HorizontalAlignment="Stretch"
 												Click="ClearIconCache_Click"
 												FontSize="12"/>
+
+										<StackPanel Spacing="2" IsVisible="{Binding IsLinuxPlatform}">
+											<TextBlock Text="LINUX WINDOWS RUNNER"
+													   FontSize="10" FontWeight="Bold"
+													   Foreground="{DynamicResource ThemeTextSecondary}"
+													   LetterSpacing="1"
+													   Margin="0,8,0,4"/>
+											<TextBox x:Name="LinuxWindowsLaunchCommandTextBox"
+													 Foreground="{DynamicResource ThemeText}"
+													 Background="{DynamicResource ThemeBase}"
+													 BorderBrush="{DynamicResource ThemeBorder}"
+													 BorderThickness="1"
+													 Padding="12,10"
+													 CornerRadius="4"
+													 Watermark="Example: flatpak run com.usebottles.bottles -e {exe}"
+													 Text="{Binding Settings.LinuxWindowsLaunchCommand, Mode=TwoWay}"
+													 TextChanged="LinuxWindowsLaunchCommandTextBox_TextChanged"/>
+											<TextBlock Text="Optional override for Windows-only games on Linux. Use {exe}, {gamePath}, or {exeDir}. Leave blank to auto-detect Wine/Proton."
+													   FontSize="11"
+													   TextWrapping="Wrap"
+													   Foreground="{DynamicResource ThemeTextSecondary}"
+													   Margin="0,0,0,4"/>
+										</StackPanel>
 
 									</StackPanel>
 								</TabItem>
