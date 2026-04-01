@@ -787,7 +787,12 @@ namespace N64RecompLauncher.Services
         new {name = "Sonic Forever",
             repository = "ElspethThePict/S1Forever",
             folderName = "ElspethThePict.S1Forever",
-            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/7884a9652e94555c70f96b6be63be216.png" }
+            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/7884a9652e94555c70f96b6be63be216.png" },
+        
+        new {name = "Viva Pinata Trouble in Paradise",
+            repository = "SolarCookies/TiP-Recomp",
+            folderName = "SolarCookies.TiP-Recomp",
+            gameIconUrl = "https://raw.githubusercontent.com/SolarCookies/TiP-Recomp/refs/heads/main/icon/app.ico" }
     };
 
             return (standard, experimental, custom);
