@@ -717,7 +717,10 @@
 			<Grid Margin="0">
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>
 					<RowDefinition Height="*"/>
+					<RowDefinition Height="Auto"/>	
 				</Grid.RowDefinitions>
 
 				<!-- Logo/Header -->
@@ -741,104 +744,99 @@
 							   LetterSpacing="3"
 							   Margin="0,2,0,0"/>
 				</StackPanel>
-				
-				<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-					<Grid Margin="0">
-						<Grid.RowDefinitions>
-							<RowDefinition Height="Auto"/>
-							<RowDefinition Height="Auto"/>
-							<RowDefinition Height="Auto"/>
-						</Grid.RowDefinitions>
-						
-						<!-- Navigation Buttons -->
-						<StackPanel Grid.Row="0" Margin="12,0" VerticalAlignment="Top">
-					
-							<!-- Continue Button -->
-							<Button x:Name="ContinueButton"
-									Classes="settings"
-									Margin="0,0,0,4"
-									CornerRadius="8"
-									Width="216"
-									Height="64"
-									HorizontalAlignment="Left"
-									Click="ContinueButton_Click"
-									IsVisible="{Binding IsContinueVisible}">
-								<Grid>
-									<asyncImageLoader:AdvancedImage Source="{Binding ContinueGameInfo.DefaultIconUrl}"
-																	HorizontalAlignment="Right"
-																	Stretch="Uniform"
-																	Width="216"
-																	Height="64"/>
-									<StackPanel Orientation="Horizontal">
-										<Image Width="32" Height="32" 
-											   Source="avares://N64RecompLauncher/Assets/Continue.png"
-											   Margin="0,0,12,0"/>
-										<TextBlock Text="Continue" 
-												  VerticalAlignment="Center"/>
-									</StackPanel>
-								</Grid>
-							</Button>
 
-							<!-- Manage Games Button -->
-							<Button x:Name="ManageGamesButton"
-									Classes="settings"
-									Margin="0,0,0,4"
-									CornerRadius="8"
-									Width="216"
-									HorizontalAlignment="Left"
-									Click="ManageGamesButton_Click">
+				<!-- Navigation Buttons -->
+				<StackPanel Grid.Row="1" Margin="12,0" VerticalAlignment="Top">
+
+						<!-- Continue Button -->
+						<Button x:Name="ContinueButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								Height="64"
+								HorizontalAlignment="Left"
+								Click="ContinueButton_Click"
+								IsVisible="{Binding IsContinueVisible}">
+							<Grid>
+								<asyncImageLoader:AdvancedImage Source="{Binding ContinueGameInfo.DefaultIconUrl}"
+																HorizontalAlignment="Right"
+																Stretch="Uniform"
+																Width="216"
+																Height="64"/>
 								<StackPanel Orientation="Horizontal">
 									<Image Width="32" Height="32" 
-										   Source="avares://N64RecompLauncher/Assets/DefaultGame.png"
+										   Source="avares://N64RecompLauncher/Assets/Continue.png"
 										   Margin="0,0,12,0"/>
-									<TextBlock Text="Manage Games" VerticalAlignment="Center"/>
+									<TextBlock Text="Continue" 
+											  VerticalAlignment="Center"/>
 								</StackPanel>
-							</Button>
+							</Grid>
+						</Button>
 
-							<!-- Settings Button -->
-							<Button x:Name="SettingsButton"
-									Classes="settings"
-									Margin="0,0,0,4"
-									CornerRadius="8"
-									Width="216"
-									HorizontalAlignment="Left"
-									Click="SettingsButton_Click">
-								<StackPanel Orientation="Horizontal">
-									<Image Width="32" Height="32" 
-										   Source="avares://N64RecompLauncher/Assets/Settings.png"
-										   Margin="0,0,12,0"/>
-									<TextBlock Text="Settings" VerticalAlignment="Center"/>
-								</StackPanel>
-							</Button>
+						<!-- Manage Games Button -->
+						<Button x:Name="ManageGamesButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								HorizontalAlignment="Left"
+								Click="ManageGamesButton_Click">
+							<StackPanel Orientation="Horizontal">
+								<Image Width="32" Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/DefaultGame.png"
+									   Margin="0,0,12,0"/>
+								<TextBlock Text="Manage Games" VerticalAlignment="Center"/>
+							</StackPanel>
+						</Button>
 
-							<!-- Check for Updates Button -->
-							<Button x:Name="CheckForUpdatesButton"
-									Classes="settings"
-									Margin="0,0,0,4"
-									CornerRadius="8"
-									Width="216"
-									HorizontalAlignment="Left"
-									Click="CheckforUpdates_Click">
-								<StackPanel Orientation="Horizontal">
-									<Image Width="32" Height="32" 
-										   Source="avares://N64RecompLauncher/Assets/CheckForUpdates.png"
-										   Margin="0,0,12,0"/>
-									<TextBlock Text="Check for Updates" VerticalAlignment="Center"/>
-								</StackPanel>
-							</Button>
-						</StackPanel>
+						<!-- Settings Button -->
+						<Button x:Name="SettingsButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								HorizontalAlignment="Left"
+								Click="SettingsButton_Click">
+							<StackPanel Orientation="Horizontal">
+								<Image Width="32" Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/Settings.png"
+									   Margin="0,0,12,0"/>
+								<TextBlock Text="Settings" VerticalAlignment="Center"/>
+							</StackPanel>
+						</Button>
 
-						<!-- Display Filters -->
-						<StackPanel Grid.Row="1" Margin="12,4,12,4">
+						<!-- Check for Updates Button -->
+						<Button x:Name="CheckForUpdatesButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								HorizontalAlignment="Left"
+								Click="CheckforUpdates_Click">
+							<StackPanel Orientation="Horizontal">
+								<Image Width="32" Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/CheckForUpdates.png"
+									   Margin="0,0,12,0"/>
+								<TextBlock Text="Check for Updates" VerticalAlignment="Center"/>
+							</StackPanel>
+						</Button>
+					</StackPanel>
 
-							<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,15"/>
-					
-							<TextBlock Text="DISPLAY FILTERS"
-									   FontSize="10"
-									   FontWeight="Bold"
-									   Foreground="{DynamicResource ThemeText}"
-									   LetterSpacing="1"
-									   Margin="12,0,0,4"/>
+				<!-- Display Filters Header -->
+				<StackPanel Grid.Row="2" Margin="0,4,0,8">
+					<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,0,0,8"/>
+					<TextBlock Text="DISPLAY FILTERS"
+							   FontSize="10"
+							   FontWeight="Bold"
+							   Foreground="{DynamicResource ThemeText}"
+							   LetterSpacing="1"
+							   Margin="24,0,0,4"/>
+				</StackPanel>
+
+				<!-- Filter Buttons ScrollViewer -->
+				<ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+					<StackPanel Margin="12,0,12,0">
 					
 							<Button x:Name="UnhideAllGamesButton"
 									Classes="settings"
@@ -892,45 +890,44 @@
 								<TextBlock Text="N64Recomp Only"/>
 							</Button>
 						</StackPanel>
-				
-						<!-- Footer Links -->
-						<StackPanel Grid.Row="2" Margin="12,4,12,4">
-							<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,15"/>
-							<Button Classes="iconbutton"
-									Width="216"
-									Height="44"
-									HorizontalAlignment="Left"
-									Click="DiscordButton_Click">
-								<StackPanel Orientation="Horizontal" Margin="12,0">
-									<Image Width="32" Height="32" 
-										   Source="avares://N64RecompLauncher/Assets/Discord.png"
-										   Margin="0,0,12,0"/>
-									<TextBlock Text="Discord" 
-											   Foreground="{DynamicResource ThemeTextSecondary}"
-											   FontSize="14"
-											   FontWeight="Medium"
-											   VerticalAlignment="Center"/>
-								</StackPanel>
-							</Button>
-							<Button Classes="iconbutton"
-									Width="216"
-									Height="44"
-									HorizontalAlignment="Left"
-									Click="GithubButton_Click">
-								<StackPanel Orientation="Horizontal" Margin="12,0">
-									<Image Width="32" Height="32" 
-										   Source="avares://N64RecompLauncher/Assets/Github.png"
-										   Margin="0,0,12,0"/>
-									<TextBlock Text="GitHub" 
-											   Foreground="{DynamicResource ThemeTextSecondary}"
-											   FontSize="14"
-											   FontWeight="Medium"
-											   VerticalAlignment="Center"/>
-								</StackPanel>
-							</Button>
-						</StackPanel>
-					</Grid>
 				</ScrollViewer>
+
+				<!-- Footer Links -->
+				<StackPanel Grid.Row="4" Margin="12,0,12,8">
+						<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,8"/>
+					<Button Classes="iconbutton"
+							Width="216"
+							Height="44"
+							HorizontalAlignment="Left"
+							Click="DiscordButton_Click">
+						<StackPanel Orientation="Horizontal" Margin="12,0">
+							<Image Width="32" Height="32" 
+								   Source="avares://N64RecompLauncher/Assets/Discord.png"
+								   Margin="0,0,12,0"/>
+							<TextBlock Text="Discord" 
+									   Foreground="{DynamicResource ThemeTextSecondary}"
+									   FontSize="14"
+									   FontWeight="Medium"
+									   VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
+					<Button Classes="iconbutton"
+							Width="216"
+							Height="44"
+							HorizontalAlignment="Left"
+							Click="GithubButton_Click">
+						<StackPanel Orientation="Horizontal" Margin="12,0">
+							<Image Width="32" Height="32" 
+								   Source="avares://N64RecompLauncher/Assets/Github.png"
+								   Margin="0,0,12,0"/>
+							<TextBlock Text="GitHub" 
+									   Foreground="{DynamicResource ThemeTextSecondary}"
+									   FontSize="14"
+									   FontWeight="Medium"
+									   VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
+				</StackPanel>
 			</Grid>
 		</Border>
 
