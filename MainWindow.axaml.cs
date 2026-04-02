@@ -3676,6 +3676,13 @@ namespace N64RecompLauncher
                         return;
                     }
 
+                    // Verify a different game doesn't already have the new name
+                    if (folderName != _editingFolderName && games.Any(g => g.FolderName == folderName))
+                    {
+                        _ = ShowMessageBoxAsync("A game with this folder name already exists.", "Duplicate Folder Name");
+                        return;
+                    }
+
                     gameToUpdate.Name = name;
                     gameToUpdate.FolderName = folderName;
                     gameToUpdate.GameIconUrl = iconUrl;
@@ -3763,6 +3770,7 @@ namespace N64RecompLauncher
 
                     _editingGameName = name;
                     _editingGameRepository = repository;
+                    _editingFolderName = folderName;
                 }
                 catch (Exception ex)
                 {
@@ -3773,6 +3781,7 @@ namespace N64RecompLauncher
 
         private string? _editingGameName = null;
         private string? _editingGameRepository = null;
+        private string? _editingFolderName = null;
 
         private async void CancelForm_Click(object sender, RoutedEventArgs e)
         {
@@ -3800,6 +3809,7 @@ namespace N64RecompLauncher
 
             _editingGameName = null;
             _editingGameRepository = null;
+            _editingFolderName = null;
         }
 
         private async void RemoveGameEntry_Click(object sender, RoutedEventArgs e)
