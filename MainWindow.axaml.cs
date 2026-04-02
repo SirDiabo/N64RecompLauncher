@@ -1120,8 +1120,8 @@ namespace N64RecompLauncher
         {
             _settings.IconFill = true;
             _settings.UseGridView = true;
-            _settings.SlotSize = 228;
-            _settings.IconSize = 228;
+            _settings.SlotSize = 220;
+            _settings.IconSize = 220;
             _settings.IconMargin = 0;
             _settings.SlotTextMargin = 0;
             _settings.IconOpacity = 1.0f;
