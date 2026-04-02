@@ -3676,6 +3676,27 @@ namespace N64RecompLauncher
                         return;
                     }
 
+                    // Update folder name if changed, if folder exists
+                    if (gameToUpdate.FolderName != folderName && !string.IsNullOrEmpty(gameToUpdate.FolderName))
+                    {
+                        var oldPath = Path.Combine(_settings.GamesPath, gameToUpdate.FolderName);
+                        var newPath = Path.Combine(_settings.GamesPath, folderName);
+
+                        if (Directory.Exists(oldPath))
+                        {
+                            try
+                            {
+                                Directory.Move(oldPath, newPath);
+                                System.Diagnostics.Debug.WriteLine($"Renamed folder: {gameToUpdate.FolderName} -> {folderName}");
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to rename folder {gameToUpdate.FolderName}: {ex.Message}");
+                                _ = ShowMessageBoxAsync($"Failed to rename folder {gameToUpdate.FolderName}", $"{ex.Message}");
+                            }
+                        }
+                    }
+
                     gameToUpdate.Name = name;
                     gameToUpdate.FolderName = folderName;
                     gameToUpdate.GameIconUrl = iconUrl;
