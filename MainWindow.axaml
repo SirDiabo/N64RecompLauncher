@@ -1,4 +1,4 @@
-﻿<Window x:Class="N64RecompLauncher.MainWindow"
+<Window x:Class="N64RecompLauncher.MainWindow"
 		xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:anim="https://github.com/whistyun/AnimatedImage.Avalonia"
@@ -717,9 +717,10 @@
 			<Grid Margin="0">
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>
 					<RowDefinition Height="*"/>
-					<RowDefinition Height="Auto"/>
-					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>	
 				</Grid.RowDefinitions>
 
 				<!-- Logo/Header -->
@@ -746,150 +747,154 @@
 
 				<!-- Navigation Buttons -->
 				<StackPanel Grid.Row="1" Margin="12,0" VerticalAlignment="Top">
-					
-					<!-- Continue Button -->
-					<Button x:Name="ContinueButton"
-							Classes="settings"
-							Margin="0,0,0,4"
-							CornerRadius="8"
-							Width="216"
-							Height="64"
-							HorizontalAlignment="Left"
-							Click="ContinueButton_Click"
-							IsVisible="{Binding IsContinueVisible}">
-						<Grid>
-							<asyncImageLoader:AdvancedImage Source="{Binding ContinueGameInfo.DefaultIconUrl}"
-															HorizontalAlignment="Right"
-															Stretch="Uniform"
-															Width="216"
-															Height="64"/>
+
+						<!-- Continue Button -->
+						<Button x:Name="ContinueButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								Height="64"
+								HorizontalAlignment="Left"
+								Click="ContinueButton_Click"
+								IsVisible="{Binding IsContinueVisible}">
+							<Grid>
+								<asyncImageLoader:AdvancedImage Source="{Binding ContinueGameInfo.DefaultIconUrl}"
+																HorizontalAlignment="Right"
+																Stretch="Uniform"
+																Width="216"
+																Height="64"/>
+								<StackPanel Orientation="Horizontal">
+									<Image Width="32" Height="32" 
+										   Source="avares://N64RecompLauncher/Assets/Continue.png"
+										   Margin="0,0,12,0"/>
+									<TextBlock Text="Continue" 
+											  VerticalAlignment="Center"/>
+								</StackPanel>
+							</Grid>
+						</Button>
+
+						<!-- Manage Games Button -->
+						<Button x:Name="ManageGamesButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								HorizontalAlignment="Left"
+								Click="ManageGamesButton_Click">
 							<StackPanel Orientation="Horizontal">
 								<Image Width="32" Height="32" 
-									   Source="avares://N64RecompLauncher/Assets/Continue.png"
+									   Source="avares://N64RecompLauncher/Assets/DefaultGame.png"
 									   Margin="0,0,12,0"/>
-								<TextBlock Text="Continue" 
-										  VerticalAlignment="Center"/>
+								<TextBlock Text="Manage Games" VerticalAlignment="Center"/>
 							</StackPanel>
-						</Grid>
-					</Button>
+						</Button>
 
-					<!-- Manage Games Button -->
-					<Button x:Name="ManageGamesButton"
-							Classes="settings"
-							Margin="0,0,0,4"
-							CornerRadius="8"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="ManageGamesButton_Click">
-						<StackPanel Orientation="Horizontal">
-							<Image Width="32" Height="32" 
-								   Source="avares://N64RecompLauncher/Assets/DefaultGame.png"
-								   Margin="0,0,12,0"/>
-							<TextBlock Text="Manage Games" VerticalAlignment="Center"/>
-						</StackPanel>
-					</Button>
+						<!-- Settings Button -->
+						<Button x:Name="SettingsButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								HorizontalAlignment="Left"
+								Click="SettingsButton_Click">
+							<StackPanel Orientation="Horizontal">
+								<Image Width="32" Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/Settings.png"
+									   Margin="0,0,12,0"/>
+								<TextBlock Text="Settings" VerticalAlignment="Center"/>
+							</StackPanel>
+						</Button>
 
-					<!-- Settings Button -->
-					<Button x:Name="SettingsButton"
-							Classes="settings"
-							Margin="0,0,0,4"
-							CornerRadius="8"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="SettingsButton_Click">
-						<StackPanel Orientation="Horizontal">
-							<Image Width="32" Height="32" 
-								   Source="avares://N64RecompLauncher/Assets/Settings.png"
-								   Margin="0,0,12,0"/>
-							<TextBlock Text="Settings" VerticalAlignment="Center"/>
-						</StackPanel>
-					</Button>
+						<!-- Check for Updates Button -->
+						<Button x:Name="CheckForUpdatesButton"
+								Classes="settings"
+								Margin="0,0,0,4"
+								CornerRadius="8"
+								Width="216"
+								HorizontalAlignment="Left"
+								Click="CheckforUpdates_Click">
+							<StackPanel Orientation="Horizontal">
+								<Image Width="32" Height="32" 
+									   Source="avares://N64RecompLauncher/Assets/CheckForUpdates.png"
+									   Margin="0,0,12,0"/>
+								<TextBlock Text="Check for Updates" VerticalAlignment="Center"/>
+							</StackPanel>
+						</Button>
+					</StackPanel>
 
-					<!-- Check for Updates Button -->
-					<Button x:Name="CheckForUpdatesButton"
-							Classes="settings"
-							Margin="0,0,0,4"
-							CornerRadius="8"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="CheckforUpdates_Click">
-						<StackPanel Orientation="Horizontal">
-							<Image Width="32" Height="32" 
-								   Source="avares://N64RecompLauncher/Assets/CheckForUpdates.png"
-								   Margin="0,0,12,0"/>
-							<TextBlock Text="Check for Updates" VerticalAlignment="Center"/>
-						</StackPanel>
-					</Button>
-				</StackPanel>
-
-				<!-- Display Filters -->
-				<StackPanel Grid.Row="2" Margin="12,4,12,4">
-
-					<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,15"/>
-					
+				<!-- Display Filters Header -->
+				<StackPanel Grid.Row="2" Margin="0,4,0,8">
+					<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,0,0,8"/>
 					<TextBlock Text="DISPLAY FILTERS"
 							   FontSize="10"
 							   FontWeight="Bold"
 							   Foreground="{DynamicResource ThemeText}"
 							   LetterSpacing="1"
-							   Margin="12,0,0,4"/>
-					
-					<Button x:Name="UnhideAllGamesButton"
-							Classes="settings"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="UnhideAllGamesButton_Click">
-						<TextBlock Text="All Games"/>
-					</Button>
-
-					<Button x:Name="HideNonInstalledButton"
-							Classes="settings"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="HideNonInstalledButton_Click">
-						<TextBlock Text="Installed Only"/>
-					</Button>
-
-					<Button x:Name="HideNonStableButton"
-							Classes="settings"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="HideNonStableButton_Click"
-							IsVisible="{Binding ShowExperimentalGames}">
-						<TextBlock Text="Stable Only"/>
-					</Button>
-
-					<Button x:Name="OnlyExperimentalGamesButton"
-							Classes="settings"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="OnlyExperimentalGamesButton_Click"
-							IsVisible="{Binding ShowExperimentalGames}">
-						<TextBlock Text="Experimental Only"/>
-					</Button>
-
-					<Button x:Name="OnlyCustomGamesButton"
-							Classes="settings"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="OnlyCustomGamesButton_Click"
-							IsVisible="{Binding ShowCustomGames}">
-						<TextBlock Text="Custom Games Only"/>
-					</Button>
-
-					<Button x:Name="OnlyN64RecompGamesButton"
-							Classes="settings"
-							Width="216"
-							HorizontalAlignment="Left"
-							Click="OnlyN64RecompGamesButton_Click"
-							IsVisible="{Binding ShowCustomGames}">
-						<TextBlock Text="N64Recomp Only"/>
-					</Button>
+							   Margin="24,0,0,4"/>
 				</StackPanel>
-				
+
+				<!-- Filter Buttons ScrollViewer -->
+				<ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+					<StackPanel Margin="12,0,12,0">
+					
+							<Button x:Name="UnhideAllGamesButton"
+									Classes="settings"
+									Width="216"
+									HorizontalAlignment="Left"
+									Click="UnhideAllGamesButton_Click">
+								<TextBlock Text="All Games"/>
+							</Button>
+
+							<Button x:Name="HideNonInstalledButton"
+									Classes="settings"
+									Width="216"
+									HorizontalAlignment="Left"
+									Click="HideNonInstalledButton_Click">
+								<TextBlock Text="Installed Only"/>
+							</Button>
+
+							<Button x:Name="HideNonStableButton"
+									Classes="settings"
+									Width="216"
+									HorizontalAlignment="Left"
+									Click="HideNonStableButton_Click"
+									IsVisible="{Binding ShowExperimentalGames}">
+								<TextBlock Text="Stable Only"/>
+							</Button>
+
+							<Button x:Name="OnlyExperimentalGamesButton"
+									Classes="settings"
+									Width="216"
+									HorizontalAlignment="Left"
+									Click="OnlyExperimentalGamesButton_Click"
+									IsVisible="{Binding ShowExperimentalGames}">
+								<TextBlock Text="Experimental Only"/>
+							</Button>
+
+							<Button x:Name="OnlyCustomGamesButton"
+									Classes="settings"
+									Width="216"
+									HorizontalAlignment="Left"
+									Click="OnlyCustomGamesButton_Click"
+									IsVisible="{Binding ShowCustomGames}">
+								<TextBlock Text="Custom Games Only"/>
+							</Button>
+
+							<Button x:Name="OnlyN64RecompGamesButton"
+									Classes="settings"
+									Width="216"
+									HorizontalAlignment="Left"
+									Click="OnlyN64RecompGamesButton_Click"
+									IsVisible="{Binding ShowCustomGames}">
+								<TextBlock Text="N64Recomp Only"/>
+							</Button>
+						</StackPanel>
+				</ScrollViewer>
+
 				<!-- Footer Links -->
-				<StackPanel Grid.Row="3" Margin="12,4,12,4">
-					<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,15"/>
+				<StackPanel Grid.Row="4" Margin="12,0,12,8">
+						<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="-12,0,-12,8"/>
 					<Button Classes="iconbutton"
 							Width="216"
 							Height="44"

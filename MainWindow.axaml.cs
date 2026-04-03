@@ -1120,8 +1120,8 @@ namespace N64RecompLauncher
         {
             _settings.IconFill = true;
             _settings.UseGridView = true;
-            _settings.SlotSize = 228;
-            _settings.IconSize = 228;
+            _settings.SlotSize = 220;
+            _settings.IconSize = 220;
             _settings.IconMargin = 0;
             _settings.SlotTextMargin = 0;
             _settings.IconOpacity = 1.0f;
@@ -3784,6 +3784,7 @@ namespace N64RecompLauncher
 
                     _editingGameName = name;
                     _editingGameRepository = repository;
+                    _editingFolderName = folderName;
                 }
                 catch (Exception ex)
                 {
@@ -3794,6 +3795,7 @@ namespace N64RecompLauncher
 
         private string? _editingGameName = null;
         private string? _editingGameRepository = null;
+        private string? _editingFolderName = null;
 
         private async void CancelForm_Click(object sender, RoutedEventArgs e)
         {
@@ -3821,6 +3823,7 @@ namespace N64RecompLauncher
 
             _editingGameName = null;
             _editingGameRepository = null;
+            _editingFolderName = null;
         }
 
         private async void RemoveGameEntry_Click(object sender, RoutedEventArgs e)
