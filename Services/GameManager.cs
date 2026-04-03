@@ -784,15 +784,25 @@ namespace N64RecompLauncher.Services
             folderName = "Brawmario.infinite-mario-64-ever",
             gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9b1347ebd516dd05210fcc9e8291b9d1.png" },
         
-        new {name = "Sonic Forever",
+        new {name = "Sonic 1 Forever",
             repository = "ElspethThePict/S1Forever",
             folderName = "ElspethThePict.S1Forever",
             gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/7884a9652e94555c70f96b6be63be216.png" },
-        
+
+        new {name = "Sonic 3 AIR",
+            repository = "Eukaryot/sonic3air",
+            folderName = "Eukaryot.sonic3air",
+            gameIconUrl = "https://cdn2.steamgriddb.com/icon/a70dab11c90d06b809d0be230731762a/32/256x256.png" },
+
         new {name = "Viva Pinata Trouble in Paradise",
             repository = "SolarCookies/TiP-Recomp",
             folderName = "SolarCookies.TiP-Recomp",
-            gameIconUrl = "https://raw.githubusercontent.com/SolarCookies/TiP-Recomp/refs/heads/main/icon/app.ico" }
+            gameIconUrl = "https://raw.githubusercontent.com/SolarCookies/TiP-Recomp/refs/heads/main/icon/app.ico" },
+
+        new {name = "Jak & Daxter",
+            repository = "open-goal/jak-project",
+            folderName = "open-goal.jak-project",
+            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/48ecd78598456095d654c9196f973b00.png" }
     };
 
             return (standard, experimental, custom);
