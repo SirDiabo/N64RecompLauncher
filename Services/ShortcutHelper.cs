@@ -6,11 +6,16 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace N64RecompLauncher.Services
 {
     public static class ShortcutHelper
     {
+        private const string LauncherSteamTag = "N64 Recomp Launcher";
+
         public static void CreateGameShortcut(GameInfo game, string launcherPath, string? cacheDirectory)
         {
             if (string.IsNullOrWhiteSpace(game?.Name))
@@ -31,6 +36,128 @@ namespace N64RecompLauncher.Services
             {
                 throw new PlatformNotSupportedException("macOS shortcuts not yet implemented");
             }
+        }
+
+        public static string AddGameToSteam(GameInfo game, string launcherPath, string? cacheDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(game?.Name))
+                throw new ArgumentException("Game name is required.", nameof(game));
+
+            if (string.IsNullOrWhiteSpace(launcherPath))
+                throw new ArgumentException("Launcher path is required.", nameof(launcherPath));
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                !RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                throw new PlatformNotSupportedException("Adding non-Steam shortcuts is currently supported on Windows and Linux only.");
+            }
+
+            if (IsSteamRunning())
+                throw new InvalidOperationException("Steam is still running.");
+
+            return AddGameToSteamInternal(game, launcherPath, cacheDirectory);
+        }
+
+        public static string QueueGameAddToSteam(GameInfo game, string launcherPath)
+        {
+            if (string.IsNullOrWhiteSpace(game?.Name))
+                throw new ArgumentException("Game name is required.", nameof(game));
+
+            if (string.IsNullOrWhiteSpace(launcherPath))
+                throw new ArgumentException("Launcher path is required.", nameof(launcherPath));
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = launcherPath,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            startInfo.ArgumentList.Add("--add-steam-shortcut");
+            startInfo.ArgumentList.Add(game.Name);
+            startInfo.ArgumentList.Add("--wait-for-steam-exit");
+
+            using var process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("Could not start the Steam shortcut worker.");
+
+            return $"Queued {game.Name} for Steam. Restart Steam once and the shortcut will be written after Steam fully closes.";
+        }
+
+        public static async Task<string> AddGameToSteamFromCliAsync(GameInfo game, string launcherPath, string? cacheDirectory, bool waitForSteamExit)
+        {
+            if (waitForSteamExit)
+            {
+                await WaitForSteamExitAsync().ConfigureAwait(false);
+            }
+            else if (IsSteamRunning())
+            {
+                throw new InvalidOperationException("Steam must be closed before modifying shortcuts.vdf.");
+            }
+
+            return AddGameToSteamInternal(game, launcherPath, cacheDirectory);
+        }
+
+        private static string AddGameToSteamInternal(GameInfo game, string launcherPath, string? cacheDirectory)
+        {
+            string? configDirectory = FindSteamConfigDirectory();
+            if (string.IsNullOrWhiteSpace(configDirectory))
+            {
+                throw new DirectoryNotFoundException("Could not find a Steam userdata config directory. Open Steam at least once on this device first.");
+            }
+
+            Directory.CreateDirectory(configDirectory);
+
+            string shortcutsPath = Path.Combine(configDirectory, "shortcuts.vdf");
+            string? iconPath = PrepareIcon(game, cacheDirectory);
+            var root = File.Exists(shortcutsPath)
+                ? ReadSteamShortcuts(shortcutsPath)
+                : CreateEmptySteamShortcutsRoot();
+
+            var shortcutsObject = EnsureObject(root, "shortcuts");
+            string launchOptions = BuildSteamLaunchOptions(game.Name!);
+            string quotedLauncherPath = QuoteSteamPath(launcherPath);
+            string startDir = Path.GetDirectoryName(launcherPath) ?? AppContext.BaseDirectory;
+            int appId = CalculateSteamShortcutAppId(quotedLauncherPath, game.Name!);
+
+            var existingEntry = FindMatchingSteamEntry(shortcutsObject, game.Name!, launchOptions);
+            bool updated = existingEntry != null;
+
+            var shortcutEntry = existingEntry ?? new SteamObject();
+            SetShortcutInt(shortcutEntry, "appid", appId);
+            SetShortcutString(shortcutEntry, "appname", game.Name!);
+            SetShortcutString(shortcutEntry, "exe", quotedLauncherPath);
+            SetShortcutString(shortcutEntry, "StartDir", startDir);
+            SetShortcutString(shortcutEntry, "icon", iconPath ?? string.Empty);
+            SetShortcutString(shortcutEntry, "ShortcutPath", string.Empty);
+            SetShortcutString(shortcutEntry, "LaunchOptions", launchOptions);
+            SetShortcutInt(shortcutEntry, "IsHidden", 0);
+            SetShortcutInt(shortcutEntry, "AllowDesktopConfig", 1);
+            SetShortcutInt(shortcutEntry, "AllowOverlay", 1);
+            SetShortcutInt(shortcutEntry, "OpenVR", 0);
+            SetShortcutInt(shortcutEntry, "Devkit", 0);
+            SetShortcutString(shortcutEntry, "DevkitGameID", string.Empty);
+            SetShortcutInt(shortcutEntry, "DevkitOverrideAppID", 0);
+            SetShortcutInt(shortcutEntry, "LastPlayTime", 0);
+            SetShortcutString(shortcutEntry, "FlatpakAppID", string.Empty);
+            SetShortcutString(shortcutEntry, "sortas", string.Empty);
+
+            var tags = EnsureObject(shortcutEntry, "tags");
+            tags.Properties.Clear();
+            tags.Properties.Add(new KeyValuePair<string, SteamValue>("0", new SteamString(LauncherSteamTag)));
+
+            if (!updated)
+            {
+                shortcutsObject.Properties.Add(new KeyValuePair<string, SteamValue>(
+                    GetNextShortcutIndex(shortcutsObject).ToString(),
+                    shortcutEntry));
+            }
+
+            NormalizeShortcutIndices(shortcutsObject);
+            WriteSteamShortcuts(shortcutsPath, root);
+
+            return updated
+                ? "Updated the Steam shortcut. Restart Steam or return to Game Mode to refresh your library."
+                : "Added the game to Steam. Restart Steam or return to Game Mode to refresh your library.";
         }
 
         private static string? PrepareIcon(GameInfo game, string? cacheDirectory)
@@ -202,6 +329,345 @@ namespace N64RecompLauncher.Services
                 name = name.Replace(c.ToString(), "");
             }
             return name;
+        }
+
+        private static string BuildSteamLaunchOptions(string gameName)
+        {
+            string escapedGameName = gameName.Replace("\"", string.Empty);
+            return $"--run \"{escapedGameName}\"";
+        }
+
+        private static int CalculateSteamShortcutAppId(string quotedLauncherPath, string gameName)
+        {
+            string identity = $"{quotedLauncherPath}{gameName}";
+            uint crc = ComputeCrc32(Encoding.UTF8.GetBytes(identity));
+
+            crc |= 0x80000000;
+
+            if (crc == 0x80000000)
+                crc = 0x80000001;
+
+            return unchecked((int)crc);
+        }
+
+        private static uint ComputeCrc32(byte[] data)
+        {
+            uint crc = 0xFFFFFFFF;
+
+            foreach (byte value in data)
+            {
+                crc ^= value;
+                for (int bit = 0; bit < 8; bit++)
+                {
+                    bool lsbSet = (crc & 1) != 0;
+                    crc >>= 1;
+                    if (lsbSet)
+                    {
+                        crc ^= 0xEDB88320;
+                    }
+                }
+            }
+
+            return ~crc;
+        }
+
+        private static string QuoteSteamPath(string path)
+        {
+            return $"\"{path.Replace("\"", string.Empty)}\"";
+        }
+
+        public static bool IsSteamRunning()
+        {
+            try
+            {
+                return Process.GetProcessesByName("steam").Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static async Task WaitForSteamExitAsync()
+        {
+            while (IsSteamRunning())
+            {
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+
+            // Give Steam a moment to finish flushing its own config writes.
+            await Task.Delay(1000).ConfigureAwait(false);
+        }
+
+        private static string? FindSteamConfigDirectory()
+        {
+            var candidates = GetSteamUserdataRoots()
+                .Where(Directory.Exists)
+                .SelectMany(root =>
+                {
+                    try
+                    {
+                        return Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly);
+                    }
+                    catch
+                    {
+                        return Array.Empty<string>();
+                    }
+                })
+                .Where(path => Path.GetFileName(path).All(char.IsDigit))
+                .Select(path => Path.Combine(path, "config"))
+                .ToList();
+
+            if (candidates.Count == 0)
+                return null;
+
+            return candidates
+                .OrderByDescending(GetSteamConfigSortTime)
+                .FirstOrDefault();
+        }
+
+        private static IEnumerable<string> GetSteamUserdataRoots()
+        {
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+                var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+                return new[]
+                {
+                    Path.Combine(programFilesX86, "Steam", "userdata"),
+                    Path.Combine(programFiles, "Steam", "userdata"),
+                    Path.Combine(localAppData, "Steam", "userdata")
+                }.Distinct(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return new[]
+            {
+                Path.Combine(userProfile, ".steam", "steam", "userdata"),
+                Path.Combine(userProfile, ".local", "share", "Steam", "userdata"),
+                Path.Combine(userProfile, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "userdata")
+            }.Distinct(StringComparer.Ordinal);
+        }
+
+        private static DateTime GetSteamConfigSortTime(string configDirectory)
+        {
+            try
+            {
+                string shortcutsPath = Path.Combine(configDirectory, "shortcuts.vdf");
+                if (File.Exists(shortcutsPath))
+                    return File.GetLastWriteTimeUtc(shortcutsPath);
+
+                return Directory.GetLastWriteTimeUtc(configDirectory);
+            }
+            catch
+            {
+                return DateTime.MinValue;
+            }
+        }
+
+        private static SteamObject CreateEmptySteamShortcutsRoot()
+        {
+            var root = new SteamObject();
+            root.Properties.Add(new KeyValuePair<string, SteamValue>("shortcuts", new SteamObject()));
+            return root;
+        }
+
+        private static SteamObject ReadSteamShortcuts(string shortcutsPath)
+        {
+            using var stream = new FileStream(shortcutsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: false);
+            return ReadSteamObject(reader);
+        }
+
+        private static SteamObject ReadSteamObject(BinaryReader reader)
+        {
+            var result = new SteamObject();
+
+            while (reader.BaseStream.Position < reader.BaseStream.Length)
+            {
+                byte entryType = reader.ReadByte();
+                if (entryType == 0x08)
+                    break;
+
+                string key = ReadNullTerminatedString(reader);
+                SteamValue value = entryType switch
+                {
+                    0x00 => ReadSteamObject(reader),
+                    0x01 => new SteamString(ReadNullTerminatedString(reader)),
+                    0x02 => new SteamInt(reader.ReadInt32()),
+                    _ => throw new InvalidDataException($"Unsupported Steam shortcut entry type: 0x{entryType:X2}")
+                };
+
+                result.Properties.Add(new KeyValuePair<string, SteamValue>(key, value));
+            }
+
+            return result;
+        }
+
+        private static string ReadNullTerminatedString(BinaryReader reader)
+        {
+            using var stream = new MemoryStream();
+
+            while (reader.BaseStream.Position < reader.BaseStream.Length)
+            {
+                byte next = reader.ReadByte();
+                if (next == 0x00)
+                    break;
+
+                stream.WriteByte(next);
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        private static void WriteSteamShortcuts(string shortcutsPath, SteamObject rootValue)
+        {
+            using var stream = new FileStream(shortcutsPath, FileMode.Create, FileAccess.Write, FileShare.Read);
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: false);
+            WriteSteamObject(writer, rootValue);
+            writer.Flush();
+        }
+
+        private static void WriteSteamObject(BinaryWriter writer, SteamObject value)
+        {
+            foreach (var property in value.Properties)
+            {
+                switch (property.Value)
+                {
+                    case SteamObject nestedObject:
+                        writer.Write((byte)0x00);
+                        WriteNullTerminatedString(writer, property.Key);
+                        WriteSteamObject(writer, nestedObject);
+                        break;
+                    case SteamString stringValue:
+                        writer.Write((byte)0x01);
+                        WriteNullTerminatedString(writer, property.Key);
+                        WriteNullTerminatedString(writer, stringValue.Value);
+                        break;
+                    case SteamInt intValue:
+                        writer.Write((byte)0x02);
+                        WriteNullTerminatedString(writer, property.Key);
+                        writer.Write(intValue.Value);
+                        break;
+                    default:
+                        throw new InvalidDataException($"Unsupported Steam shortcut value type: {property.Value.GetType().Name}");
+                }
+            }
+
+            writer.Write((byte)0x08);
+        }
+
+        private static void WriteNullTerminatedString(BinaryWriter writer, string value)
+        {
+            writer.Write(Encoding.UTF8.GetBytes(value));
+            writer.Write((byte)0x00);
+        }
+
+        private static SteamObject? FindMatchingSteamEntry(SteamObject shortcutsObject, string gameName, string launchOptions)
+        {
+            foreach (var property in shortcutsObject.Properties)
+            {
+                if (property.Value is not SteamObject shortcut)
+                    continue;
+
+                string? existingName = GetShortcutString(shortcut, "appname");
+                string? existingOptions = GetShortcutString(shortcut, "LaunchOptions");
+                var tags = TryGetObject(shortcut, "tags");
+                bool hasLauncherTag = tags?.Properties.Any(p => p.Value is SteamString tag && string.Equals(tag.Value, LauncherSteamTag, StringComparison.Ordinal)) == true;
+
+                if (string.Equals(existingName, gameName, StringComparison.Ordinal) &&
+                    (string.Equals(existingOptions, launchOptions, StringComparison.Ordinal) || hasLauncherTag))
+                {
+                    return shortcut;
+                }
+            }
+
+            return null;
+        }
+
+        private static int GetNextShortcutIndex(SteamObject shortcutsObject)
+        {
+            int maxIndex = -1;
+            foreach (var property in shortcutsObject.Properties)
+            {
+                if (int.TryParse(property.Key, out int index) && index > maxIndex)
+                {
+                    maxIndex = index;
+                }
+            }
+
+            return maxIndex + 1;
+        }
+
+        private static void NormalizeShortcutIndices(SteamObject shortcutsObject)
+        {
+            for (int i = 0; i < shortcutsObject.Properties.Count; i++)
+            {
+                shortcutsObject.Properties[i] =
+                    new KeyValuePair<string, SteamValue>(i.ToString(), shortcutsObject.Properties[i].Value);
+            }
+        }
+
+        private static string? GetShortcutString(SteamObject shortcut, string key)
+        {
+            return shortcut.Properties
+                .FirstOrDefault(property => string.Equals(property.Key, key, StringComparison.Ordinal))
+                .Value is SteamString stringValue
+                ? stringValue.Value
+                : null;
+        }
+
+        private static void SetShortcutString(SteamObject shortcut, string key, string value)
+        {
+            SetShortcutValue(shortcut, key, new SteamString(value));
+        }
+
+        private static void SetShortcutInt(SteamObject shortcut, string key, int value)
+        {
+            SetShortcutValue(shortcut, key, new SteamInt(value));
+        }
+
+        private static void SetShortcutValue(SteamObject shortcut, string key, SteamValue value)
+        {
+            for (int i = 0; i < shortcut.Properties.Count; i++)
+            {
+                if (string.Equals(shortcut.Properties[i].Key, key, StringComparison.Ordinal))
+                {
+                    shortcut.Properties[i] = new KeyValuePair<string, SteamValue>(key, value);
+                    return;
+                }
+            }
+
+            shortcut.Properties.Add(new KeyValuePair<string, SteamValue>(key, value));
+        }
+
+        private static SteamObject EnsureObject(SteamObject shortcut, string key)
+        {
+            var existing = TryGetObject(shortcut, key);
+            if (existing != null)
+                return existing;
+
+            var created = new SteamObject();
+            shortcut.Properties.Add(new KeyValuePair<string, SteamValue>(key, created));
+            return created;
+        }
+
+        private static SteamObject? TryGetObject(SteamObject shortcut, string key)
+        {
+            return shortcut.Properties
+                .FirstOrDefault(property => string.Equals(property.Key, key, StringComparison.Ordinal))
+                .Value as SteamObject;
+        }
+
+        private abstract record SteamValue;
+        private sealed record SteamString(string Value) : SteamValue;
+        private sealed record SteamInt(int Value) : SteamValue;
+        private sealed record SteamObject : SteamValue
+        {
+            public List<KeyValuePair<string, SteamValue>> Properties { get; } = [];
         }
     }
 }

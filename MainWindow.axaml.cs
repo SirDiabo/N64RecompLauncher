@@ -5021,6 +5021,41 @@ namespace N64RecompLauncher
             }
         }
 
+        private async void AddToSteam_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null)
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            try
+            {
+                string launcherPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                if (string.IsNullOrEmpty(launcherPath))
+                {
+                    await ShowMessageBoxAsync("Could not determine launcher location.", "Error");
+                    return;
+                }
+
+                string resultMessage = N64RecompLauncher.Services.ShortcutHelper.IsSteamRunning()
+                    ? N64RecompLauncher.Services.ShortcutHelper.QueueGameAddToSteam(game, launcherPath)
+                    : N64RecompLauncher.Services.ShortcutHelper.AddGameToSteam(
+                        game,
+                        launcherPath,
+                        _gameManager.CacheFolder);
+
+                await ShowMessageBoxAsync(resultMessage, "Steam Shortcut");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to add the game to Steam: {ex.Message}", "Error");
+            }
+        }
+
         public new event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = "")

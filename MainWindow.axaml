@@ -134,6 +134,10 @@
 												  Click="CreateShortcut_Click"
 												  IsVisible="{Binding IsInstalled}"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Add to Steam"
+												  Click="AddToSteam_Click"
+												  IsVisible="{Binding IsInstalled}"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Delete"
 												  Click="DeleteGameFromLibrary_Click"
 												  IsVisible="{Binding IsInstalled}"
@@ -237,6 +241,10 @@
 											  IsVisible="{Binding HasStoredExecutable}"/>
 									<MenuItem Header="Create Desktop Shortcut"
 											  Click="CreateShortcut_Click"
+											  IsVisible="{Binding IsInstalled}"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Add to Steam"
+											  Click="AddToSteam_Click"
 											  IsVisible="{Binding IsInstalled}"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Delete"

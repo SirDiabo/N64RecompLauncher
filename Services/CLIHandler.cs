@@ -39,6 +39,10 @@ namespace N64RecompLauncher
             {
                 switch (command)
                 {
+                    case "--add-steam-shortcut":
+                        await InitializeGameManager();
+                        return await AddSteamShortcutCommand(args);
+
                     case "-h":
                     case "--help":
                         ClearTerminal();
@@ -134,6 +138,11 @@ namespace N64RecompLauncher
         {
             if (args.Length < 2) return string.Empty;
             return string.Join(" ", args.Skip(1)).Trim('"', '\'');
+        }
+
+        private static string GetExactArg(string[] args, int index)
+        {
+            return args.Length > index ? args[index] : string.Empty;
         }
 
         private void LoadVersion()
@@ -247,6 +256,43 @@ namespace N64RecompLauncher
             Console.WriteLine("  N64RecompLauncher --run Banjo64");
             Console.WriteLine("  N64RecompLauncher -r \"Mario Kart 64\"");
             Console.WriteLine();
+        }
+
+        private async Task<int> AddSteamShortcutCommand(string[] args)
+        {
+            if (_gameManager?.Games == null)
+                return PrintError("Game library is not available.");
+
+            string gameName = GetExactArg(args, 1).Trim('"', '\'');
+            bool waitForSteamExit = args.Any(arg => string.Equals(arg, "--wait-for-steam-exit", StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrWhiteSpace(gameName))
+                return PrintError("No game name was provided for --add-steam-shortcut.");
+
+            var game = _gameManager.Games
+                .FirstOrDefault(g => string.Equals(g?.Name, gameName, StringComparison.Ordinal));
+
+            if (game == null)
+                return PrintError($"Could not find a game named '{gameName}'.");
+
+            try
+            {
+                string launcherPath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(launcherPath))
+                    return PrintError("Could not determine launcher location.");
+
+                await ShortcutHelper.AddGameToSteamFromCliAsync(
+                    game,
+                    launcherPath,
+                    _gameManager.CacheFolder,
+                    waitForSteamExit);
+
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                return PrintError($"Failed to add Steam shortcut: {ex.Message}");
+            }
         }
 
         private async Task<int> ListGames()
