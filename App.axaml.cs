@@ -133,9 +133,11 @@ public class App : Application, INotifyPropertyChanged
     private const string Repository = "SirDiabo/N64RecompLauncher";
     private const string VersionFileName = "version.txt";
     private const string UpdateCheckFileName = "update_check.json";
+    private const string BackupDirectoryPrefix = "backup_";
 
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan StaleBackupCleanupThreshold = TimeSpan.FromMinutes(10);
 
     public override void Initialize()
     {
@@ -144,6 +146,8 @@ public class App : Application, INotifyPropertyChanged
 
     public override void OnFrameworkInitializationCompleted()
     {
+        CleanupStaleUpdateBackups();
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow
@@ -161,6 +165,38 @@ public class App : Application, INotifyPropertyChanged
                 _hasCheckedForAppUpdates = true;
                 Task.Run(async () => await CheckForUpdatesAndApplyAsync(isManualCheck: false));
             }
+        }
+    }
+
+    private static void CleanupStaleUpdateBackups()
+    {
+        try
+        {
+            string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            DateTime cutoff = DateTime.UtcNow - StaleBackupCleanupThreshold;
+
+            foreach (string directory in Directory.EnumerateDirectories(currentAppDirectory, BackupDirectoryPrefix + "*", SearchOption.TopDirectoryOnly))
+            {
+                try
+                {
+                    DateTime lastWriteUtc = Directory.GetLastWriteTimeUtc(directory);
+                    if (lastWriteUtc > cutoff)
+                    {
+                        continue;
+                    }
+
+                    Directory.Delete(directory, recursive: true);
+                    Trace.WriteLine($"Deleted stale update backup directory: {directory}");
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine($"Failed to delete stale update backup directory '{directory}': {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"Failed to scan for stale update backups: {ex.Message}");
         }
     }
 
@@ -990,14 +1026,15 @@ echo Updating version info...
 echo {{""CurrentVersion"":""{latestRelease.tag_name}"",""LastCheckTime"":""{DateTime.UtcNow:o}"",""LastKnownVersion"":""{latestRelease.tag_name}"",""ETag"":"""",""UpdateAvailable"":false}} > ""{updateCheckFilePath}""
 
 echo Update completed successfully!
-echo Deleting backup...
-rmdir /S /Q ""%backupDir%"" >nul 2>&1
-
 echo Restarting N64RecompLauncher...
 start """" ""{applicationExecutable}""
 
 :cleanup
 echo Cleaning up temporary files...
+if exist ""%backupDir%"" (
+    echo Deleting backup...
+    rmdir /S /Q ""%backupDir%"" >nul 2>&1
+)
 if exist ""{tempDownloadPath}"" del ""{tempDownloadPath}"" >nul 2>&1
 if exist ""%updateDir%"" rmdir /S /Q ""%updateDir%"" >nul 2>&1
 
@@ -1058,6 +1095,11 @@ else
     echo ""Update failed! Restoring backup...""
     cp -r ""$backupDir""/* ""$appDir""/ 2>/dev/null || true
     echo ""Backup restored. Update failed.""
+    echo ""Deleting backup...""
+    rm -rf ""$backupDir"" 2>/dev/null || true
+    echo ""Cleaning up temporary files...""
+    rm -f ""{tempDownloadPath}"" 2>/dev/null || true
+    rm -rf ""$updateDir"" 2>/dev/null || true
     read -p ""Press Enter to continue...""
     exit 1
 fi
