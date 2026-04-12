@@ -967,21 +967,22 @@ public class App : Application, INotifyPropertyChanged
 
     private async Task CreateAndRunUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo)
     {
+        int currentProcessId = Environment.ProcessId;
         string applicationExecutable = Process.GetCurrentProcess().MainModule?.FileName
             ?? throw new InvalidOperationException("Could not determine the current application executable path.");
         string backupDir = Path.Combine(currentAppDirectory, "backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            await CreateWindowsUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, updateCheckInfo, applicationExecutable, backupDir);
+            await CreateWindowsUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, updateCheckInfo, applicationExecutable, backupDir, currentProcessId);
         }
         else
         {
-            await CreateUnixUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, updateCheckInfo, applicationExecutable, backupDir);
+            await CreateUnixUpdaterScript(latestRelease, tempUpdateFolder, tempDownloadPath, currentAppDirectory, updateCheckInfo, applicationExecutable, backupDir, currentProcessId);
         }
     }
 
-    private async Task CreateWindowsUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo, string applicationExecutable, string backupDir)
+    private async Task CreateWindowsUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo, string applicationExecutable, string backupDir, int currentProcessId)
     {
         string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
         string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
@@ -992,7 +993,7 @@ echo.
 
 echo Waiting for N64RecompLauncher to close...
 :wait_loop
-tasklist /FI ""IMAGENAME eq {Path.GetFileName(applicationExecutable)}"" 2>NUL | find /I /N ""{Path.GetFileName(applicationExecutable)}"">NUL
+tasklist /FI ""PID eq {currentProcessId}"" 2>NUL | find /I ""{currentProcessId}"">NUL
 if ""%ERRORLEVEL%""==""0"" (
     timeout /T 1 >NUL
     goto wait_loop
@@ -1058,10 +1059,9 @@ del ""%~f0""
         }
     }
 
-    private async Task CreateUnixUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo, string applicationExecutable, string backupDir)
+    private async Task CreateUnixUpdaterScript(GitHubRelease latestRelease, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory, UpdateCheckInfo updateCheckInfo, string applicationExecutable, string backupDir, int currentProcessId)
     {
         string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.sh");
-        string executableName = Path.GetFileName(applicationExecutable);
         string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
 
         bool isMacAppBundle = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
@@ -1072,7 +1072,7 @@ echo ""N64RecompLauncher Updater - Version {latestRelease.tag_name}""
 echo
 
 echo ""Waiting for N64RecompLauncher to close...""
-while pgrep -x ""{executableName}"" > /dev/null; do
+while kill -0 {currentProcessId} 2>/dev/null; do
     sleep 1
 done
 
