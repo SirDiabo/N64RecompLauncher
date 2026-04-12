@@ -1,4 +1,4 @@
-﻿using N64RecompLauncher.Models;
+using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
 using System;
 using System.ComponentModel;
@@ -397,7 +397,11 @@ namespace N64RecompLauncher
                     executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.AllDirectories, out _);
                 }
 
-                if (executables.Count > 1)
+                if (executables.Count == 0)
+                {
+                    return PrintError($"No executable found for {game.Name} in {gamePath}.\nThe game may not have installed correctly, or it's an unsupported format.");
+                }
+                else if (executables.Count > 1)
                 {
                     WriteColor($"⚠ Multiple executables found for {game.Name}.", ColorWarning);
                     Console.WriteLine();

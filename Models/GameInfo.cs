@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
@@ -526,6 +526,15 @@ namespace N64RecompLauncher.Models
                     }
 
                     await messageBox.ShowDialog(desktop.MainWindow);
+                }
+                else
+                {
+                    Console.WriteLine();
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"ERROR: {title}");
+                    Console.ResetColor();
+                    Console.WriteLine(message);
+                    Console.WriteLine();
                 }
             });
         }
@@ -1137,7 +1146,7 @@ namespace N64RecompLauncher.Models
                         File.Create(portableFilePath).Close();
                     }
 
-                    Launch(gamesFolder);
+                    await LaunchAsync(gamesFolder);
                     break;
             }
         }
@@ -2460,7 +2469,7 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        private async void Launch(string gamesFolder)
+        private async Task LaunchAsync(string gamesFolder)
         {
             if (string.IsNullOrEmpty(FolderName))
             {
