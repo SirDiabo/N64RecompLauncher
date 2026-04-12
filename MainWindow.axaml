@@ -68,6 +68,16 @@
 										   FontSize="12"
 										   Foreground="{DynamicResource ThemeTextSecondary}"/>
 							</StackPanel>
+							<StackPanel Orientation="Horizontal"
+										IsVisible="{Binding HasPreferredVersion}">
+								<TextBlock Text="Preferred: "
+										   FontSize="12"
+										   Foreground="{DynamicResource ThemeTextSecondary}"/>
+
+								<TextBlock Text="{Binding PreferredVersion}"
+										   FontSize="12"
+										   Foreground="{DynamicResource ThemeTextSecondary}"/>
+							</StackPanel>
 						</StackPanel>
 						
 						<!-- Gamecard: Options -->
@@ -97,11 +107,19 @@
 										<MenuItem Header="Launch"
 												  Click="LaunchGameMenu_Click"
 												  CommandParameter="{Binding}"
-												  IsVisible="{Binding IsInstalled}"/>
+												  IsVisible="{Binding CanLaunch}"/>
 										<MenuItem Header="Download"
 												  Click="LaunchGameMenu_Click"
 												  CommandParameter="{Binding}"
-												  IsVisible="{Binding !IsInstalled}"/>
+												  IsVisible="{Binding CanDownload}"/>
+										<MenuItem Header="Update Now"
+												  Click="UpdateNowMenu_Click"
+												  CommandParameter="{Binding}"
+												  IsVisible="{Binding CanUpdate}"/>
+										<MenuItem Header="Skip Update"
+												  Click="SkipUpdate_Click"
+												  CommandParameter="{Binding}"
+												  IsVisible="{Binding CanSkipUpdate}"/>
 										<MenuItem Header="Open GitHub Page"
 												  Click="OpenGitHubPage_Click"
 												  CommandParameter="{Binding}"/>
@@ -142,6 +160,10 @@
 												  Click="AddToSteam_Click"
 												  IsVisible="{Binding IsInstalled}"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Change Version"
+												  Click="ChangeVersion_Click"
+												  CommandParameter="{Binding}"
+												  IsVisible="{Binding CanChangeVersion}"/>
 										<MenuItem Header="Delete"
 												  Click="DeleteGameFromLibrary_Click"
 												  IsVisible="{Binding IsInstalled}"
@@ -210,11 +232,19 @@
 									<MenuItem Header="Launch"
 											  Click="LaunchGameMenu_Click"
 											  CommandParameter="{Binding}"
-											  IsVisible="{Binding IsInstalled}"/>
+											  IsVisible="{Binding CanLaunch}"/>
 									<MenuItem Header="Download"
 											  Click="LaunchGameMenu_Click"
 											  CommandParameter="{Binding}"
-											  IsVisible="{Binding !IsInstalled}"/>
+											  IsVisible="{Binding CanDownload}"/>
+									<MenuItem Header="Update Now"
+											  Click="UpdateNowMenu_Click"
+											  CommandParameter="{Binding}"
+											  IsVisible="{Binding CanUpdate}"/>
+									<MenuItem Header="Skip Update"
+											  Click="SkipUpdate_Click"
+											  CommandParameter="{Binding}"
+											  IsVisible="{Binding CanSkipUpdate}"/>
 									<MenuItem Header="Open GitHub Page"
 											  Click="OpenGitHubPage_Click"
 											  CommandParameter="{Binding}"/>
@@ -255,6 +285,10 @@
 											  Click="AddToSteam_Click"
 											  IsVisible="{Binding IsInstalled}"
 											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Change Version"
+											  Click="ChangeVersion_Click"
+											  CommandParameter="{Binding}"
+											  IsVisible="{Binding CanChangeVersion}"/>
 									<MenuItem Header="Delete"
 											  Click="DeleteGameFromLibrary_Click"
 											  IsVisible="{Binding IsInstalled}"
@@ -324,6 +358,14 @@
 							<TextBlock FontSize="10" Foreground="{DynamicResource ThemeTextSecondary}" TextWrapping="Wrap" TextAlignment="Left">
 								<Run Text="Latest: "/>
 								<Run Text="{Binding LatestVersion}" Foreground="{DynamicResource ThemeTextSecondary}"/>
+							</TextBlock>
+							<TextBlock FontSize="10"
+									   Foreground="{DynamicResource ThemeTextSecondary}"
+									   TextWrapping="Wrap"
+									   TextAlignment="Left"
+									   IsVisible="{Binding HasPreferredVersion}">
+								<Run Text="Preferred: "/>
+								<Run Text="{Binding PreferredVersion}" Foreground="{DynamicResource ThemeTextSecondary}"/>
 							</TextBlock>
 						</StackPanel>
 					</Grid>

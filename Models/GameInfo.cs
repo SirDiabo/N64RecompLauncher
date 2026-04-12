@@ -150,6 +150,8 @@ namespace N64RecompLauncher.Models
         public event Action<Process?>? GameProcessStarted;
         private string? _latestVersion;
         private string? _installedVersion;
+        private string? _preferredVersion;
+        private string? _skippedUpdateVersion;
         private GameStatus _status = GameStatus.NotInstalled;
         private bool _isLoading;
         private GitHubRelease? _cachedRelease;
@@ -303,6 +305,14 @@ namespace N64RecompLauncher.Models
                        Status == GameStatus.UpdateAvailable;
             }
         }
+
+        public bool CanLaunch => Status == GameStatus.Installed;
+        public bool CanDownload => Status == GameStatus.NotInstalled;
+        public bool CanUpdate => Status == GameStatus.UpdateAvailable;
+        public bool CanSkipUpdate => Status == GameStatus.UpdateAvailable;
+        public bool CanChangeVersion => !string.IsNullOrWhiteSpace(Repository);
+        public bool HasPreferredVersion => !string.IsNullOrWhiteSpace(PreferredVersion);
+
         public string? LatestVersion
         {
             get => _latestVersion;
@@ -311,7 +321,16 @@ namespace N64RecompLauncher.Models
                 if (_latestVersion != value)
                 {
                     _latestVersion = value;
+
+                    if (AreVersionsEquivalent(_preferredVersion, _latestVersion))
+                    {
+                        _preferredVersion = null;
+                        DispatchPropertyChanged(nameof(PreferredVersion));
+                        DispatchPropertyChanged(nameof(HasPreferredVersion));
+                    }
+
                     DispatchPropertyChanged();
+                    DispatchPropertyChanged(nameof(StatusText));
                 }
             }
         }
@@ -324,6 +343,39 @@ namespace N64RecompLauncher.Models
                 if (_installedVersion != value)
                 {
                     _installedVersion = value;
+                    DispatchPropertyChanged();
+                    DispatchPropertyChanged(nameof(StatusText));
+                }
+            }
+        }
+
+        public string? PreferredVersion
+        {
+            get => _preferredVersion;
+            set
+            {
+                if (AreVersionsEquivalent(value, LatestVersion))
+                {
+                    value = null;
+                }
+
+                if (_preferredVersion != value)
+                {
+                    _preferredVersion = value;
+                    DispatchPropertyChanged();
+                    DispatchPropertyChanged(nameof(HasPreferredVersion));
+                }
+            }
+        }
+
+        public string? SkippedUpdateVersion
+        {
+            get => _skippedUpdateVersion;
+            set
+            {
+                if (_skippedUpdateVersion != value)
+                {
+                    _skippedUpdateVersion = value;
                     DispatchPropertyChanged();
                     DispatchPropertyChanged(nameof(StatusText));
                 }
@@ -344,6 +396,10 @@ namespace N64RecompLauncher.Models
                     DispatchPropertyChanged(nameof(ButtonColor));
                     DispatchPropertyChanged(nameof(StatusText));
                     DispatchPropertyChanged(nameof(IsInstalled));
+                    DispatchPropertyChanged(nameof(CanLaunch));
+                    DispatchPropertyChanged(nameof(CanDownload));
+                    DispatchPropertyChanged(nameof(CanUpdate));
+                    DispatchPropertyChanged(nameof(CanSkipUpdate));
                 }
             }
         }
@@ -434,6 +490,7 @@ namespace N64RecompLauncher.Models
             {
                 if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion))
                     return $"Installed: {InstalledVersion}";
+
                 if (Status == GameStatus.UpdateAvailable && !string.IsNullOrEmpty(LatestVersion))
                     return $"Update available!: {InstalledVersion} -> {LatestVersion}";
                 return Status switch
@@ -645,12 +702,9 @@ namespace N64RecompLauncher.Models
                         : DefaultInstalledVersion;
                 }
 
-                if (!string.IsNullOrEmpty(LatestVersion) &&
-                    !string.IsNullOrEmpty(InstalledVersion) &&
-                    InstalledVersion != LatestVersion &&
-                    InstalledVersion != "Unknown")
+                if (isInstalled)
                 {
-                    Status = GameStatus.UpdateAvailable;
+                    RefreshInstalledStatus();
                 }
             }
             catch (Exception ex)
@@ -681,6 +735,104 @@ namespace N64RecompLauncher.Models
             {
                 return null;
             }
+        }
+
+        private static string NormalizeVersionString(string? version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return "0.0.0";
+
+            var normalized = version.Trim().TrimStart('v', 'V');
+            var segments = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+            while (segments.Count < 3)
+            {
+                segments.Add("0");
+            }
+
+            return string.Join(".", segments.Take(4));
+        }
+
+        private static bool IsNewerVersion(string candidateVersion, string baselineVersion)
+        {
+            try
+            {
+                var candidate = new Version(NormalizeVersionString(candidateVersion));
+                var baseline = new Version(NormalizeVersionString(baselineVersion));
+                return candidate.CompareTo(baseline) > 0;
+            }
+            catch
+            {
+                return !candidateVersion.TrimStart('v', 'V').Equals(
+                    baselineVersion.TrimStart('v', 'V'),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private static bool AreVersionsEquivalent(string? firstVersion, string? secondVersion)
+        {
+            if (string.IsNullOrWhiteSpace(firstVersion) || string.IsNullOrWhiteSpace(secondVersion))
+                return false;
+
+            try
+            {
+                return new Version(NormalizeVersionString(firstVersion))
+                    .Equals(new Version(NormalizeVersionString(secondVersion)));
+            }
+            catch
+            {
+                return firstVersion.TrimStart('v', 'V').Trim()
+                    .Equals(secondVersion.TrimStart('v', 'V').Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private bool ShouldSuggestUpdate()
+        {
+            if (string.IsNullOrWhiteSpace(LatestVersion) ||
+                string.IsNullOrWhiteSpace(InstalledVersion) ||
+                InstalledVersion == "Unknown")
+            {
+                return false;
+            }
+
+            if (!IsNewerVersion(LatestVersion, InstalledVersion))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(SkippedUpdateVersion) &&
+                !IsNewerVersion(LatestVersion, SkippedUpdateVersion))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private void RefreshInstalledStatus()
+        {
+            if (ShouldSuggestUpdate())
+            {
+                Status = GameStatus.UpdateAvailable;
+            }
+            else if (Status != GameStatus.Downloading && Status != GameStatus.Installing && !string.IsNullOrWhiteSpace(InstalledVersion))
+            {
+                Status = GameStatus.Installed;
+            }
+        }
+
+        public void SetVersionPreferences(string? preferredVersion, string? skippedUpdateVersion)
+        {
+            PreferredVersion = preferredVersion;
+            SkippedUpdateVersion = skippedUpdateVersion;
+            RefreshInstalledStatus();
+        }
+
+        public void SkipLatestUpdate()
+        {
+            if (string.IsNullOrWhiteSpace(LatestVersion))
+                return;
+
+            SkippedUpdateVersion = LatestVersion;
+            RefreshInstalledStatus();
         }
 
         public async Task ForceUpdateAsync(HttpClient httpClient, string gamesFolder)
@@ -1092,12 +1244,7 @@ namespace N64RecompLauncher.Models
                     {
                         LatestVersion = cachedData.Version;
                         _cachedRelease = cachedData.CachedRelease;
-
-                        if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
-                            InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
-                        {
-                            Status = GameStatus.UpdateAvailable;
-                        }
+                        RefreshInstalledStatus();
                     }
                     return; // no API call needed
                 }
@@ -1129,6 +1276,7 @@ namespace N64RecompLauncher.Models
 
                         // Update the LastUpdateCheck timestamp even though content hasn't changed
                         GitHubApiCache.SetCache(Repository, existingCache.Version, existingCache.ETag, existingCache.CachedRelease);
+                        RefreshInstalledStatus();
                     }
                     return;
                 }
@@ -1152,12 +1300,7 @@ namespace N64RecompLauncher.Models
 
                     string? newETag = response.Headers.ETag?.Tag;
                     GitHubApiCache.SetCache(Repository, latestRelease.tag_name, newETag ?? string.Empty, latestRelease);
-
-                    if (Status == GameStatus.Installed && !string.IsNullOrEmpty(InstalledVersion) &&
-                        InstalledVersion != LatestVersion && InstalledVersion != "Unknown")
-                    {
-                        Status = GameStatus.UpdateAvailable;
-                    }
+                    RefreshInstalledStatus();
                 }
             }
             catch (HttpRequestException ex)
@@ -1350,6 +1493,42 @@ namespace N64RecompLauncher.Models
             return _cachedRelease;
         }
 
+        public async Task<List<GitHubRelease>> FetchReleasesAsync(HttpClient httpClient)
+        {
+            if (string.IsNullOrWhiteSpace(Repository))
+                return [];
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{Repository}/releases");
+            var token = GetGitHubApiToken();
+            if (!string.IsNullOrEmpty(token))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var response = await httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var releases = JsonSerializer.Deserialize<List<GitHubRelease>>(responseContent) ?? [];
+
+            return releases
+                .Where(release => release.assets != null && release.assets.Length > 0)
+                .ToList();
+        }
+
+        public async Task InstallReleaseAsync(HttpClient httpClient, string gamesFolder, AppSettings settings, GitHubRelease release, GitHubAsset selectedAsset)
+        {
+            SelectedDownload = selectedAsset;
+            await DownloadAndInstallAsync(httpClient, gamesFolder, release, settings, Status);
+        }
+
+        private static List<GitHubAsset> GetDownloadableAssets(GitHubRelease release)
+        {
+            return (release.assets ?? [])
+                .Where(asset => !asset.name.Contains("flatpak", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease, AppSettings settings, GameStatus status)
         {
             if (string.IsNullOrEmpty(FolderName))
@@ -1437,12 +1616,7 @@ namespace N64RecompLauncher.Models
                 }
 
                 // Get all available assets
-                var availableAssets = latestRelease.assets?.ToList() ?? new List<GitHubAsset>();
-
-                // Exclude flatpak files
-                availableAssets = availableAssets
-                    .Where(a => !a.name.ToLowerInvariant().Contains("flatpak"))
-                    .ToList();
+                var availableAssets = GetDownloadableAssets(latestRelease);
 
                 if (availableAssets.Count == 0)
                 {
@@ -1557,7 +1731,10 @@ namespace N64RecompLauncher.Models
 
                     // Update status
                     InstalledVersion = latestRelease.tag_name;
-                    LatestVersion = latestRelease.tag_name;
+                    if (string.IsNullOrWhiteSpace(LatestVersion) || IsNewerVersion(latestRelease.tag_name, LatestVersion))
+                    {
+                        LatestVersion = latestRelease.tag_name;
+                    }
                     Status = GameStatus.Installed;
                     DownloadProgress = 0;
                     SelectedDownload = null;

@@ -1164,6 +1164,12 @@ namespace N64RecompLauncher
             {
                 try
                 {
+                    if (game.Status == GameStatus.UpdateAvailable)
+                    {
+                        ShowUpdateActionMenu(button, game);
+                        return;
+                    }
+
                     await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
 
                     // Check if multiple downloads need selection
@@ -1198,6 +1204,36 @@ namespace N64RecompLauncher
                     Close();
                 }
             }
+        }
+
+        private void ShowUpdateActionMenu(Control anchor, GameInfo game)
+        {
+            var contextMenu = new ContextMenu();
+
+            contextMenu.Items.Add(new MenuItem
+            {
+                Header = $"Update options for {game.Name}:",
+                IsEnabled = false,
+                FontWeight = FontWeight.Bold
+            });
+            contextMenu.Items.Add(new Separator());
+
+            var updateNowItem = new MenuItem { Header = "Update Now" };
+            updateNowItem.Click += async (_, _) => await HandleUpdateNowAsync(anchor, game);
+            contextMenu.Items.Add(updateNowItem);
+
+            var skipItem = new MenuItem { Header = "Skip Update" };
+            skipItem.Click += async (_, _) => await HandleSkipUpdateAsync(game);
+            contextMenu.Items.Add(skipItem);
+
+            var changeVersionItem = new MenuItem { Header = "Change Version" };
+            changeVersionItem.Click += async (_, _) => await HandleChangeVersionAsync(anchor, game);
+            contextMenu.Items.Add(changeVersionItem);
+
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(new MenuItem { Header = "Cancel" });
+
+            OpenContextMenu(anchor, contextMenu);
         }
 
         private void ShowDownloadSelectionMenu(Button sourceButton, GameInfo game)
@@ -1326,6 +1362,256 @@ namespace N64RecompLauncher
             };
 
             contextMenu.Open(sourceButton);
+        }
+
+        private Control? ResolveMenuAnchor(Control sourceControl)
+        {
+            if (sourceControl is MenuItem menuItem)
+            {
+                var parentMenu = menuItem.GetVisualAncestors().OfType<ContextMenu>().FirstOrDefault();
+                return parentMenu?.PlacementTarget as Control;
+            }
+
+            return sourceControl;
+        }
+
+        private void OpenContextMenu(Control anchor, ContextMenu contextMenu)
+        {
+            contextMenu.PlacementTarget = anchor;
+            contextMenu.Placement = PlacementMode.Bottom;
+            contextMenu.Open(anchor);
+        }
+
+        private async Task HandleUpdateNowAsync(Control anchor, GameInfo game)
+        {
+            try
+            {
+                game.IsLoading = true;
+                var releases = await game.FetchReleasesAsync(_gameManager.HttpClient);
+                var latestRelease = releases.FirstOrDefault();
+                if (latestRelease == null)
+                {
+                    await ShowMessageBoxAsync($"No downloadable releases were found for {game.Name}.", "No Releases");
+                    return;
+                }
+
+                var availableAssets = latestRelease.assets?
+                    .Where(asset => !asset.name.Contains("flatpak", StringComparison.OrdinalIgnoreCase))
+                    .ToList() ?? [];
+
+                if (availableAssets.Count == 0)
+                {
+                    await ShowMessageBoxAsync($"No downloadable files were found for {game.Name}.", "No Assets");
+                    return;
+                }
+
+                if (availableAssets.Count == 1)
+                {
+                    await game.InstallReleaseAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings, latestRelease, availableAssets[0]);
+                    await PersistGameVersionPreferencesAsync(game, null, latestRelease.tag_name);
+                    ApplySorting();
+                    UpdateContinueButtonState();
+                    return;
+                }
+
+                ShowReleaseDownloadSelectionMenu(anchor, game, latestRelease, null, latestRelease.tag_name);
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to update {game.Name}: {ex.Message}", "Update Error");
+            }
+            finally
+            {
+                game.IsLoading = false;
+            }
+        }
+
+        private async Task HandleSkipUpdateAsync(GameInfo game)
+        {
+            game.SkipLatestUpdate();
+            await PersistGameVersionPreferencesAsync(game, game.PreferredVersion, game.SkippedUpdateVersion);
+            ApplySorting();
+            UpdateContinueButtonState();
+        }
+
+        private async Task HandleChangeVersionAsync(Control anchor, GameInfo game)
+        {
+            try
+            {
+                game.IsLoading = true;
+                var releases = await game.FetchReleasesAsync(_gameManager.HttpClient);
+                if (releases.Count == 0)
+                {
+                    await ShowMessageBoxAsync($"No downloadable releases were found for {game.Name}.", "No Releases");
+                    return;
+                }
+
+                ShowVersionSelectionMenu(anchor, game, releases);
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to load versions for {game.Name}: {ex.Message}", "Version Selection Error");
+            }
+            finally
+            {
+                game.IsLoading = false;
+            }
+        }
+
+        private void ShowVersionSelectionMenu(Control anchor, GameInfo game, IReadOnlyList<GitHubRelease> releases)
+        {
+            var contextMenu = new ContextMenu();
+            contextMenu.Items.Add(new MenuItem
+            {
+                Header = $"Choose a version for {game.Name}:",
+                IsEnabled = false,
+                FontWeight = FontWeight.Bold
+            });
+            contextMenu.Items.Add(new Separator());
+
+            foreach (var release in releases)
+            {
+                var tags = new List<string>();
+                if (!string.IsNullOrWhiteSpace(game.LatestVersion) &&
+                    release.tag_name.Equals(game.LatestVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    tags.Add("Latest");
+                }
+                if (!string.IsNullOrWhiteSpace(game.InstalledVersion) &&
+                    release.tag_name.Equals(game.InstalledVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    tags.Add("Installed");
+                }
+                if (!string.IsNullOrWhiteSpace(game.PreferredVersion) &&
+                    release.tag_name.Equals(game.PreferredVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    tags.Add("Preferred");
+                }
+                if (release.prerelease)
+                {
+                    tags.Add("Pre-release");
+                }
+
+                var header = release.tag_name;
+                if (tags.Count > 0)
+                {
+                    header += $" ({string.Join(", ", tags)})";
+                }
+
+                var versionItem = new MenuItem { Header = header };
+                versionItem.Click += (_, _) =>
+                {
+                    var acknowledgedVersion = string.IsNullOrWhiteSpace(game.LatestVersion)
+                        ? release.tag_name
+                        : game.LatestVersion;
+                    ShowReleaseDownloadSelectionMenu(anchor, game, release, release.tag_name, acknowledgedVersion);
+                };
+
+                if (!string.IsNullOrWhiteSpace(game.LatestVersion) &&
+                    release.tag_name.Equals(game.LatestVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    versionItem.Classes.Add("accent");
+                }
+
+                contextMenu.Items.Add(versionItem);
+            }
+
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(new MenuItem { Header = "Cancel" });
+            OpenContextMenu(anchor, contextMenu);
+        }
+
+        private void ShowReleaseDownloadSelectionMenu(Control anchor, GameInfo game, GitHubRelease release, string preferredVersion, string skippedUpdateVersion)
+        {
+            var availableAssets = release.assets?
+                .Where(asset => !asset.name.Contains("flatpak", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(asset => GameInfo.MatchesPlatform(asset.name, GameInfo.GetPlatformIdentifier(_settings)))
+                .ToList() ?? [];
+
+            if (availableAssets.Count == 0)
+                return;
+
+            var contextMenu = new ContextMenu();
+            contextMenu.Items.Add(new MenuItem
+            {
+                Header = $"Choose a download for {release.tag_name}:",
+                IsEnabled = false,
+                FontWeight = FontWeight.Bold
+            });
+            contextMenu.Items.Add(new Separator());
+
+            string platformIdentifier = GameInfo.GetPlatformIdentifier(_settings);
+
+            foreach (var asset in availableAssets)
+            {
+                bool isPreferred = GameInfo.MatchesPlatform(asset.name, platformIdentifier);
+                string? iconPath = GameInfo.GetPlatformIcon(asset.name);
+
+                var contentGrid = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                };
+
+                if (!string.IsNullOrEmpty(iconPath))
+                {
+                    var icon = new Avalonia.Controls.Image
+                    {
+                        Source = new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(new Uri(iconPath))),
+                        Width = 28,
+                        Height = 28,
+                        Margin = new Thickness(0, 0, 10, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(icon, 0);
+                    contentGrid.Children.Add(icon);
+                }
+
+                var displayName = asset.name + (isPreferred ? " (Recommended)" : "");
+                var textBlock = new TextBlock
+                {
+                    Text = displayName,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(textBlock, 1);
+                contentGrid.Children.Add(textBlock);
+
+                var menuItem = new MenuItem
+                {
+                    Header = contentGrid
+                };
+
+                if (isPreferred)
+                {
+                    menuItem.Classes.Add("accent");
+                }
+
+                menuItem.Click += async (_, _) =>
+                {
+                    try
+                    {
+                        await game.InstallReleaseAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings, release, asset);
+                        if (!string.IsNullOrWhiteSpace(skippedUpdateVersion))
+                        {
+                            game.LatestVersion = skippedUpdateVersion;
+                        }
+                        await PersistGameVersionPreferencesAsync(game, preferredVersion, skippedUpdateVersion);
+                        ApplySorting();
+                        UpdateContinueButtonState();
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowMessageBoxAsync($"Failed to download {game.Name}: {ex.Message}", "Download Error");
+                    }
+                };
+
+                contextMenu.Items.Add(menuItem);
+            }
+
+            contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(new MenuItem { Header = "Cancel" });
+            OpenContextMenu(anchor, contextMenu);
         }
 
         private void ShowExecutableSelectionMenu(Button sourceButton, GameInfo game)
@@ -2005,6 +2291,7 @@ namespace N64RecompLauncher
 
             try
             {
+                await PersistGameVersionPreferencesAsync(game, null, null);
                 await game.ForceUpdateAsync(_gameManager.HttpClient, _gameManager.GamesFolder);
                 ApplySorting();
             }
@@ -2080,6 +2367,53 @@ namespace N64RecompLauncher
             {
                 await ShowMessageBoxAsync($"Failed to launch {game.Name}: {ex.Message}", "Launch Error");
             }
+        }
+
+        private async void UpdateNowMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem || menuItem.CommandParameter is not GameInfo game)
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            var anchor = ResolveMenuAnchor(menuItem);
+            if (anchor == null)
+            {
+                await ShowMessageBoxAsync("Unable to open the update menu for this game.", "Error");
+                return;
+            }
+
+            await HandleUpdateNowAsync(anchor, game);
+        }
+
+        private async void SkipUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem || menuItem.CommandParameter is not GameInfo game)
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            await HandleSkipUpdateAsync(game);
+        }
+
+        private async void ChangeVersion_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem || menuItem.CommandParameter is not GameInfo game)
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            var anchor = ResolveMenuAnchor(menuItem);
+            if (anchor == null)
+            {
+                await ShowMessageBoxAsync("Unable to open the version menu for this game.", "Error");
+                return;
+            }
+
+            await HandleChangeVersionAsync(anchor, game);
         }
 
         private void OpenGitHubPage_Click(object sender, RoutedEventArgs e)
@@ -3340,6 +3674,8 @@ namespace N64RecompLauncher
                     Repository = element.TryGetProperty("repository", out var r) ? r.GetString() ?? "" : "",
                     FolderName = element.TryGetProperty("folderName", out var f) ? f.GetString() ?? "" : "",
                     GameIconUrl = element.TryGetProperty("gameIconUrl", out var iconUrl) ? iconUrl.GetString() : null,
+                    PreferredVersion = element.TryGetProperty("preferredVersion", out var preferredVersion) ? preferredVersion.GetString() : null,
+                    SkippedUpdateVersion = element.TryGetProperty("skippedUpdateVersion", out var skippedUpdateVersion) ? skippedUpdateVersion.GetString() : null,
                     IsExperimental = isExperimental,
                     IsCustom = isCustom,
                     GameManager = _gameManager
@@ -3349,35 +3685,28 @@ namespace N64RecompLauncher
             return games;
         }
 
+        private static object SerializeGame(GameInfo game)
+        {
+            return new
+            {
+                name = game.Name,
+                repository = game.Repository,
+                folderName = game.FolderName,
+                gameIconUrl = game.GameIconUrl,
+                preferredVersion = game.PreferredVersion,
+                skippedUpdateVersion = game.SkippedUpdateVersion
+            };
+        }
+
         private async Task SaveGamesToJsonAsync(List<GameInfo> standardGames, List<GameInfo> experimentalGames, List<GameInfo> customGames)
         {
             var gamesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
 
             var data = new
             {
-                standard = standardGames.Select(g => new
-                {
-                    name = g.Name,
-                    repository = g.Repository,
-                    folderName = g.FolderName,
-                    gameIconUrl = g.GameIconUrl
-                }).ToList(),
-
-                experimental = experimentalGames.Select(g => new
-                {
-                    name = g.Name,
-                    repository = g.Repository,
-                    folderName = g.FolderName,
-                    gameIconUrl = g.GameIconUrl
-                }).ToList(),
-
-                custom = customGames.Select(g => new
-                {
-                    name = g.Name,
-                    repository = g.Repository,
-                    folderName = g.FolderName,
-                    gameIconUrl = g.GameIconUrl
-                }).ToList()
+                standard = standardGames.Select(SerializeGame).ToList(),
+                experimental = experimentalGames.Select(SerializeGame).ToList(),
+                custom = customGames.Select(SerializeGame).ToList()
             };
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -3393,29 +3722,9 @@ namespace N64RecompLauncher
 
             var data = new
             {
-                standard = allGames.Where(g => !g.IsExperimental && !g.IsCustom).Select(g => new
-                {
-                    name = g.Name,
-                    repository = g.Repository,
-                    folderName = g.FolderName,
-                    gameIconUrl = g.GameIconUrl
-                }).ToList(),
-
-                experimental = allGames.Where(g => g.IsExperimental && !g.IsCustom).Select(g => new
-                {
-                    name = g.Name,
-                    repository = g.Repository,
-                    folderName = g.FolderName,
-                    gameIconUrl = g.GameIconUrl
-                }).ToList(),
-
-                custom = customGames.Select(g => new
-                {
-                    name = g.Name,
-                    repository = g.Repository,
-                    folderName = g.FolderName,
-                    gameIconUrl = g.GameIconUrl
-                }).ToList()
+                standard = allGames.Where(g => !g.IsExperimental && !g.IsCustom).Select(SerializeGame).ToList(),
+                experimental = allGames.Where(g => g.IsExperimental && !g.IsCustom).Select(SerializeGame).ToList(),
+                custom = customGames.Select(SerializeGame).ToList()
             };
 
             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -3427,6 +3736,27 @@ namespace N64RecompLauncher
             var gamesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
             var options = new JsonSerializerOptions { WriteIndented = true };
             await File.WriteAllTextAsync(gamesPath, JsonSerializer.Serialize(gamesData, options));
+        }
+
+        private async Task PersistGameVersionPreferencesAsync(GameInfo game, string? preferredVersion, string? skippedUpdateVersion)
+        {
+            game.SetVersionPreferences(preferredVersion, skippedUpdateVersion);
+
+            var allGames = await LoadGamesFromJsonAsync();
+            var matchingGame = allGames.FirstOrDefault(g =>
+                !string.IsNullOrWhiteSpace(g.Repository) &&
+                g.Repository.Equals(game.Repository, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingGame == null)
+                return;
+
+            matchingGame.PreferredVersion = game.PreferredVersion;
+            matchingGame.SkippedUpdateVersion = game.SkippedUpdateVersion;
+
+            await SaveGamesToJsonAsync(
+                allGames.Where(g => !g.IsExperimental && !g.IsCustom).ToList(),
+                allGames.Where(g => g.IsExperimental && !g.IsCustom).ToList(),
+                allGames.Where(g => g.IsCustom).ToList());
         }
 
         private async Task LoadGamesManagerAsync()

@@ -516,6 +516,8 @@ namespace N64RecompLauncher.Services
                         Repository = (gameElement.TryGetProperty("repository", out var repoElement) ? repoElement.GetString() : null) ?? string.Empty,
                         FolderName = (gameElement.TryGetProperty("folderName", out var folderElement) ? folderElement.GetString() : null) ?? string.Empty,
                         GameIconUrl = string.Empty,
+                        PreferredVersion = gameElement.TryGetProperty("preferredVersion", out var preferredVersionElement) ? preferredVersionElement.GetString() : null,
+                        SkippedUpdateVersion = gameElement.TryGetProperty("skippedUpdateVersion", out var skippedUpdateVersionElement) ? skippedUpdateVersionElement.GetString() : null,
                         IsExperimental = isExperimental,
                         IsCustom = isCustom,
                         GameManager = this,
