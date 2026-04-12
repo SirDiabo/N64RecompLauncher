@@ -137,6 +137,7 @@ namespace N64RecompLauncher.Models
 
     public class GameInfo : INotifyPropertyChanged, IDisposable
     {
+        private const string DefaultInstalledVersion = "v0.0.0";
         public event Action<Process?>? GameProcessStarted;
         private string? _latestVersion;
         private string? _installedVersion;
@@ -566,10 +567,15 @@ namespace N64RecompLauncher.Models
                         try
                         {
                             InstalledVersion = (await File.ReadAllTextAsync(versionFile).ConfigureAwait(false))?.Trim();
+
+                            if (string.IsNullOrWhiteSpace(InstalledVersion))
+                            {
+                                InstalledVersion = await EnsureInstalledVersionFileAsync(versionFile).ConfigureAwait(false);
+                            }
                         }
                         catch
                         {
-                            InstalledVersion = "Unknown";
+                            InstalledVersion = null;
                         }
 
                         Status = GameStatus.Installed;
@@ -578,7 +584,7 @@ namespace N64RecompLauncher.Models
                     else
                     {
                         Status = GameStatus.Installed;
-                        InstalledVersion = "Unknown";
+                        InstalledVersion = await EnsureInstalledVersionFileAsync(versionFile).ConfigureAwait(false);
                         isInstalled = true;
                     }
                 }
@@ -623,6 +629,13 @@ namespace N64RecompLauncher.Models
                     }
                 }
 
+                if (isInstalled && string.IsNullOrWhiteSpace(InstalledVersion))
+                {
+                    InstalledVersion = string.IsNullOrWhiteSpace(LatestVersion)
+                        ? "Unknown"
+                        : DefaultInstalledVersion;
+                }
+
                 if (!string.IsNullOrEmpty(LatestVersion) &&
                     !string.IsNullOrEmpty(InstalledVersion) &&
                     InstalledVersion != LatestVersion &&
@@ -639,6 +652,25 @@ namespace N64RecompLauncher.Models
             finally
             {
                 IsLoading = false;
+            }
+        }
+
+        private static async Task<string?> EnsureInstalledVersionFileAsync(string versionFile)
+        {
+            try
+            {
+                var versionDirectory = Path.GetDirectoryName(versionFile);
+                if (!string.IsNullOrEmpty(versionDirectory))
+                {
+                    Directory.CreateDirectory(versionDirectory);
+                }
+
+                await File.WriteAllTextAsync(versionFile, DefaultInstalledVersion).ConfigureAwait(false);
+                return DefaultInstalledVersion;
+            }
+            catch
+            {
+                return null;
             }
         }
 
