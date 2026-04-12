@@ -126,6 +126,10 @@
 												  Click="OpenFolder_Click"
 												  IsVisible="{Binding IsInstalled}"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Force Update"
+												  Click="ForceUpdate_Click"
+												  IsVisible="{Binding IsInstalled}"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Select Different Executable" 
 												  CommandParameter="{Binding}" 
 												  Click="SelectDifferentExecutable_Click"
@@ -233,6 +237,10 @@
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Open Folder"
 											  Click="OpenFolder_Click"
+											  IsVisible="{Binding IsInstalled}"
+											  CommandParameter="{Binding}"/>
+									<MenuItem Header="Force Update"
+											  Click="ForceUpdate_Click"
 											  IsVisible="{Binding IsInstalled}"
 											  CommandParameter="{Binding}"/>
 									<MenuItem Header="Select Different Executable" 

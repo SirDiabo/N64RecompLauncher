@@ -133,6 +133,15 @@ namespace N64RecompLauncher.Models
         {
             return _cache.TryGetValue(repository, out var cache) ? cache.ETag : "";
         }
+
+        public static void RemoveCache(string repository)
+        {
+            if (string.IsNullOrWhiteSpace(repository))
+                return;
+
+            _cache.TryRemove(repository, out _);
+            SaveToDisk();
+        }
     }
 
     public class GameInfo : INotifyPropertyChanged, IDisposable
@@ -598,7 +607,7 @@ namespace N64RecompLauncher.Models
                 if (forceUpdateCheck)
                 {
                     // Force check - always check
-                    await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
+                    await CheckLatestVersionAsync(httpClient, forceCheck: true).ConfigureAwait(false);
                 }
                 else if (isInstalled)
                 {
@@ -671,6 +680,40 @@ namespace N64RecompLauncher.Models
             catch
             {
                 return null;
+            }
+        }
+
+        public async Task ForceUpdateAsync(HttpClient httpClient, string gamesFolder)
+        {
+            if (string.IsNullOrWhiteSpace(FolderName))
+                throw new InvalidOperationException("Game configuration is invalid (missing folder name).");
+
+            if (string.IsNullOrWhiteSpace(Repository))
+                throw new InvalidOperationException("Game configuration is invalid (missing repository).");
+
+            var gamePath = Path.Combine(gamesFolder, FolderName);
+            if (!Directory.Exists(gamePath))
+                throw new DirectoryNotFoundException($"Game folder not found: {gamePath}");
+
+            var versionFile = Path.Combine(gamePath, "version.txt");
+
+            IsLoading = true;
+            try
+            {
+                _cachedRelease = null;
+                LatestVersion = string.Empty;
+                GitHubApiCache.RemoveCache(Repository);
+
+                if (File.Exists(versionFile))
+                {
+                    File.Delete(versionFile);
+                }
+
+                await CheckStatusAsync(httpClient, gamesFolder, forceUpdateCheck: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                IsLoading = false;
             }
         }
 
@@ -1028,6 +1071,11 @@ namespace N64RecompLauncher.Models
 
         private async Task CheckLatestVersionAsync(HttpClient httpClient)
         {
+            await CheckLatestVersionAsync(httpClient, forceCheck: false);
+        }
+
+        private async Task CheckLatestVersionAsync(HttpClient httpClient, bool forceCheck)
+        {
             if (string.IsNullOrEmpty(Repository))
             {
                 System.Diagnostics.Debug.WriteLine($"Warning: Repository is null or empty for game {Name}");
@@ -1037,7 +1085,7 @@ namespace N64RecompLauncher.Models
             try
             {
                 // Check if we need to update first
-                if (!GitHubApiCache.NeedsUpdateCheck(Repository))
+                if (!forceCheck && !GitHubApiCache.NeedsUpdateCheck(Repository))
                 {
                     // Use cached data without making API call
                     if (GitHubApiCache.TryGetCachedVersion(Repository, out var cachedData) && cachedData != null)

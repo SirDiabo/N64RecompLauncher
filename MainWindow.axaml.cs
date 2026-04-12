@@ -1992,6 +1992,28 @@ namespace N64RecompLauncher
             }
         }
 
+        private async void ForceUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            var game = menuItem?.CommandParameter as GameInfo;
+
+            if (game == null)
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            try
+            {
+                await game.ForceUpdateAsync(_gameManager.HttpClient, _gameManager.GamesFolder);
+                ApplySorting();
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to force update {game.Name}: {ex.Message}", "Force Update Failed");
+            }
+        }
+
         private void GithubButton_Click(object sender, RoutedEventArgs e)
         {
             try
