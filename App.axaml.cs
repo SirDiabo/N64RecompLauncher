@@ -249,6 +249,43 @@ public class App : Application, INotifyPropertyChanged
             {
                 Trace.WriteLine($"Cached app update available: {updateCheckInfo.LastKnownVersion}");
 
+                if (IsBootstrapVersion(currentVersionString))
+                {
+                    using (var httpClient = new HttpClient())
+                    {
+                        httpClient.Timeout = DownloadTimeout;
+                        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("N64RecompLauncher-Updater");
+
+                        var settings = AppSettings.Load();
+                        if (!string.IsNullOrEmpty(settings?.GitHubApiToken))
+                        {
+                            httpClient.DefaultRequestHeaders.Authorization =
+                                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", settings.GitHubApiToken);
+                        }
+
+                        try
+                        {
+                            string apiUrl = $"https://api.github.com/repos/{Repository}/releases/latest";
+                            var response = await httpClient.GetAsync(apiUrl);
+                            response.EnsureSuccessStatusCode();
+
+                            string releaseResponse = await response.Content.ReadAsStringAsync();
+                            GitHubRelease? latestRelease = JsonSerializer.Deserialize<GitHubRelease>(releaseResponse);
+
+                            if (latestRelease != null)
+                            {
+                                await DownloadAndApplyUpdate(latestRelease, AppDomain.CurrentDomain.BaseDirectory, updateCheckInfo);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            await ShowMessageBoxAsync($"Failed to download bootstrap update: {ex.Message}", "Update Error");
+                        }
+                    }
+
+                    return;
+                }
+
                 // Prompt user about available update
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
@@ -384,6 +421,13 @@ public class App : Application, INotifyPropertyChanged
                 Trace.WriteLine($"Newer launcher version {latestRelease.tag_name} available. Current version is {currentVersionString}.");
                 updateCheckInfo.UpdateAvailable = true;
                 await SaveUpdateCheckInfo(updateCheckFilePath, updateCheckInfo);
+
+                if (IsBootstrapVersion(currentVersionString))
+                {
+                    await DownloadAndApplyUpdate(latestRelease, currentAppDirectory, updateCheckInfo);
+                    return;
+                }
+
                 if (!isManualCheck)
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -642,6 +686,20 @@ public class App : Application, INotifyPropertyChanged
             bool shouldUpdate = !latestVersion.TrimStart('v', 'V').Equals(currentVersion.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase);
             Trace.WriteLine($"Version parsing failed, using string comparison: {shouldUpdate}");
             return shouldUpdate;
+        }
+    }
+
+    private bool IsBootstrapVersion(string version)
+    {
+        try
+        {
+            Version parsedVersion = new Version(NormalizeVersionString(version));
+            return parsedVersion == new Version(0, 0);
+        }
+        catch
+        {
+            var trimmed = version.TrimStart('v', 'V').Trim();
+            return trimmed == "0" || trimmed == "0.0" || trimmed == "0.0.0" || trimmed == "0.0.0.0";
         }
     }
 
