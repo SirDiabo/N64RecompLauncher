@@ -78,6 +78,8 @@ namespace N64RecompLauncher
         #endif
         private Process? _musicProcess;
         private bool _musicPausedByDeactivation = false;
+        private bool _launchedGameOwnsInput;
+        private bool _trackingLaunchedGameProcess;
         private string _launcherMusicPath = string.Empty;
         public string LauncherMusicPath
         {
@@ -4808,7 +4810,16 @@ namespace N64RecompLauncher
 
         private void MainWindow_Activated(object? sender, EventArgs e)
         {
+            if (!_trackingLaunchedGameProcess)
+            {
+                _launchedGameOwnsInput = false;
+            }
+
             _inputService?.SetWindowActive(true);
+            if (_settings.EnableGamepadInput && !_launchedGameOwnsInput)
+            {
+                _inputService?.SetGamepadEnabled(true);
+            }
 
             #if WINDOWS
                         _ = FadeMusicAsync(MusicVolume, FADE_DURATION_MS);
@@ -4824,6 +4835,7 @@ namespace N64RecompLauncher
         private void MainWindow_Deactivated(object? sender, EventArgs e)
         {
             _inputService?.SetWindowActive(false);
+            _inputService?.SetGamepadEnabled(false);
 
             #if WINDOWS
                         _ = FadeMusicAsync(0f, FADE_DURATION_MS);
@@ -4845,14 +4857,13 @@ namespace N64RecompLauncher
 
         private void OnGameProcessStarted(Process? process)
         {
-            // Cut gamepad input
+            _launchedGameOwnsInput = true;
+            _trackingLaunchedGameProcess = process != null;
+            _inputService?.SetWindowActive(false);
             _inputService?.SetGamepadEnabled(false);
 
             if (process == null)
             {
-                // Can't track, re-enable after a safe delay
-                _ = Task.Delay(8000).ContinueWith(_ =>
-                    Dispatcher.UIThread.Post(() => _inputService?.SetGamepadEnabled(true)));
                 return;
             }
 
@@ -4861,15 +4872,111 @@ namespace N64RecompLauncher
                 try
                 {
                     await process.WaitForExitAsync();
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        var processGroupId = await TryGetProcessGroupIdAsync(process.Id);
+                        if (processGroupId.HasValue)
+                        {
+                            while (await HasActiveProcessGroupAsync(processGroupId.Value))
+                            {
+                                await Task.Delay(1000);
+                            }
+                        }
+                    }
                 }
                 catch { /* process may have already exited */ }
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    _inputService?.SetGamepadEnabled(true);
-                    _inputService?.SetWindowActive(true); // SDL focus state reset
+                    _trackingLaunchedGameProcess = false;
+                    _launchedGameOwnsInput = false;
+
+                    if (IsActive && _settings.EnableGamepadInput)
+                    {
+                        _inputService?.SetGamepadEnabled(true);
+                        _inputService?.SetWindowActive(true);
+                    }
                 });
             });
+        }
+
+        private static async Task<int?> TryGetProcessGroupIdAsync(int processId)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "ps",
+                    Arguments = $"-o pgid= -p {processId}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using var psProcess = Process.Start(startInfo);
+                if (psProcess == null)
+                {
+                    return null;
+                }
+
+                var output = await psProcess.StandardOutput.ReadToEndAsync();
+                await psProcess.WaitForExitAsync();
+
+                if (psProcess.ExitCode != 0)
+                {
+                    return null;
+                }
+
+                var trimmed = output.Trim();
+                if (int.TryParse(trimmed, out var processGroupId))
+                {
+                    return processGroupId;
+                }
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        private static async Task<bool> HasActiveProcessGroupAsync(int processGroupId)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "ps",
+                    Arguments = $"-o pid= -g {processGroupId}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using var psProcess = Process.Start(startInfo);
+                if (psProcess == null)
+                {
+                    return false;
+                }
+
+                var output = await psProcess.StandardOutput.ReadToEndAsync();
+                await psProcess.WaitForExitAsync();
+
+                if (psProcess.ExitCode != 0)
+                {
+                    return false;
+                }
+
+                return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                    .Any(line => !string.IsNullOrWhiteSpace(line));
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private async void ShowChangelog_Click(object sender, RoutedEventArgs e)
