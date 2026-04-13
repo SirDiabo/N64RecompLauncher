@@ -247,6 +247,9 @@ namespace N64RecompLauncher.Models
                 {
                     _availableExecutables = value;
                     DispatchPropertyChanged();
+                    DispatchPropertyChanged(nameof(HasMultipleExecutables));
+                    DispatchPropertyChanged(nameof(HasExecutableChoice));
+                    DispatchPropertyChanged(nameof(CanLaunchOptions));
                 }
             }
         }
@@ -266,6 +269,36 @@ namespace N64RecompLauncher.Models
         }
 
         public bool HasMultipleExecutables => AvailableExecutables?.Count > 1;
+        public bool HasExecutableChoice
+        {
+            get
+            {
+                if (!IsInstalled || string.IsNullOrWhiteSpace(FolderName) || GameManager == null || string.IsNullOrWhiteSpace(GameManager.GamesFolder))
+                    return false;
+
+                if (HasMultipleExecutables)
+                    return true;
+
+                try
+                {
+                    var gamePath = Path.Combine(GameManager.GamesFolder, FolderName);
+                    if (!Directory.Exists(gamePath))
+                        return false;
+
+                    var executables = GetExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out _);
+                    if (executables.Count <= 1)
+                    {
+                        executables = GetExecutableCandidates(gamePath, SearchOption.AllDirectories, out _);
+                    }
+
+                    return executables.Count > 1;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
 
         private List<GitHubAsset>? _availableDownloads;
         public List<GitHubAsset>? AvailableDownloads
@@ -310,7 +343,10 @@ namespace N64RecompLauncher.Models
         public bool CanDownload => Status == GameStatus.NotInstalled;
         public bool CanUpdate => Status == GameStatus.UpdateAvailable;
         public bool CanSkipUpdate => Status == GameStatus.UpdateAvailable;
-        public bool CanChangeVersion => !string.IsNullOrWhiteSpace(Repository);
+        public bool CanChangeVersion => IsInstalled && !string.IsNullOrWhiteSpace(Repository);
+        public bool CanVersionOptions => CanSkipUpdate || CanChangeVersion || IsInstalled;
+        public bool CanLaunchOptions => HasExecutableChoice || IsInstalled;
+        public bool CanInfoOptions => !string.IsNullOrWhiteSpace(Repository);
         public bool HasPreferredVersion => !string.IsNullOrWhiteSpace(PreferredVersion);
 
         public string? LatestVersion
@@ -400,6 +436,10 @@ namespace N64RecompLauncher.Models
                     DispatchPropertyChanged(nameof(CanDownload));
                     DispatchPropertyChanged(nameof(CanUpdate));
                     DispatchPropertyChanged(nameof(CanSkipUpdate));
+                    DispatchPropertyChanged(nameof(CanChangeVersion));
+                    DispatchPropertyChanged(nameof(CanVersionOptions));
+                    DispatchPropertyChanged(nameof(HasExecutableChoice));
+                    DispatchPropertyChanged(nameof(CanLaunchOptions));
                 }
             }
         }
@@ -549,6 +589,8 @@ namespace N64RecompLauncher.Models
         public void SetGameManager(GameManager gameManager)
         {
             GameManager = gameManager;
+            DispatchPropertyChanged(nameof(HasExecutableChoice));
+            DispatchPropertyChanged(nameof(CanLaunchOptions));
         }
 
         private void DispatchPropertyChanged([CallerMemberName] string propertyName = "")
@@ -830,6 +872,20 @@ namespace N64RecompLauncher.Models
         {
             if (string.IsNullOrWhiteSpace(LatestVersion))
                 return;
+
+            var effectiveInstalledVersion = InstalledVersion;
+            if (string.IsNullOrWhiteSpace(effectiveInstalledVersion) ||
+                effectiveInstalledVersion == "Unknown" ||
+                AreVersionsEquivalent(effectiveInstalledVersion, DefaultInstalledVersion))
+            {
+                effectiveInstalledVersion = LatestVersion;
+            }
+
+            if (!string.IsNullOrWhiteSpace(effectiveInstalledVersion))
+            {
+                InstalledVersion = effectiveInstalledVersion;
+                PreferredVersion = effectiveInstalledVersion;
+            }
 
             SkippedUpdateVersion = LatestVersion;
             RefreshInstalledStatus();

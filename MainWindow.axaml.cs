@@ -376,31 +376,27 @@ namespace N64RecompLauncher
 
             var primaryColor = _themeColorBrush.Color;
             var secondaryColor = _secondaryColorBrush.Color;
+            var themeBase = new SolidColorBrush(primaryColor);
+            var themeLighter = new SolidColorBrush(GetShadedColor(primaryColor, 1.3));
+            var themeDarker = new SolidColorBrush(GetShadedColor(primaryColor, 0.7));
+            var themeBorder = new SolidColorBrush(secondaryColor);
 
-            // Update resources
-            if (this.Resources != null)
-            {
-                // Primary affects backgrounds
-                this.Resources["ThemeBase"] = new SolidColorBrush(primaryColor);
-                this.Resources["ThemeLighter"] = new SolidColorBrush(GetShadedColor(primaryColor, 1.3));
-                this.Resources["ThemeDarker"] = new SolidColorBrush(GetShadedColor(primaryColor, 0.7));
+            var textColor = CalculateLuminance(primaryColor) > 0.5 ? Colors.Black : Colors.White;
+            var tintedText = new SolidColorBrush(BlendColors(textColor, secondaryColor, 0.08));
+            var tintedTextSecondary = new SolidColorBrush(
+                CalculateLuminance(primaryColor) > 0.5
+                    ? BlendColors(Color.FromRgb(70, 70, 70), secondaryColor, 0.15)
+                    : BlendColors(Color.FromRgb(200, 200, 200), secondaryColor, 0.15)
+            );
 
-                // Secondary affects borders and accents
-                this.Resources["ThemeBorder"] = new SolidColorBrush(secondaryColor);
+            Resources["ThemeBase"] = themeBase;
+            Resources["ThemeLighter"] = themeLighter;
+            Resources["ThemeDarker"] = themeDarker;
+            Resources["ThemeBorder"] = themeBorder;
+            Resources["ThemeText"] = tintedText;
+            Resources["ThemeTextSecondary"] = tintedTextSecondary;
 
-                // Text with secondary hue tint
-                var textColor = CalculateLuminance(primaryColor) > 0.5 ? Colors.Black : Colors.White;
-                var tintedText = BlendColors(textColor, secondaryColor, 0.08);
-                this.Resources["ThemeText"] = new SolidColorBrush(tintedText);
-
-                this.Resources["ThemeTextSecondary"] = new SolidColorBrush(
-                    CalculateLuminance(primaryColor) > 0.5
-                        ? BlendColors(Color.FromRgb(70, 70, 70), secondaryColor, 0.15)
-                        : BlendColors(Color.FromRgb(200, 200, 200), secondaryColor, 0.15)
-                );
-
-                OnPropertyChanged(nameof(WindowBackground));
-            }
+            OnPropertyChanged(nameof(WindowBackground));
         }
 
         private double CalculateLuminance(Color color)
@@ -1368,18 +1364,80 @@ namespace N64RecompLauncher
         {
             if (sourceControl is MenuItem menuItem)
             {
-                var parentMenu = menuItem.GetVisualAncestors().OfType<ContextMenu>().FirstOrDefault();
-                return parentMenu?.PlacementTarget as Control;
+                var parent = menuItem.Parent as Control;
+                while (parent != null)
+                {
+                    if (parent is ContextMenu parentMenu && parentMenu.PlacementTarget is Control parentTarget)
+                    {
+                        return parentTarget;
+                    }
+
+                    parent = parent.Parent as Control;
+                }
+
+                var visualMenu = menuItem.GetVisualAncestors().OfType<ContextMenu>().FirstOrDefault();
+                if (visualMenu?.PlacementTarget is Control visualTarget)
+                {
+                    return visualTarget;
+                }
             }
 
             return sourceControl;
         }
 
+        private Control? FindGameMenuAnchor(GameInfo game)
+        {
+            return this.GetVisualDescendants()
+                .OfType<Button>()
+                .FirstOrDefault(button =>
+                    ReferenceEquals(button.DataContext, game) ||
+                    ReferenceEquals(button.Tag, game));
+        }
+
         private void OpenContextMenu(Control anchor, ContextMenu contextMenu)
         {
+            if (double.IsNaN(contextMenu.MaxHeight) || contextMenu.MaxHeight <= 0)
+            {
+                var availableHeight = Bounds.Height > 0 ? Bounds.Height - 120 : 560;
+                contextMenu.MaxHeight = Math.Max(240, availableHeight);
+            }
+
             contextMenu.PlacementTarget = anchor;
             contextMenu.Placement = PlacementMode.Bottom;
             contextMenu.Open(anchor);
+        }
+
+        private void GameCard_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+            {
+                return;
+            }
+
+            if (sender is not Control card)
+            {
+                return;
+            }
+
+            var optionsButton = card.GetVisualDescendants()
+                .OfType<Button>()
+                .FirstOrDefault(button => button.ContextMenu != null);
+
+            if (optionsButton?.ContextMenu == null)
+            {
+                return;
+            }
+
+            optionsButton.ContextMenu.PlacementTarget = optionsButton;
+            optionsButton.ContextMenu.Placement = PlacementMode.Bottom;
+            if (double.IsNaN(optionsButton.ContextMenu.MaxHeight) || optionsButton.ContextMenu.MaxHeight <= 0)
+            {
+                var availableHeight = Bounds.Height > 0 ? Bounds.Height - 120 : 560;
+                optionsButton.ContextMenu.MaxHeight = Math.Max(240, availableHeight);
+            }
+
+            optionsButton.ContextMenu.Open(optionsButton);
+            e.Handled = true;
         }
 
         private async Task HandleUpdateNowAsync(Control anchor, GameInfo game)
@@ -1614,7 +1672,7 @@ namespace N64RecompLauncher
             OpenContextMenu(anchor, contextMenu);
         }
 
-        private void ShowExecutableSelectionMenu(Button sourceButton, GameInfo game)
+        private void ShowExecutableSelectionMenu(Control anchor, GameInfo game)
         {
             if (game.AvailableExecutables == null || game.AvailableExecutables.Count == 0)
                 return;
@@ -1678,11 +1736,6 @@ namespace N64RecompLauncher
             };
             contextMenu.Items.Add(cancelItem);
 
-            // Attach to button and open
-            sourceButton.ContextMenu = contextMenu;
-            contextMenu.PlacementTarget = sourceButton;
-            contextMenu.Placement = PlacementMode.Bottom;
-
             // Focus first executable item when opened
             contextMenu.Opened += (s, e) =>
             {
@@ -1695,7 +1748,7 @@ namespace N64RecompLauncher
                 }, DispatcherPriority.Loaded);
             };
 
-            contextMenu.Open(sourceButton);
+            OpenContextMenu(anchor, contextMenu);
         }
 
         private async void SelectDifferentExecutable_Click(object sender, RoutedEventArgs e)
@@ -1709,25 +1762,56 @@ namespace N64RecompLauncher
                 return;
             }
 
-            // Clear the saved selection
-            game.ClearSelectedExecutable(_gameManager.GamesFolder);
-
-            // Trigger the executable selection menu
-            var gameCard = this.GetVisualDescendants()
-                .OfType<Button>()
-                .FirstOrDefault(b => b.DataContext == game);
-
-            if (gameCard != null)
+            var anchor = (menuItem != null ? ResolveMenuAnchor(menuItem) : null) ?? FindGameMenuAnchor(game);
+            if (anchor == null)
             {
-                game.AvailableExecutables = null; // Reset to trigger fresh scan
-                try
+                _ = ShowMessageBoxAsync("Unable to open the executable menu for this game.", "Error");
+                return;
+            }
+
+            game.ClearSelectedExecutable(_gameManager.GamesFolder);
+            game.AvailableExecutables = null;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(game.FolderName))
                 {
-                    await game.PerformActionAsync(_gameManager.HttpClient, _gameManager.GamesFolder, _settings.IsPortable, _settings);
+                    await ShowMessageBoxAsync("This game is missing its install folder information.", "Executable Error");
+                    return;
                 }
-                catch (Exception ex)
+
+                var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                if (!Directory.Exists(gamePath))
                 {
-                    await ShowMessageBoxAsync($"Failed to relaunch {game.Name}: {ex.Message}", "Launch Error");
+                    await ShowMessageBoxAsync($"Could not find the install folder for {game.Name}.", "Executable Error");
+                    return;
                 }
+
+                var executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out _);
+                if (executables.Count == 0)
+                {
+                    executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.AllDirectories, out _);
+                }
+
+                if (executables.Count == 0)
+                {
+                    await ShowMessageBoxAsync($"No executable files were found for {game.Name}.", "Executable Not Found");
+                    return;
+                }
+
+                game.AvailableExecutables = executables;
+
+                if (executables.Count == 1)
+                {
+                    await ShowMessageBoxAsync($"Only one executable was found for {game.Name}, so there is nothing else to choose.", "Single Executable");
+                    return;
+                }
+
+                ShowExecutableSelectionMenu(anchor, game);
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to load executables for {game.Name}: {ex.Message}", "Executable Error");
             }
         }
 
@@ -2377,7 +2461,7 @@ namespace N64RecompLauncher
                 return;
             }
 
-            var anchor = ResolveMenuAnchor(menuItem);
+            var anchor = ResolveMenuAnchor(menuItem) ?? FindGameMenuAnchor(game);
             if (anchor == null)
             {
                 await ShowMessageBoxAsync("Unable to open the update menu for this game.", "Error");
@@ -2406,7 +2490,7 @@ namespace N64RecompLauncher
                 return;
             }
 
-            var anchor = ResolveMenuAnchor(menuItem);
+            var anchor = ResolveMenuAnchor(menuItem) ?? FindGameMenuAnchor(game);
             if (anchor == null)
             {
                 await ShowMessageBoxAsync("Unable to open the version menu for this game.", "Error");
