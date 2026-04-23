@@ -1130,9 +1130,17 @@ echo ""N64RecompLauncher Updater - Version {latestRelease.tag_name}""
 echo
 
 echo ""Waiting for N64RecompLauncher to close...""
+waitCount=0
 while kill -0 {currentProcessId} 2>/dev/null; do
+    if [ ""$waitCount"" -ge 120 ]; then
+        echo ""Launcher did not close in time. Aborting update to avoid replacing files while the app is still running.""
+        exit 1
+    fi
+    waitCount=$((waitCount + 1))
     sleep 1
 done
+
+sleep 1
 
 echo ""Creating backup...""
 appDir=""{currentAppDirectory}""
