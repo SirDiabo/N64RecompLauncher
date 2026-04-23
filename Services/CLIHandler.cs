@@ -462,19 +462,127 @@ namespace N64RecompLauncher
             Console.WriteLine();
             Console.WriteLine();
 
+            var launchedProcessSource = new TaskCompletionSource<Process?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnGameProcessStarted(Process? process) => launchedProcessSource.TrySetResult(process);
+
             try
             {
+                game.GameProcessStarted += OnGameProcessStarted;
                 await game.PerformActionAsync(
                     _gameManager.HttpClient,
                     gamesFolder,
                     settings.IsPortable,
                     settings);
 
+                game.GameProcessStarted -= OnGameProcessStarted;
+
+                if (launchedProcessSource.Task.IsCompletedSuccessfully)
+                {
+                    await WaitForLaunchedGameSessionAsync(launchedProcessSource.Task.Result);
+                }
+
                 return 0;
             }
             catch (Exception ex)
             {
+                game.GameProcessStarted -= OnGameProcessStarted;
                 return PrintError($"Failed to launch {game.Name}: {ex.Message}");
+            }
+        }
+
+        private static async Task WaitForLaunchedGameSessionAsync(Process? process)
+        {
+            if (process == null)
+                return;
+
+            int? processGroupId = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var currentProcessGroupId = await TryGetProcessGroupIdAsync(Environment.ProcessId);
+                var launchedProcessGroupId = await TryGetProcessGroupIdAsync(process.Id);
+                if (launchedProcessGroupId.HasValue && launchedProcessGroupId != currentProcessGroupId)
+                {
+                    processGroupId = launchedProcessGroupId;
+                }
+            }
+
+            try
+            {
+                await process.WaitForExitAsync();
+            }
+            catch
+            {
+                // The process may already be gone by this point.
+            }
+
+            if (processGroupId.HasValue)
+            {
+                while (await HasActiveProcessGroupAsync(processGroupId.Value))
+                {
+                    await Task.Delay(1000);
+                }
+            }
+        }
+
+        private static async Task<int?> TryGetProcessGroupIdAsync(int processId)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "ps",
+                    Arguments = $"-o pgid= -p {processId}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using var psProcess = Process.Start(startInfo);
+                if (psProcess == null)
+                    return null;
+
+                var output = await psProcess.StandardOutput.ReadToEndAsync();
+                await psProcess.WaitForExitAsync();
+
+                return psProcess.ExitCode == 0 && int.TryParse(output.Trim(), out var processGroupId)
+                    ? processGroupId
+                    : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static async Task<bool> HasActiveProcessGroupAsync(int processGroupId)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "ps",
+                    Arguments = $"-o pid= -g {processGroupId}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using var psProcess = Process.Start(startInfo);
+                if (psProcess == null)
+                    return false;
+
+                var output = await psProcess.StandardOutput.ReadToEndAsync();
+                await psProcess.WaitForExitAsync();
+
+                return psProcess.ExitCode == 0 &&
+                       output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                           .Any(line => !string.IsNullOrWhiteSpace(line));
+            }
+            catch
+            {
+                return false;
             }
         }
 

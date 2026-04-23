@@ -4944,10 +4944,11 @@ namespace N64RecompLauncher
 
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     {
-                        var processGroupId = await TryGetProcessGroupIdAsync(process.Id);
-                        if (processGroupId.HasValue)
+                        var currentProcessGroupId = await TryGetProcessGroupIdAsync(Environment.ProcessId);
+                        var launchedProcessGroupId = await TryGetProcessGroupIdAsync(process.Id);
+                        if (launchedProcessGroupId.HasValue && launchedProcessGroupId != currentProcessGroupId)
                         {
-                            while (await HasActiveProcessGroupAsync(processGroupId.Value))
+                            while (await HasActiveProcessGroupAsync(launchedProcessGroupId.Value))
                             {
                                 await Task.Delay(1000);
                             }
