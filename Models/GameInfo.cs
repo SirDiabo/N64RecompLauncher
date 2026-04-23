@@ -160,6 +160,7 @@ namespace N64RecompLauncher.Models
         public string? Name { get; set; }
         public string? Repository { get; set; }
         public string? FolderName { get; set; }
+        public string? InstallPath { get; set; }
         public string? GameIconUrl { get; set; }
         public bool IsExperimental { get; set; }
         public bool IsCustom { get; set; }
@@ -212,10 +213,10 @@ namespace N64RecompLauncher.Models
 
                 try
                 {
-                    if (string.IsNullOrEmpty(GameManager.GamesFolder))
+                    var gamePath = GetInstallPath(GameManager.GamesFolder);
+                    if (string.IsNullOrWhiteSpace(gamePath))
                         return false;
 
-                    var gamePath = Path.Combine(GameManager.GamesFolder, FolderName);
                     var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
                     return File.Exists(selectedExePath);
                 }
@@ -273,7 +274,7 @@ namespace N64RecompLauncher.Models
         {
             get
             {
-                if (!IsInstalled || string.IsNullOrWhiteSpace(FolderName) || GameManager == null || string.IsNullOrWhiteSpace(GameManager.GamesFolder))
+                if (!IsInstalled || string.IsNullOrWhiteSpace(FolderName) || GameManager == null)
                     return false;
 
                 if (HasMultipleExecutables)
@@ -281,7 +282,7 @@ namespace N64RecompLauncher.Models
 
                 try
                 {
-                    var gamePath = Path.Combine(GameManager.GamesFolder, FolderName);
+                    var gamePath = GetInstallPath(GameManager.GamesFolder);
                     if (!Directory.Exists(gamePath))
                         return false;
 
@@ -341,6 +342,7 @@ namespace N64RecompLauncher.Models
 
         public bool CanLaunch => Status == GameStatus.Installed;
         public bool CanDownload => Status == GameStatus.NotInstalled;
+        public bool CanLocateInstall => Status == GameStatus.NotInstalled;
         public bool CanUpdate => Status == GameStatus.UpdateAvailable;
         public bool CanSkipUpdate => Status == GameStatus.UpdateAvailable;
         public bool CanChangeVersion => IsInstalled && !string.IsNullOrWhiteSpace(Repository);
@@ -434,6 +436,7 @@ namespace N64RecompLauncher.Models
                     DispatchPropertyChanged(nameof(IsInstalled));
                     DispatchPropertyChanged(nameof(CanLaunch));
                     DispatchPropertyChanged(nameof(CanDownload));
+                    DispatchPropertyChanged(nameof(CanLocateInstall));
                     DispatchPropertyChanged(nameof(CanUpdate));
                     DispatchPropertyChanged(nameof(CanSkipUpdate));
                     DispatchPropertyChanged(nameof(CanChangeVersion));
@@ -661,7 +664,7 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var gamePath = GetInstallPath(gamesFolder);
                 var versionFile = Path.Combine(gamePath, "version.txt");
 
                 bool directoryExists = Directory.Exists(gamePath);
@@ -777,6 +780,16 @@ namespace N64RecompLauncher.Models
             {
                 return null;
             }
+        }
+
+        public string GetInstallPath(string gamesFolder)
+        {
+            if (!string.IsNullOrWhiteSpace(InstallPath))
+                return InstallPath;
+
+            return string.IsNullOrWhiteSpace(FolderName)
+                ? string.Empty
+                : Path.Combine(gamesFolder, FolderName);
         }
 
         private static string NormalizeVersionString(string? version)
@@ -899,7 +912,7 @@ namespace N64RecompLauncher.Models
             if (string.IsNullOrWhiteSpace(Repository))
                 throw new InvalidOperationException("Game configuration is invalid (missing repository).");
 
-            var gamePath = Path.Combine(gamesFolder, FolderName);
+            var gamePath = GetInstallPath(gamesFolder);
             if (!Directory.Exists(gamePath))
                 throw new DirectoryNotFoundException($"Game folder not found: {gamePath}");
 
@@ -1066,7 +1079,7 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var gamePath = GetInstallPath(gamesFolder);
                 var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
                 File.WriteAllText(selectedExePath, executablePath);
                 System.Diagnostics.Debug.WriteLine($"Saved selected executable for {Name}: {executablePath}");
@@ -1085,7 +1098,7 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var gamePath = GetInstallPath(gamesFolder);
                 var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
 
                 if (File.Exists(selectedExePath))
@@ -1118,7 +1131,7 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var gamePath = GetInstallPath(gamesFolder);
                 var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
 
                 if (File.Exists(selectedExePath))
@@ -1390,7 +1403,7 @@ namespace N64RecompLauncher.Models
                 return;
             }
 
-            string gamePath = Path.Combine(gamesFolder, FolderName);
+            string gamePath = GetInstallPath(gamesFolder);
             string portableFilePath = Path.Combine(gamePath, "portable.txt");
             string disabledPortableFilePath = Path.Combine(gamePath, "portable_disabled.txt");
 
@@ -1606,7 +1619,7 @@ namespace N64RecompLauncher.Models
 
                 // Determine platform identifier
                 string platformIdentifier = GetPlatformIdentifier(settings);
-                var gamePath = Path.Combine(gamesFolder, FolderName);
+                var gamePath = GetInstallPath(gamesFolder);
                 var versionFile = Path.Combine(gamePath, "version.txt");
 
                 // Check for a cached release first
@@ -2792,7 +2805,7 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                string gamePath = Path.Combine(gamesFolder, FolderName);
+                string gamePath = GetInstallPath(gamesFolder);
 
                 if (!Directory.Exists(gamePath))
                 {

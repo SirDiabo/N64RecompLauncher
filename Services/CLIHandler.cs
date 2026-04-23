@@ -388,7 +388,7 @@ namespace N64RecompLauncher
             if (string.IsNullOrEmpty(storedExe))
             {
                 // Check if there are multiple executables
-                var gamePath = Path.Combine(gamesFolder, game.FolderName);
+                var gamePath = game.GetInstallPath(gamesFolder);
                 GameInfo.EnsureExecutableAtRoot(gamePath);
 
                 var executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out _);
@@ -747,7 +747,7 @@ namespace N64RecompLauncher
                     return PrintError("Game folder is not configured.");
                 }
 
-                var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                var gamePath = game.GetInstallPath(_gameManager.GamesFolder);
 
                 if (Directory.Exists(gamePath))
                 {

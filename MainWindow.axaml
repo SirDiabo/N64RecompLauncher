@@ -113,6 +113,10 @@
 												  Click="LaunchGameMenu_Click"
 												  CommandParameter="{Binding}"
 												  IsVisible="{Binding CanDownload}"/>
+										<MenuItem Header="Locate Existing Install"
+												  Click="LocateExistingInstall_Click"
+												  CommandParameter="{Binding}"
+												  IsVisible="{Binding CanLocateInstall}"/>
 										<MenuItem Header="Update Now"
 												  Click="UpdateNowMenu_Click"
 												  CommandParameter="{Binding}"
@@ -249,6 +253,10 @@
 											  Click="LaunchGameMenu_Click"
 											  CommandParameter="{Binding}"
 											  IsVisible="{Binding CanDownload}"/>
+									<MenuItem Header="Locate Existing Install"
+											  Click="LocateExistingInstall_Click"
+											  CommandParameter="{Binding}"
+											  IsVisible="{Binding CanLocateInstall}"/>
 									<MenuItem Header="Update Now"
 											  Click="UpdateNowMenu_Click"
 											  CommandParameter="{Binding}"

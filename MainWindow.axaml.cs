@@ -1782,7 +1782,7 @@ namespace N64RecompLauncher
                     return;
                 }
 
-                var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                var gamePath = game.GetInstallPath(_gameManager.GamesFolder);
                 if (!Directory.Exists(gamePath))
                 {
                     await ShowMessageBoxAsync($"Could not find the install folder for {game.Name}.", "Executable Error");
@@ -2350,7 +2350,7 @@ namespace N64RecompLauncher
             {
                 try
                 {
-                    string folderPath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                    string folderPath = game.GetInstallPath(_gameManager.GamesFolder);
                     OpenUrl(folderPath);
                 }
                 catch (Exception ex)
@@ -2453,6 +2453,47 @@ namespace N64RecompLauncher
             {
                 await ShowMessageBoxAsync($"Failed to launch {game.Name}: {ex.Message}", "Launch Error");
             }
+        }
+
+        private async void LocateExistingInstall_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem || menuItem.CommandParameter is not GameInfo game)
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected game.", "Error");
+                return;
+            }
+
+            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = $"Select existing install folder for {game.Name}",
+                AllowMultiple = false
+            });
+
+            if (folders == null || folders.Count == 0)
+                return;
+
+            var selectedPath = folders[0].Path.LocalPath;
+            if (string.IsNullOrWhiteSpace(selectedPath) || !Directory.Exists(selectedPath))
+            {
+                await ShowMessageBoxAsync("The selected install folder could not be found.", "Install Folder Not Found");
+                return;
+            }
+
+            var folderName = Path.GetFileName(selectedPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                await ShowMessageBoxAsync("The selected folder does not have a valid folder name.", "Invalid Folder");
+                return;
+            }
+
+            game.InstallPath = selectedPath;
+            game.FolderName = folderName;
+
+            await PersistGameInstallLocationAsync(game);
+            await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder, forceUpdateCheck: true);
+
+            ApplySorting();
+            UpdateContinueButtonState();
         }
 
         private async void UpdateNowMenu_Click(object sender, RoutedEventArgs e)
@@ -2638,7 +2679,7 @@ namespace N64RecompLauncher
                         return;
                     }
 
-                    var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                    var gamePath = game.GetInstallPath(_gameManager.GamesFolder);
 
                     if (Directory.Exists(gamePath))
                     {
@@ -2890,7 +2931,7 @@ namespace N64RecompLauncher
 
             try
             {
-                var gamePath = Path.Combine(_gameManager.GamesFolder, game.FolderName);
+                var gamePath = game.GetInstallPath(_gameManager.GamesFolder);
                 var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
 
                 if (File.Exists(lastPlayedPath))
@@ -3483,6 +3524,7 @@ namespace N64RecompLauncher
                     Name = SelectedGame.Name,
                     Repository = SelectedGame.Repository,
                     FolderName = SelectedGame.FolderName,
+                    InstallPath = SelectedGame.InstallPath,
                     GameIconUrl = SelectedGame.GameIconUrl,
                     IsCustom = true,
                     IsExperimental = false,
@@ -3542,6 +3584,7 @@ namespace N64RecompLauncher
                 gameToUpdate.Name = SelectedGame.Name;
                 gameToUpdate.Repository = SelectedGame.Repository;
                 gameToUpdate.FolderName = SelectedGame.FolderName;
+                gameToUpdate.InstallPath = SelectedGame.InstallPath;
                 gameToUpdate.GameIconUrl = SelectedGame.GameIconUrl;
 
                 // Save all games (preserving standard and experimental)
@@ -3609,6 +3652,7 @@ namespace N64RecompLauncher
                 Name = game.Name,
                 Repository = game.Repository,
                 FolderName = game.FolderName,
+                InstallPath = game.InstallPath,
                 GameIconUrl = game.GameIconUrl,
                 IsCustom = game.IsCustom,
                 IsExperimental = game.IsExperimental
@@ -3666,6 +3710,7 @@ namespace N64RecompLauncher
                         g.Name,
                         g.Repository,
                         g.FolderName,
+                        g.InstallPath,
                         g.GameIconUrl
                     }).ToList(),
                     experimental = gamesData.Where(g => g.IsExperimental && !g.IsCustom).Select(g => new
@@ -3673,6 +3718,7 @@ namespace N64RecompLauncher
                         g.Name,
                         g.Repository,
                         g.FolderName,
+                        g.InstallPath,
                         g.GameIconUrl
                     }).ToList(),
                     custom = gamesData.Where(g => g.IsCustom).Select(g => new
@@ -3680,6 +3726,7 @@ namespace N64RecompLauncher
                         g.Name,
                         g.Repository,
                         g.FolderName,
+                        g.InstallPath,
                         g.GameIconUrl
                     }).ToList()
                 };
@@ -3759,6 +3806,7 @@ namespace N64RecompLauncher
                     Name = element.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
                     Repository = element.TryGetProperty("repository", out var r) ? r.GetString() ?? "" : "",
                     FolderName = element.TryGetProperty("folderName", out var f) ? f.GetString() ?? "" : "",
+                    InstallPath = element.TryGetProperty("installPath", out var installPath) ? installPath.GetString() : null,
                     GameIconUrl = element.TryGetProperty("gameIconUrl", out var iconUrl) ? iconUrl.GetString() : null,
                     PreferredVersion = element.TryGetProperty("preferredVersion", out var preferredVersion) ? preferredVersion.GetString() : null,
                     SkippedUpdateVersion = element.TryGetProperty("skippedUpdateVersion", out var skippedUpdateVersion) ? skippedUpdateVersion.GetString() : null,
@@ -3778,6 +3826,7 @@ namespace N64RecompLauncher
                 name = game.Name,
                 repository = game.Repository,
                 folderName = game.FolderName,
+                installPath = game.InstallPath,
                 gameIconUrl = game.GameIconUrl,
                 preferredVersion = game.PreferredVersion,
                 skippedUpdateVersion = game.SkippedUpdateVersion
@@ -3838,6 +3887,25 @@ namespace N64RecompLauncher
 
             matchingGame.PreferredVersion = game.PreferredVersion;
             matchingGame.SkippedUpdateVersion = game.SkippedUpdateVersion;
+
+            await SaveGamesToJsonAsync(
+                allGames.Where(g => !g.IsExperimental && !g.IsCustom).ToList(),
+                allGames.Where(g => g.IsExperimental && !g.IsCustom).ToList(),
+                allGames.Where(g => g.IsCustom).ToList());
+        }
+
+        private async Task PersistGameInstallLocationAsync(GameInfo game)
+        {
+            var allGames = await LoadGamesFromJsonAsync();
+            var matchingGame = allGames.FirstOrDefault(g =>
+                !string.IsNullOrWhiteSpace(g.Repository) &&
+                g.Repository.Equals(game.Repository, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingGame == null)
+                return;
+
+            matchingGame.FolderName = game.FolderName;
+            matchingGame.InstallPath = game.InstallPath;
 
             await SaveGamesToJsonAsync(
                 allGames.Where(g => !g.IsExperimental && !g.IsCustom).ToList(),
@@ -4031,9 +4099,10 @@ namespace N64RecompLauncher
                     Name = g.Name,
                     Repository = g.Repository,
                     FolderName = g.FolderName,
+                    InstallPath = g.InstallPath,
                     GameIconUrl = g.GameIconUrl,
                     IconUrl = g.IconUrl,
-                    IsInstalled = !string.IsNullOrEmpty(g.FolderName) && Directory.Exists(Path.Combine(_gameManager.GamesFolder, g.FolderName)),
+                    IsInstalled = !string.IsNullOrEmpty(g.FolderName) && Directory.Exists(g.GetInstallPath(_gameManager.GamesFolder)),
                     CanRemove = g.IsCustom && !_gameManager.IsDefaultGame(g.Repository ?? string.Empty)
                 }).ToList();
 

@@ -368,7 +368,7 @@ namespace N64RecompLauncher.Services
                 if (game == null || string.IsNullOrEmpty(game.FolderName))
                     continue;
 
-                var gamePath = Path.Combine(_gamesFolder, game.FolderName);
+                var gamePath = game.GetInstallPath(_gamesFolder);
                 var lastPlayedPath = Path.Combine(gamePath, "LastPlayed.txt");
                 if (File.Exists(lastPlayedPath))
                 {
@@ -515,6 +515,7 @@ namespace N64RecompLauncher.Services
                         Name = (gameElement.TryGetProperty("name", out var nameElement) ? nameElement.GetString() : null) ?? string.Empty,
                         Repository = (gameElement.TryGetProperty("repository", out var repoElement) ? repoElement.GetString() : null) ?? string.Empty,
                         FolderName = (gameElement.TryGetProperty("folderName", out var folderElement) ? folderElement.GetString() : null) ?? string.Empty,
+                        InstallPath = (gameElement.TryGetProperty("installPath", out var installPathElement) ? installPathElement.GetString() : null),
                         GameIconUrl = string.Empty,
                         PreferredVersion = gameElement.TryGetProperty("preferredVersion", out var preferredVersionElement) ? preferredVersionElement.GetString() : null,
                         SkippedUpdateVersion = gameElement.TryGetProperty("skippedUpdateVersion", out var skippedUpdateVersionElement) ? skippedUpdateVersionElement.GetString() : null,
@@ -944,7 +945,7 @@ namespace N64RecompLauncher.Services
             if (!forceUpdateCheck)
             {
                 int cachedCount = Games.Count(g => !GitHubApiCache.NeedsUpdateCheck(g.Repository ?? string.Empty,
-                    Directory.Exists(Path.Combine(_gamesFolder, g.FolderName ?? ""))));
+                    Directory.Exists(g.GetInstallPath(_gamesFolder))));
                 int apiCallCount = Games.Count - cachedCount;
                 System.Diagnostics.Debug.WriteLine($"LoadGamesAsync: {cachedCount} games using cache, {apiCallCount} will check for updates");
             }
@@ -981,6 +982,7 @@ namespace N64RecompLauncher.Services
                             g.Name,
                             g.Repository,
                             g.FolderName,
+                            g.InstallPath,
                             g.GameIconUrl
                         }).ToList(),
                     experimental = allGames
@@ -990,6 +992,7 @@ namespace N64RecompLauncher.Services
                             g.Name,
                             g.Repository,
                             g.FolderName,
+                            g.InstallPath,
                             g.GameIconUrl
                         }).ToList(),
                     custom = Array.Empty<object>()
