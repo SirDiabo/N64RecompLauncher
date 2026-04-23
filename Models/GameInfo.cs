@@ -2902,6 +2902,11 @@ namespace N64RecompLauncher.Models
                     {
                         startInfo.ArgumentList.Add(argument);
                     }
+
+                    foreach (var variable in runnerCommand.EnvironmentVariables)
+                    {
+                        startInfo.Environment[variable.Key] = variable.Value;
+                    }
                 }
                 else
                 {
@@ -3012,25 +3017,10 @@ namespace N64RecompLauncher.Models
             if (IsCommandAvailable("wine") || IsCommandAvailable("wine64"))
                 return true;
 
-            // Check for Proton
-            var steamPaths = new[]
+            foreach (var protonInstallation in GetProtonInstallations())
             {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common"),
-            };
-
-            foreach (var steamPath in steamPaths)
-            {
-                if (Directory.Exists(steamPath))
-                {
-                    var protonDirs = Directory.GetDirectories(steamPath, "Proton*", SearchOption.TopDirectoryOnly);
-                    foreach (var protonDir in protonDirs)
-                    {
-                        var protonExe = Path.Combine(protonDir, "proton");
-                        if (File.Exists(protonExe))
-                            return true;
-                    }
-                }
+                if (File.Exists(protonInstallation.ProtonExecutable))
+                    return true;
             }
 
             return false;
@@ -3040,6 +3030,13 @@ namespace N64RecompLauncher.Models
         {
             public required string FileName { get; init; }
             public required List<string> Arguments { get; init; }
+            public Dictionary<string, string> EnvironmentVariables { get; init; } = new(StringComparer.Ordinal);
+        }
+
+        private sealed class ProtonInstallation
+        {
+            public required string ProtonExecutable { get; init; }
+            public required string SteamRoot { get; init; }
         }
 
         private static readonly Dictionary<string, Func<string, string, string>> RunnerPlaceholderResolvers = new(StringComparer.Ordinal)
@@ -3173,35 +3170,116 @@ namespace N64RecompLauncher.Models
             if (IsCommandAvailable("wine"))
                 return BuildWindowsRunnerCommand("wine {exe}", executablePath, gamePath);
 
-            // Check for Proton
-            var steamPaths = new[]
+            foreach (var protonInstallation in GetProtonInstallations())
             {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps/common"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps/common"),
-            };
+                if (!File.Exists(protonInstallation.ProtonExecutable))
+                    continue;
 
-            foreach (var steamPath in steamPaths)
-            {
-                if (Directory.Exists(steamPath))
+                var compatDataPath = GetProtonCompatDataPath(gamePath);
+                var compatAppId = GetStableCompatAppId(executablePath);
+                Directory.CreateDirectory(compatDataPath);
+
+                return new RunnerCommandSpec
                 {
-                    var protonDirs = Directory.GetDirectories(steamPath, "Proton*", SearchOption.TopDirectoryOnly)
-                        .OrderByDescending(d => d)
-                        .ToList();
-
-                    foreach (var protonDir in protonDirs)
+                    FileName = protonInstallation.ProtonExecutable,
+                    Arguments = ["waitforexitandrun", executablePath],
+                    EnvironmentVariables = new Dictionary<string, string>(StringComparer.Ordinal)
                     {
-                        var protonExe = Path.Combine(protonDir, "proton");
-                        if (File.Exists(protonExe))
-                            return new RunnerCommandSpec
-                            {
-                                FileName = protonExe,
-                                Arguments = ["run", executablePath]
-                            };
+                        ["STEAM_COMPAT_CLIENT_INSTALL_PATH"] = protonInstallation.SteamRoot,
+                        ["STEAM_COMPAT_DATA_PATH"] = compatDataPath,
+                        ["STEAM_COMPAT_APP_ID"] = compatAppId,
+                        ["SteamAppId"] = compatAppId,
+                        ["SteamGameId"] = compatAppId
                     }
-                }
+                };
             }
 
             return null;
+        }
+
+        private static IEnumerable<ProtonInstallation> GetProtonInstallations()
+        {
+            foreach (var steamRoot in GetSteamRoots())
+            {
+                var commonPath = Path.Combine(steamRoot, "steamapps", "common");
+                foreach (var protonDir in GetExistingDirectories(commonPath, "Proton*").OrderByDescending(d => d, StringComparer.OrdinalIgnoreCase))
+                {
+                    var protonExe = Path.Combine(protonDir, "proton");
+                    if (File.Exists(protonExe))
+                    {
+                        yield return new ProtonInstallation
+                        {
+                            ProtonExecutable = protonExe,
+                            SteamRoot = steamRoot
+                        };
+                    }
+                }
+
+                var compatibilityToolsPath = Path.Combine(steamRoot, "compatibilitytools.d");
+                foreach (var protonDir in GetExistingDirectories(compatibilityToolsPath, "*Proton*").OrderByDescending(d => d, StringComparer.OrdinalIgnoreCase))
+                {
+                    var protonExe = Path.Combine(protonDir, "proton");
+                    if (File.Exists(protonExe))
+                    {
+                        yield return new ProtonInstallation
+                        {
+                            ProtonExecutable = protonExe,
+                            SteamRoot = steamRoot
+                        };
+                    }
+                }
+            }
+        }
+
+        private static IEnumerable<string> GetSteamRoots()
+        {
+            var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var steamRoots = new[]
+            {
+                Path.Combine(homePath, ".steam", "root"),
+                Path.Combine(homePath, ".steam", "steam"),
+                Path.Combine(homePath, ".local", "share", "Steam"),
+                Path.Combine(homePath, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")
+            };
+
+            return steamRoots
+                .Where(Directory.Exists)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static IEnumerable<string> GetExistingDirectories(string parentPath, string searchPattern)
+        {
+            if (!Directory.Exists(parentPath))
+                return [];
+
+            try
+            {
+                return Directory.GetDirectories(parentPath, searchPattern, SearchOption.TopDirectoryOnly);
+            }
+            catch
+            {
+                return [];
+            }
+        }
+
+        private static string GetProtonCompatDataPath(string gamePath)
+        {
+            return Path.Combine(gamePath, ".steam-compat-data");
+        }
+
+        private static string GetStableCompatAppId(string executablePath)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (var character in executablePath)
+                {
+                    hash ^= character;
+                    hash *= 16777619;
+                }
+
+                return (hash & 0x7FFFFFFF).ToString();
+            }
         }
 
         private static bool IsCommandAvailable(string command)
