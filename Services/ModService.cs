@@ -102,7 +102,9 @@ namespace N64RecompLauncher.Services
             { "Zelda64Recomp/Zelda64Recomp", "zelda-64-recompiled" },
             { "BanjoRecomp/BanjoRecomp", "banjo-recompiled" },
             { "sonicdcer/Starfox64Recomp", "starfox-64-recompiled" },
-            { "DinosaurPlanetRecomp/dino-recomp", "dinosaur-planet-recompiled" }
+            { "DinosaurPlanetRecomp/dino-recomp", "dinosaur-planet-recompiled" },
+            { "RevoSucks/BM64Recomp", "bomberman-64-recompiled" },
+            { "MegaMan64Recomp/MegaMan64Recompiled", "mega-man-64-recompiled" }
 
         };
 
