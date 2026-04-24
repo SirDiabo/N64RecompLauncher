@@ -66,6 +66,9 @@ namespace N64RecompLauncher.Services
             if (string.IsNullOrWhiteSpace(launcherPath))
                 throw new ArgumentException("Launcher path is required.", nameof(launcherPath));
 
+            if (IsRunningUnderSteam())
+                throw new InvalidOperationException("Steam is running this launcher, so the shortcut worker would keep Steam from seeing the launcher as closed. Close Steam and run the launcher outside Steam to add shortcuts.");
+
             var startInfo = new ProcessStartInfo
             {
                 FileName = launcherPath,
@@ -386,6 +389,14 @@ namespace N64RecompLauncher.Services
             {
                 return false;
             }
+        }
+
+        public static bool IsRunningUnderSteam()
+        {
+            return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SteamGameId")) ||
+                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SteamAppId")) ||
+                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SteamOverlayGameId")) ||
+                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SteamDeck"));
         }
 
         private static async Task WaitForSteamExitAsync()

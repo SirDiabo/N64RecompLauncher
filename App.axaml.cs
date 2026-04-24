@@ -134,6 +134,7 @@ public class App : Application, INotifyPropertyChanged
     private const string VersionFileName = "version.txt";
     private const string UpdateCheckFileName = "update_check.json";
     private const string BackupDirectoryPrefix = "backup_";
+    private const int UpdaterProcessExitTimeoutSeconds = 120;
 
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
@@ -1028,7 +1029,7 @@ public class App : Application, INotifyPropertyChanged
         int currentProcessId = Environment.ProcessId;
         string applicationExecutable = Process.GetCurrentProcess().MainModule?.FileName
             ?? throw new InvalidOperationException("Could not determine the current application executable path.");
-        string backupDir = Path.Combine(currentAppDirectory, "backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+        string backupDir = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -1050,9 +1051,16 @@ echo N64RecompLauncher Updater - Version {latestRelease.tag_name}
 echo.
 
 echo Waiting for N64RecompLauncher to close...
+set /A waitCount=0
 :wait_loop
 tasklist /FI ""PID eq {currentProcessId}"" 2>NUL | find /I ""{currentProcessId}"">NUL
 if ""%ERRORLEVEL%""==""0"" (
+    if %waitCount% GEQ {UpdaterProcessExitTimeoutSeconds} (
+        echo Launcher did not close in time. Aborting update to avoid replacing files while the app is still running.
+        pause
+        goto cleanup
+    )
+    set /A waitCount+=1
     timeout /T 1 >NUL
     goto wait_loop
 )
@@ -1065,9 +1073,11 @@ set ""updateDir={tempUpdateFolder}""
 if not exist ""%backupDir%"" mkdir ""%backupDir%""
 
 echo Backing up current version...
-for %%i in (""%appDir%\*.exe"" ""%appDir%\*.dll"" ""%appDir%\*.config"" ""%appDir%\*.json"") do (
-    if exist ""%%i"" (
-        copy ""%%i"" ""%backupDir%\"" >nul 2>&1
+for /F ""delims="" %%i in ('dir /B ""%updateDir%""') do (
+    if exist ""%appDir%\%%i\\"" (
+        xcopy ""%appDir%\%%i"" ""%backupDir%\%%i\\"" /S /E /Y /I >nul 2>&1
+    ) else if exist ""%appDir%\%%i"" (
+        copy /Y ""%appDir%\%%i"" ""%backupDir%\"" >nul 2>&1
     )
 )
 
@@ -1113,7 +1123,7 @@ del ""%~f0""
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.Shutdown();
+            ShutdownForUpdate();
         }
     }
 
@@ -1132,7 +1142,7 @@ echo
 echo ""Waiting for N64RecompLauncher to close...""
 waitCount=0
 while kill -0 {currentProcessId} 2>/dev/null; do
-    if [ ""$waitCount"" -ge 120 ]; then
+    if [ ""$waitCount"" -ge {UpdaterProcessExitTimeoutSeconds} ]; then
         echo ""Launcher did not close in time. Aborting update to avoid replacing files while the app is still running.""
         exit 1
     fi
@@ -1151,7 +1161,11 @@ mkdir -p ""$backupDir""
 
 echo ""Backing up current version...""
 if [ -d ""$appDir"" ]; then
-    cp -r ""$appDir""/* ""$backupDir""/ 2>/dev/null || true
+    find ""$updateDir"" -mindepth 1 -maxdepth 1 -exec basename {{}} \; | while IFS= read -r entry; do
+        if [ -e ""$appDir/$entry"" ]; then
+            cp -R ""$appDir/$entry"" ""$backupDir/"" 2>/dev/null || true
+        fi
+    done
 fi
 
 echo ""Applying update...""
@@ -1260,8 +1274,22 @@ rm -- ""$0""
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            ShutdownForUpdate();
+        }
+    }
+
+    private void ShutdownForUpdate()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
             desktop.Shutdown();
         }
+
+        Task.Run(async () =>
+        {
+            await Task.Delay(1000).ConfigureAwait(false);
+            Environment.Exit(0);
+        });
     }
 
     private string GetPlatformIdentifier()

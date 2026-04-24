@@ -4,6 +4,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
@@ -19,6 +20,10 @@ namespace N64RecompLauncher
         private const ConsoleColor ColorWarning = ConsoleColor.Yellow;
         private const ConsoleColor ColorError = ConsoleColor.Red;
         private const ConsoleColor ColorMuted = ConsoleColor.DarkGray;
+        private const string Repository = "SirDiabo/N64RecompLauncher";
+        private const string VersionFileName = "version.txt";
+        private const string UpdateCheckFileName = "update_check.json";
+        private const int UpdaterProcessExitTimeoutSeconds = 120;
 
         private GameManager? _gameManager;
         private string _currentVersion = "Unknown";
@@ -77,6 +82,12 @@ namespace N64RecompLauncher
                         await PrintHeader();
                         await InitializeGameManager();
                         return await UpdateAllGames();
+
+                    case "--update-launcher":
+                    case "--self-update":
+                        ClearTerminal();
+                        await PrintHeader();
+                        return await UpdateLauncher();
 
                     case "-x":
                     case "--uninstall":
@@ -226,7 +237,7 @@ namespace N64RecompLauncher
                 if (!string.IsNullOrEmpty(latestTag) && latestTag != _currentVersion)
                 {
                     WriteColor($"  [UPDATE AVAILABLE] ", ColorWarning);
-                    Console.WriteLine($"New version {latestTag} is available! Use --update to upgrade.");
+                    Console.WriteLine($"New version {latestTag} is available! Use --update-launcher to upgrade.");
                     Console.WriteLine();
                 }
             }
@@ -245,6 +256,7 @@ namespace N64RecompLauncher
             PrintHelpItem("-h, --help", "Show this help screen");
             PrintHelpItem("-l, --list", "List all available games");
             PrintHelpItem("-u, --update", "Update all installed games");
+            PrintHelpItem("--update-launcher", "Update the launcher itself");
             PrintHelpItem("-d, --download <name>", "Download and install a game");
             PrintHelpItem("-r, --run <name>", "Run a game (auto-updates if needed)");
             PrintHelpItem("-x, --uninstall <name>", "Uninstall a game");
@@ -817,6 +829,331 @@ namespace N64RecompLauncher
             }
 
             return errorCount > 0 ? 1 : 0;
+        }
+
+        private async Task<int> UpdateLauncher()
+        {
+            try
+            {
+                string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string currentVersion = LoadCurrentLauncherVersion(currentAppDirectory);
+
+                using var client = new HttpClient();
+                client.Timeout = TimeSpan.FromMinutes(10);
+                client.DefaultRequestHeaders.Add("User-Agent", "N64RecompLauncher-CLI");
+
+                WriteColor("→ Checking launcher release...", ColorMuted);
+                Console.WriteLine();
+
+                string releaseJson = await client.GetStringAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+                var release = JsonSerializer.Deserialize<GitHubRelease>(releaseJson);
+                if (release == null || string.IsNullOrWhiteSpace(release.tag_name))
+                    return PrintError("Could not read launcher update information.");
+
+                if (!IsNewerVersion(release.tag_name, currentVersion))
+                {
+                    WriteColor($"✓ Launcher is already up to date ({currentVersion})", ColorSuccess);
+                    Console.WriteLine();
+                    return 0;
+                }
+
+                string platformIdentifier = GetPlatformIdentifier();
+                var asset = release.assets.FirstOrDefault(a =>
+                    a.name.Contains(platformIdentifier, StringComparison.OrdinalIgnoreCase) &&
+                    (a.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || a.name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)));
+
+                if (asset == null)
+                    return PrintError($"No downloadable launcher update found for this platform ({platformIdentifier}).");
+
+                WriteColor($"→ Downloading launcher {release.tag_name}...", ColorMuted);
+                Console.WriteLine();
+
+                string tempDownloadPath = Path.Combine(Path.GetTempPath(), asset.name);
+                string tempUpdateFolder = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_temp_update");
+                if (Directory.Exists(tempUpdateFolder))
+                    Directory.Delete(tempUpdateFolder, true);
+                Directory.CreateDirectory(tempUpdateFolder);
+
+                await using (var downloadStream = await client.GetStreamAsync(asset.browser_download_url))
+                await using (var fileStream = new FileStream(tempDownloadPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+                {
+                    await downloadStream.CopyToAsync(fileStream);
+                }
+
+                WriteColor("→ Extracting launcher update...", ColorMuted);
+                Console.WriteLine();
+
+                if (asset.name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    ZipFile.ExtractToDirectory(tempDownloadPath, tempUpdateFolder, true);
+                }
+                else
+                {
+                    int tarResult = await ExtractTarGzAsync(tempDownloadPath, tempUpdateFolder);
+                    if (tarResult != 0)
+                        return PrintError("Failed to extract launcher update archive.");
+                }
+
+                if (!ValidateLauncherUpdateFiles(tempUpdateFolder))
+                    return PrintError("Downloaded launcher update appears to be incomplete.");
+
+                WriteColor("→ Starting updater. The launcher will relaunch when it finishes.", ColorWarning);
+                Console.WriteLine();
+
+                await CreateAndRunLauncherUpdaterScript(release, tempUpdateFolder, tempDownloadPath, currentAppDirectory);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                return PrintError($"Failed to update launcher: {ex.Message}");
+            }
+        }
+
+        private static string LoadCurrentLauncherVersion(string currentAppDirectory)
+        {
+            string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
+            if (File.Exists(updateCheckFilePath))
+            {
+                try
+                {
+                    var json = File.ReadAllText(updateCheckFilePath);
+                    var updateInfo = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                    if (updateInfo != null &&
+                        updateInfo.TryGetValue("CurrentVersion", out var versionElement) &&
+                        !string.IsNullOrWhiteSpace(versionElement.GetString()))
+                    {
+                        return versionElement.GetString()!;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            string versionFilePath = Path.Combine(currentAppDirectory, VersionFileName);
+            return File.Exists(versionFilePath) ? File.ReadAllText(versionFilePath).Trim() : "0.0";
+        }
+
+        private static bool ValidateLauncherUpdateFiles(string updateDirectory)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
+                Directory.GetDirectories(updateDirectory, "*.app", SearchOption.TopDirectoryOnly).Any())
+            {
+                return true;
+            }
+
+            string executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "N64RecompLauncher.exe"
+                : "N64RecompLauncher";
+
+            string executablePath = Path.Combine(updateDirectory, executableName);
+            return File.Exists(executablePath) && new FileInfo(executablePath).Length > 1024;
+        }
+
+        private static async Task<int> ExtractTarGzAsync(string tarGzPath, string extractPath)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "tar",
+                Arguments = $"-xzf \"{tarGzPath}\" -C \"{extractPath}\"",
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process == null)
+                return 1;
+
+            await process.WaitForExitAsync();
+            return process.ExitCode;
+        }
+
+        private static async Task CreateAndRunLauncherUpdaterScript(GitHubRelease release, string tempUpdateFolder, string tempDownloadPath, string currentAppDirectory)
+        {
+            int currentProcessId = Environment.ProcessId;
+            string applicationExecutable = Environment.ProcessPath
+                ?? Process.GetCurrentProcess().MainModule?.FileName
+                ?? throw new InvalidOperationException("Could not determine launcher executable path.");
+            string backupDir = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            string updateCheckFilePath = Path.Combine(currentAppDirectory, UpdateCheckFileName);
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.cmd");
+                string scriptContent = $@"@echo off
+echo N64RecompLauncher Updater - Version {release.tag_name}
+echo.
+echo Waiting for N64RecompLauncher CLI to close...
+set /A waitCount=0
+:wait_loop
+tasklist /FI ""PID eq {currentProcessId}"" 2>NUL | find /I ""{currentProcessId}"">NUL
+if ""%ERRORLEVEL%""==""0"" (
+    if %waitCount% GEQ {UpdaterProcessExitTimeoutSeconds} (
+        echo Launcher did not close in time. Aborting update to avoid replacing files while the app is still running.
+        pause
+        goto cleanup
+    )
+    set /A waitCount+=1
+    timeout /T 1 >NUL
+    goto wait_loop
+)
+
+set ""appDir={currentAppDirectory}""
+set ""backupDir={backupDir}""
+set ""updateDir={tempUpdateFolder}""
+if not exist ""%backupDir%"" mkdir ""%backupDir%""
+
+echo Backing up files replaced by this update...
+for /F ""delims="" %%i in ('dir /B ""%updateDir%""') do (
+    if exist ""%appDir%\%%i\\"" (
+        xcopy ""%appDir%\%%i"" ""%backupDir%\%%i\\"" /S /E /Y /I >nul 2>&1
+    ) else if exist ""%appDir%\%%i"" (
+        copy /Y ""%appDir%\%%i"" ""%backupDir%\"" >nul 2>&1
+    )
+)
+
+echo Applying update...
+xcopy ""%updateDir%\*"" ""%appDir%"" /S /E /Y /I >nul 2>&1
+if errorlevel 1 (
+    echo Update failed! Restoring backup...
+    xcopy ""%backupDir%\*"" ""%appDir%"" /S /E /Y /I >nul 2>&1
+    pause
+    goto cleanup
+)
+
+echo {{""CurrentVersion"":""{release.tag_name}"",""LastCheckTime"":""{DateTime.UtcNow:o}"",""LastKnownVersion"":""{release.tag_name}"",""ETag"":"""",""UpdateAvailable"":false}} > ""{updateCheckFilePath}""
+echo Update completed successfully.
+start """" ""{applicationExecutable}""
+
+:cleanup
+if exist ""%backupDir%"" rmdir /S /Q ""%backupDir%"" >nul 2>&1
+if exist ""{tempDownloadPath}"" del ""{tempDownloadPath}"" >nul 2>&1
+if exist ""%updateDir%"" rmdir /S /Q ""%updateDir%"" >nul 2>&1
+del ""%~f0""
+";
+                await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/C \"\"{updaterScriptPath}\"\"",
+                    WindowStyle = ProcessWindowStyle.Normal,
+                    CreateNoWindow = false,
+                    UseShellExecute = true
+                });
+            }
+            else
+            {
+                string updaterScriptPath = Path.Combine(Path.GetTempPath(), "N64RecompLauncher_Updater.sh");
+                string scriptContent = $@"#!/bin/bash
+echo ""N64RecompLauncher Updater - Version {release.tag_name}""
+echo
+echo ""Waiting for N64RecompLauncher CLI to close...""
+waitCount=0
+while kill -0 {currentProcessId} 2>/dev/null; do
+    if [ ""$waitCount"" -ge {UpdaterProcessExitTimeoutSeconds} ]; then
+        echo ""Launcher did not close in time. Aborting update to avoid replacing files while the app is still running.""
+        exit 1
+    fi
+    waitCount=$((waitCount + 1))
+    sleep 1
+done
+
+appDir=""{currentAppDirectory}""
+backupDir=""{backupDir}""
+updateDir=""{tempUpdateFolder}""
+mkdir -p ""$backupDir""
+
+echo ""Backing up files replaced by this update...""
+find ""$updateDir"" -mindepth 1 -maxdepth 1 -exec basename {{}} \; | while IFS= read -r entry; do
+    if [ -e ""$appDir/$entry"" ]; then
+        cp -R ""$appDir/$entry"" ""$backupDir/"" 2>/dev/null || true
+    fi
+done
+
+echo ""Applying update...""
+if cp -r ""$updateDir""/* ""$appDir""/ 2>/dev/null; then
+    echo ""Update applied successfully""
+else
+    echo ""Update failed! Restoring backup...""
+    cp -r ""$backupDir""/* ""$appDir""/ 2>/dev/null || true
+    rm -rf ""$backupDir"" ""$updateDir"" 2>/dev/null || true
+    rm -f ""{tempDownloadPath}"" 2>/dev/null || true
+    exit 1
+fi
+
+cat > ""{updateCheckFilePath}"" << 'EOF'
+{{""CurrentVersion"":""{release.tag_name}"",""LastCheckTime"":""{DateTime.UtcNow:o}"",""LastKnownVersion"":""{release.tag_name}"",""ETag"":"""",""UpdateAvailable"":false}}
+EOF
+
+if [ -f ""$appDir/N64RecompLauncher"" ]; then
+    chmod +x ""$appDir/N64RecompLauncher""
+    cd ""$appDir""
+    nohup ""./N64RecompLauncher"" > /dev/null 2>&1 &
+fi
+
+rm -rf ""$backupDir"" ""$updateDir"" 2>/dev/null || true
+rm -f ""{tempDownloadPath}"" 2>/dev/null || true
+rm -- ""$0""
+";
+                scriptContent = scriptContent.Replace("\r\n", "\n").Replace("\r", "\n");
+                await File.WriteAllTextAsync(updaterScriptPath, scriptContent);
+
+                using var chmod = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "chmod",
+                    Arguments = $"+x \"{updaterScriptPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+                if (chmod != null)
+                    await chmod.WaitForExitAsync();
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "/bin/bash",
+                    Arguments = $"\"{updaterScriptPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+            }
+        }
+
+        private static string GetPlatformIdentifier()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                return "Windows";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return "macOS";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return RuntimeInformation.OSArchitecture switch
+                {
+                    Architecture.Arm64 => "Linux-ARM64",
+                    Architecture.X64 => "Linux-X64",
+                    Architecture.X86 => "Linux-X86",
+                    Architecture.Arm => "Linux-ARM",
+                    _ => "Linux-X64"
+                };
+            }
+
+            throw new PlatformNotSupportedException("Unsupported operating system");
+        }
+
+        private static bool IsNewerVersion(string latestVersion, string currentVersion)
+        {
+            try
+            {
+                string cleanLatest = latestVersion.TrimStart('v', 'V');
+                string cleanCurrent = currentVersion.TrimStart('v', 'V');
+                return Version.TryParse(cleanLatest, out var latest) &&
+                    Version.TryParse(cleanCurrent, out var current) &&
+                    latest > current;
+            }
+            catch
+            {
+                return !string.Equals(latestVersion, currentVersion, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         private async Task<int> UninstallGame(string gameName)
