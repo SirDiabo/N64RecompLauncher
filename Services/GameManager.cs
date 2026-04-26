@@ -678,11 +678,6 @@ namespace N64RecompLauncher.Services
             repository = "Rainchus/Quest64-Recomp",
             folderName = "Quest64Recompiled",
             gameIconUrl  = "https://raw.githubusercontent.com/Rainchus/Quest64-Recomp/refs/heads/main/icons/512.png" },
-
-        new { name = "Space Station Silicon Valley",
-            repository = "Cellenseres/SSSV_Recomp",
-            folderName = "SSSVRecompiled",
-            gameIconUrl  = "https://raw.githubusercontent.com/Cellenseres/SSSV_Recomp/refs/heads/main/icons/512.png" },
     };
 
             var custom = new List<object>
