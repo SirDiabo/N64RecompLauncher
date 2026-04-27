@@ -91,7 +91,7 @@
 									FontSize="15"
 									MinWidth="160"
 									Height="48"
-									IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+									IsEnabled="{Binding !IsLoading}"
 									Click="GameButton_Click"
 									Tag="{Binding}"/>
 
@@ -100,7 +100,7 @@
 									FontSize="20"
 									Height="48"
 									Width="48"
-									IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+									IsEnabled="{Binding !IsLoading}"
 									Click="OptionsButton_Click"
 									Tag="{Binding}">
 								<Button.ContextMenu>
@@ -239,7 +239,7 @@
 								VerticalAlignment="Top"
 								HorizontalAlignment="Right"
 								Margin="12"
-								IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+								IsEnabled="{Binding !IsLoading}"
 								Click="OptionsButton_Click"
 								Tag="{Binding}">
 							<TextBlock Text="⋯" Foreground="{DynamicResource ThemeText}" TextAlignment="Center" VerticalAlignment="Center"/>
@@ -363,7 +363,7 @@
 							Width="48"
 							Height="48"
 							Margin="0,0,12,0"
-							IsEnabled="{Binding IsLoading, Converter={x:Static local:BoolInverterConverter.Instance}}"
+							IsEnabled="{Binding !IsLoading}"
 							Click="GameButton_Click"
 							Tag="{Binding}">
 							<Image Width="48" Source="{Binding ButtonImage}"/>
@@ -1128,7 +1128,7 @@
 				<ScrollViewer VerticalScrollBarVisibility="Auto" x:Name="GameScrollViewer" Margin="30,20,30,30">
 					<Grid>
 						<ItemsControl ItemsSource="{Binding Games}" x:Name="ListViewControl"
-									  IsVisible="{Binding ElementName=UseGridViewCheckBox, Path=IsChecked, Converter={x:Static local:BoolInverterConverter.Instance}}">
+									  IsVisible="{Binding ElementName=UseGridViewCheckBox, Path=!IsChecked}">
 							<ItemsControl.ItemTemplate>
 								<StaticResource ResourceKey="ListViewTemplate"/>
 							</ItemsControl.ItemTemplate>
