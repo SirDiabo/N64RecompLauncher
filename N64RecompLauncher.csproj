@@ -43,6 +43,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\GitHubLauncher.Core\GitHubLauncher.Core.csproj" />
+		<ProjectReference Include="lib/GitHubLauncher.Core/GitHubLauncher.Core.csproj" />
 	</ItemGroup>
 </Project>
