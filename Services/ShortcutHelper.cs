@@ -14,7 +14,7 @@ namespace N64RecompLauncher.Services
 {
     public static class ShortcutHelper
     {
-        private const string LauncherSteamTag = "N64 Recomp Launcher";
+        private static readonly string LauncherSteamTag = N64RecompLauncherProfile.Instance.SteamTag;
 
         public static void CreateGameShortcut(GameInfo game, string launcherPath, string? cacheDirectory)
         {

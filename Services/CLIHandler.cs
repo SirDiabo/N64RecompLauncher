@@ -1,3 +1,4 @@
+using GitHubLauncher.Core.Models;
 using N64RecompLauncher.Models;
 using N64RecompLauncher.Services;
 using System;
@@ -20,7 +21,8 @@ namespace N64RecompLauncher
         private const ConsoleColor ColorWarning = ConsoleColor.Yellow;
         private const ConsoleColor ColorError = ConsoleColor.Red;
         private const ConsoleColor ColorMuted = ConsoleColor.DarkGray;
-        private const string Repository = "SirDiabo/N64RecompLauncher";
+        private static readonly N64RecompLauncherProfile Profile = N64RecompLauncherProfile.Instance;
+        private static readonly string Repository = Profile.Repository;
         private const string VersionFileName = "version.txt";
         private const string UpdateCheckFileName = "update_check.json";
         private const int UpdaterProcessExitTimeoutSeconds = 120;
@@ -228,7 +230,7 @@ namespace N64RecompLauncher
             {
                 using var client = new HttpClient();
                 client.Timeout = TimeSpan.FromSeconds(5);
-                client.DefaultRequestHeaders.Add("User-Agent", "N64RecompLauncher-CLI");
+                client.DefaultRequestHeaders.Add("User-Agent", Profile.CliUserAgent);
 
                 var response = await client.GetStringAsync("https://api.github.com/repos/sirdiabo/N64RecompLauncher/releases/latest");
                 using var doc = JsonDocument.Parse(response);
@@ -840,7 +842,7 @@ namespace N64RecompLauncher
 
                 using var client = new HttpClient();
                 client.Timeout = TimeSpan.FromMinutes(10);
-                client.DefaultRequestHeaders.Add("User-Agent", "N64RecompLauncher-CLI");
+                client.DefaultRequestHeaders.Add("User-Agent", Profile.CliUserAgent);
 
                 WriteColor("→ Checking launcher release...", ColorMuted);
                 Console.WriteLine();

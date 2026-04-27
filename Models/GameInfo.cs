@@ -4,6 +4,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using GitHubLauncher.Core.Models;
+using GitHubLauncher.Core.Services;
 using N64RecompLauncher.Services;
 using System.Collections.Concurrent;
 using System.ComponentModel;
@@ -17,132 +19,6 @@ using System.Linq;
 
 namespace N64RecompLauncher.Models
 {
-    public class GameVersionCache
-    {
-        public string Version { get; set; } = string.Empty;
-        public DateTime LastChecked { get; set; }
-        public string ETag { get; set; } = string.Empty;
-        public GitHubRelease? CachedRelease { get; set; }
-        public DateTime LastUpdateCheck { get; set; }
-    }
-
-    public static class GitHubApiCache
-    {
-        private static readonly ConcurrentDictionary<string, GameVersionCache> _cache = new();
-        private static readonly TimeSpan CacheExpiry = TimeSpan.FromHours(24);
-        private static readonly TimeSpan InstalledGameUpdateInterval = TimeSpan.FromHours(6);
-        private static readonly TimeSpan NotInstalledGameUpdateInterval = TimeSpan.FromHours(24);
-        private static string? _cacheFilePath;
-
-        public static void Initialize(string cacheDirectory)
-        {
-            _cacheFilePath = Path.Combine(cacheDirectory, "version_cache.json");
-            LoadFromDisk();
-        }
-
-        // Load cache from disk
-        private static void LoadFromDisk()
-        {
-            if (string.IsNullOrEmpty(_cacheFilePath) || !File.Exists(_cacheFilePath))
-                return;
-
-            try
-            {
-                var json = File.ReadAllText(_cacheFilePath);
-                var diskCache = JsonSerializer.Deserialize<Dictionary<string, GameVersionCache>>(json);
-                if (diskCache != null)
-                {
-                    foreach (var kvp in diskCache)
-                    {
-                        _cache.TryAdd(kvp.Key, kvp.Value);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to load version cache: {ex.Message}");
-            }
-        }
-
-        // Save cache to disk
-        private static void SaveToDisk()
-        {
-            if (string.IsNullOrEmpty(_cacheFilePath))
-                return;
-
-            try
-            {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                var json = JsonSerializer.Serialize(_cache.ToDictionary(k => k.Key, v => v.Value), options);
-                File.WriteAllText(_cacheFilePath, json);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to save version cache: {ex.Message}");
-            }
-        }
-
-        public static bool TryGetCachedVersion(string repository, out GameVersionCache? cache)
-        {
-            if (_cache.TryGetValue(repository, out var foundCache))
-            {
-                if (DateTime.UtcNow - foundCache.LastChecked < CacheExpiry)
-                {
-                    cache = foundCache;
-                    return true;
-                }
-            }
-            cache = null;
-            return false;
-        }
-
-        // Check if update check is needed
-        public static bool NeedsUpdateCheck(string repository, bool isInstalledGame = true)
-        {
-            if (!_cache.TryGetValue(repository, out var cache))
-                return true;
-
-            var interval = isInstalledGame ? InstalledGameUpdateInterval : NotInstalledGameUpdateInterval;
-            return DateTime.UtcNow - cache.LastUpdateCheck >= interval;
-        }
-
-        public static void SetCache(string repository, string version, string etag, GitHubRelease? release = null)
-        {
-            _cache.AddOrUpdate(repository,
-                new GameVersionCache
-                {
-                    Version = version,
-                    LastChecked = DateTime.UtcNow,
-                    LastUpdateCheck = DateTime.UtcNow,
-                    ETag = etag,
-                    CachedRelease = release
-                },
-                (key, old) => new GameVersionCache
-                {
-                    Version = version,
-                    LastChecked = DateTime.UtcNow,
-                    LastUpdateCheck = DateTime.UtcNow,
-                    ETag = etag ?? old.ETag,
-                    CachedRelease = release ?? old.CachedRelease
-                });
-
-            SaveToDisk();
-        }
-
-        public static string GetETag(string repository)
-        {
-            return _cache.TryGetValue(repository, out var cache) ? cache.ETag : "";
-        }
-
-        public static void RemoveCache(string repository)
-        {
-            if (string.IsNullOrWhiteSpace(repository))
-                return;
-
-            _cache.TryRemove(repository, out _);
-            SaveToDisk();
-        }
-    }
 
     public class GameInfo : INotifyPropertyChanged, IDisposable
     {
@@ -286,10 +162,18 @@ namespace N64RecompLauncher.Models
                     if (!Directory.Exists(gamePath))
                         return false;
 
-                    var executables = GetExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out _);
+                    var executables = GameInstallationService.FindExecutableCandidates(
+                        gamePath,
+                        SearchOption.TopDirectoryOnly,
+                        GetInstallationOptions(),
+                        out _);
                     if (executables.Count <= 1)
                     {
-                        executables = GetExecutableCandidates(gamePath, SearchOption.AllDirectories, out _);
+                        executables = GameInstallationService.FindExecutableCandidates(
+                            gamePath,
+                            SearchOption.AllDirectories,
+                            GetInstallationOptions(),
+                            out _);
                     }
 
                     return executables.Count > 1;
@@ -1305,71 +1189,46 @@ namespace N64RecompLauncher.Models
 
             try
             {
-                // Check if we need to update first
                 if (!forceCheck && !GitHubApiCache.NeedsUpdateCheck(Repository))
                 {
-                    // Use cached data without making API call
                     if (GitHubApiCache.TryGetCachedVersion(Repository, out var cachedData) && cachedData != null)
                     {
                         LatestVersion = cachedData.Version;
                         _cachedRelease = cachedData.CachedRelease;
                         RefreshInstalledStatus();
                     }
-                    return; // no API call needed
+                    return;
                 }
 
-                // Only reach here if update check is needed
-                var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
-                var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
+                var result = await GitHubReleaseService.FetchReleasesAsync(
+                    httpClient,
+                    Repository,
+                    GetGitHubApiToken(),
+                    GitHubApiCache.GetETag(Repository)).ConfigureAwait(false);
 
-                string etag = GitHubApiCache.GetETag(Repository);
-                if (!string.IsNullOrEmpty(etag))
-                {
-                    request.Headers.TryAddWithoutValidation("If-None-Match", etag);
-                }
-
-                var token = GetGitHubApiToken();
-                if (!string.IsNullOrEmpty(token))
-                {
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                }
-
-                var response = await httpClient.SendAsync(request);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
+                if (result.IsNotModified)
                 {
                     if (GitHubApiCache.TryGetCachedVersion(Repository, out var existingCache) && existingCache != null)
                     {
                         LatestVersion = existingCache.Version;
                         _cachedRelease = existingCache.CachedRelease;
-
-                        // Update the LastUpdateCheck timestamp even though content hasn't changed
                         GitHubApiCache.SetCache(Repository, existingCache.Version, existingCache.ETag, existingCache.CachedRelease);
                         RefreshInstalledStatus();
                     }
                     return;
                 }
 
-                response.EnsureSuccessStatusCode();
-
-                string responseContent = await response.Content.ReadAsStringAsync();
-                var releases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(responseContent);
-
-                if (releases == null || !releases.Any())
-                {
-                    System.Diagnostics.Debug.WriteLine($"No releases found for {Repository}");
-                    return;
-                }
-
-                var latestRelease = releases.FirstOrDefault();
+                var latestRelease = result.Releases.FirstOrDefault();
                 if (latestRelease != null && !string.IsNullOrWhiteSpace(latestRelease.tag_name))
                 {
                     LatestVersion = latestRelease.tag_name;
                     _cachedRelease = latestRelease;
-
-                    string? newETag = response.Headers.ETag?.Tag;
-                    GitHubApiCache.SetCache(Repository, latestRelease.tag_name, newETag ?? string.Empty, latestRelease);
+                    GitHubApiCache.SetCache(Repository, latestRelease.tag_name, result.ETag ?? string.Empty, latestRelease);
                     RefreshInstalledStatus();
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"No releases found for {Repository}");
                 }
             }
             catch (HttpRequestException ex)
@@ -1381,7 +1240,6 @@ namespace N64RecompLauncher.Models
                 System.Diagnostics.Debug.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
             }
         }
-
         private string GetGitHubApiToken()
         {
             try
@@ -1567,24 +1425,11 @@ namespace N64RecompLauncher.Models
             if (string.IsNullOrWhiteSpace(Repository))
                 return [];
 
-            var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{Repository}/releases");
-            var token = GetGitHubApiToken();
-            if (!string.IsNullOrEmpty(token))
-            {
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            }
-
-            var response = await httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var releases = JsonSerializer.Deserialize<List<GitHubRelease>>(responseContent) ?? [];
-
-            return releases
-                .Where(release => release.assets != null && release.assets.Length > 0)
-                .ToList();
+            return await GitHubReleaseService.FetchReleasesWithAssetsAsync(
+                httpClient,
+                Repository,
+                GetGitHubApiToken()).ConfigureAwait(false);
         }
-
         public async Task InstallReleaseAsync(HttpClient httpClient, string gamesFolder, AppSettings settings, GitHubRelease release, GitHubAsset selectedAsset)
         {
             SelectedDownload = selectedAsset;
@@ -1593,11 +1438,8 @@ namespace N64RecompLauncher.Models
 
         private static List<GitHubAsset> GetDownloadableAssets(GitHubRelease release)
         {
-            return (release.assets ?? [])
-                .Where(asset => !asset.name.Contains("flatpak", StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            return GitHubReleaseService.GetDownloadableAssets(release);
         }
-
         private async Task DownloadAndInstallAsync(HttpClient httpClient, string gamesFolder, GitHubRelease? latestRelease, AppSettings settings, GameStatus status)
         {
             if (string.IsNullOrEmpty(FolderName))
@@ -1632,21 +1474,12 @@ namespace N64RecompLauncher.Models
                     else
                     {
                         DownloadProgress = 5;
-                        var releaseRequestUrl = $"https://api.github.com/repos/{Repository}/releases";
+                        var releaseResult = await GitHubReleaseService.FetchReleasesAsync(
+                            httpClient,
+                            Repository,
+                            GetGitHubApiToken()).ConfigureAwait(false);
 
-                        var request = new HttpRequestMessage(HttpMethod.Get, releaseRequestUrl);
-                        var token = GetGitHubApiToken();
-                        if (!string.IsNullOrEmpty(token))
-                        {
-                            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                        }
-
-                        var response = await httpClient.SendAsync(request);
-                        response.EnsureSuccessStatusCode();
-                        var releaseResponse = await response.Content.ReadAsStringAsync();
-                        var deserializedReleases = JsonSerializer.Deserialize<IEnumerable<GitHubRelease>>(releaseResponse);
-
-                        if (deserializedReleases == null || !deserializedReleases.Any())
+                        if (releaseResult.Releases.Count == 0)
                         {
                             await ShowMessageBoxAsync($"No releases found for {Name}.", "No Releases");
                             Status = GameStatus.NotInstalled;
@@ -1654,7 +1487,7 @@ namespace N64RecompLauncher.Models
                             return;
                         }
 
-                        latestRelease = deserializedReleases.FirstOrDefault();
+                        latestRelease = releaseResult.Releases.FirstOrDefault();
 
                         if (latestRelease == null)
                         {
@@ -1664,7 +1497,7 @@ namespace N64RecompLauncher.Models
                             return;
                         }
 
-                        GitHubApiCache.SetCache(Repository, latestRelease.tag_name, "", latestRelease);
+                        GitHubApiCache.SetCache(Repository, latestRelease.tag_name, releaseResult.ETag ?? string.Empty, latestRelease);
                     }
                 }
 
@@ -1718,13 +1551,7 @@ namespace N64RecompLauncher.Models
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
                     // Check if the selected asset is a Windows file
-                    var assetNameLower = asset.name.ToLowerInvariant();
-                    bool isWindowsFile = assetNameLower.Contains("windows") ||
-                                         assetNameLower.Contains("win64") ||
-                                         assetNameLower.Contains("win32") ||
-                                         assetNameLower.EndsWith(".exe") ||
-                                         assetNameLower.Contains("-win.") ||
-                                         assetNameLower.Contains("_win.");
+                    bool isWindowsFile = PlatformAssetMatcher.IsWindowsAsset(asset.name);
 
                     if (isWindowsFile)
                     {
@@ -2044,114 +1871,8 @@ namespace N64RecompLauncher.Models
 
         public static bool MatchesPlatform(string assetName, string platformIdentifier)
         {
-            if (string.IsNullOrWhiteSpace(assetName) || string.IsNullOrWhiteSpace(platformIdentifier))
-            {
-                System.Diagnostics.Debug.WriteLine("Invalid input: assetName or platformIdentifier is null/empty");
-                return false;
-            }
-
-            var assetNameLower = assetName.ToLowerInvariant();
-            var platformLower = platformIdentifier.ToLowerInvariant();
-
-            System.Diagnostics.Debug.WriteLine($"Checking asset: {assetName}");
-            System.Diagnostics.Debug.WriteLine($"Platform identifier: {platformIdentifier}");
-
-            // Windows detection
-            if (platformLower.Contains("windows"))
-            {
-                System.Diagnostics.Debug.WriteLine("Checking Windows patterns...");
-
-                // Exclude Non-Windows indicators
-                if (HasAnyOf(assetNameLower, "linux", "macos", "osx", "darwin", "apple", ".deb", ".rpm", ".appimage", ".dmg", ".pkg", "switch"))
-                {
-                    System.Diagnostics.Debug.WriteLine("Excluded: contains non-Windows platform marker");
-                    return false;
-                }
-
-                // Positive Windows indicators
-                bool isWindows = HasAnyOf(assetNameLower,
-                    "windows", "win64", "win32", "win-x64", "win-x86",
-                    "-win.", "_win.", ".exe", ".msi", "msvc", "mingw") ||
-                    
-                    System.Text.RegularExpressions.Regex.IsMatch(assetNameLower, @"[_-]win[_-]|[_-]win\d|^win[_-]");
-
-                System.Diagnostics.Debug.WriteLine($"Windows match result: {isWindows}");
-                return isWindows;
-            }
-
-            // macOS detection
-            if (platformLower.Contains("macos") || platformLower.Contains("mac"))
-            {
-                System.Diagnostics.Debug.WriteLine("Checking macOS patterns...");
-
-                // Exclude non-macOS
-                if (HasAnyOf(assetNameLower, "linux", "windows", "win32", "win64", ".exe", ".msi", "switch"))
-                {
-                    System.Diagnostics.Debug.WriteLine("Excluded: contains non-macOS platform marker");
-                    return false;
-                }
-
-                bool isMac = HasAnyOf(assetNameLower, "macos", "osx", "darwin", ".dmg", ".pkg") ||
-                             (assetNameLower.Contains("mac") && !assetNameLower.Contains("machin"));
-
-                System.Diagnostics.Debug.WriteLine($"macOS match result: {isMac}");
-                return isMac;
-            }
-
-            // Linux detection
-            if (platformLower.Contains("linux"))
-            {
-                System.Diagnostics.Debug.WriteLine("Checking Linux patterns...");
-
-                // Exclude non-Linux
-                if (HasAnyOf(assetNameLower, "windows", "win32", "win64", "macos", "osx", "darwin", ".exe", ".msi", ".dmg", "switch"))
-                {
-                    System.Diagnostics.Debug.WriteLine("Excluded: contains non-Linux platform marker");
-                    return false;
-                }
-
-                bool hasLinux = HasAnyOf(assetNameLower, "linux", ".appimage", ".deb", ".rpm", "tar.gz", "tar.xz");
-
-                if (!hasLinux)
-                {
-                    System.Diagnostics.Debug.WriteLine("No Linux markers found");
-                    return false;
-                }
-
-                // ARM64 Linux specific
-                if (platformLower.Contains("arm64") || platformLower.Contains("arm") || platformLower.Contains("aarch64"))
-                {
-                    bool isArm = HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "arm-");
-                    System.Diagnostics.Debug.WriteLine($"Linux ARM64 match result: {isArm}");
-                    return isArm;
-                }
-
-                // Linux x64 - prioritize x86_64/x64/amd64, exclude i686/i386
-                if (!platformLower.Contains("arm"))
-                {
-                    // Exclude 32-bit builds
-                    if (HasAnyOf(assetNameLower, "i686", "i386", "i586", "x86-linux", "-i686-"))
-                    {
-                        System.Diagnostics.Debug.WriteLine("Excluded: 32-bit Linux build");
-                        return false;
-                    }
-
-                    // Must have x64 indicators for 64-bit Linux
-                    bool isLinuxX64 = HasAnyOf(assetNameLower, "x86_64", "x64", "amd64", "x86-64") &&
-                                     !HasAnyOf(assetNameLower, "arm64", "aarch64", "armv7", "armhf", "arm-");
-
-                    System.Diagnostics.Debug.WriteLine($"Linux x64 match result: {isLinuxX64}");
-                    return isLinuxX64;
-                }
-            }
-
-            // Fallback
-            System.Diagnostics.Debug.WriteLine("Using fallback substring match");
-            bool fallbackMatch = assetNameLower.Contains(platformLower);
-            System.Diagnostics.Debug.WriteLine($"Fallback match result: {fallbackMatch}");
-            return fallbackMatch;
+            return PlatformAssetMatcher.MatchesPlatform(assetName, platformIdentifier);
         }
-
         private static bool HasAnyOf(string input, params string[] substrings)
         {
             foreach (var substring in substrings)
@@ -2166,138 +1887,12 @@ namespace N64RecompLauncher.Models
 
         static async Task InstallOrUpdateGame(string downloadPath, string gamePath, string assetName, string version)
         {
-            Directory.CreateDirectory(gamePath);
-
-            // Handle single executable files (no archive)
-            if (assetName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                assetName.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase))
-            {
-                var destPath = Path.Combine(gamePath, assetName);
-                File.Move(downloadPath, destPath, true);
-
-                // Make executable on Unix
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    try
-                    {
-                        var chmodProcess = new ProcessStartInfo
-                        {
-                            FileName = "chmod",
-                            Arguments = $"+x \"{destPath}\"",
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-                        using var process = Process.Start(chmodProcess);
-                        process?.WaitForExit();
-                    }
-                    catch { }
-                }
-            }
-            else if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    // Extract directly to game path
-                    ZipFile.ExtractToDirectory(downloadPath, gamePath, overwriteFiles: true);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    var tempExtractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                    Directory.CreateDirectory(tempExtractPath);
-
-                    try
-                    {
-                        ZipFile.ExtractToDirectory(downloadPath, tempExtractPath, overwriteFiles: true);
-
-                        // Check for nested zip files
-                        var nestedZips = Directory.GetFiles(tempExtractPath, "*.zip", SearchOption.AllDirectories);
-                        foreach (var nestedZip in nestedZips)
-                        {
-                            var nestedZipDirectory = Path.GetDirectoryName(nestedZip) ?? tempExtractPath;
-                            var nestedExtractPath = Path.Combine(nestedZipDirectory, Path.GetFileNameWithoutExtension(nestedZip));
-                            Directory.CreateDirectory(nestedExtractPath);
-                            ZipFile.ExtractToDirectory(nestedZip, nestedExtractPath, overwriteFiles: true);
-
-                            // Delete the nested zip after extraction
-                            try { File.Delete(nestedZip); } catch { }
-                        }
-
-                        var appBundle = Directory.GetDirectories(tempExtractPath, "*.app", SearchOption.AllDirectories)
-                            .FirstOrDefault();
-
-                        if (!string.IsNullOrEmpty(appBundle))
-                        {
-                            var appName = Path.GetFileName(appBundle);
-                            var destAppPath = Path.Combine(gamePath, appName);
-
-                            if (Directory.Exists(destAppPath))
-                            {
-                                Directory.Delete(destAppPath, true);
-                            }
-
-                            CopyDirectory(appBundle, destAppPath);
-                        }
-                        else
-                        {
-                            // Move contents to game path
-                            MoveDirectoryContents(tempExtractPath, gamePath);
-                        }
-                    }
-                    finally
-                    {
-                        if (Directory.Exists(tempExtractPath))
-                        {
-                            try { Directory.Delete(tempExtractPath, true); } catch { }
-                        }
-                    }
-                }
-                else // Linux
-                {
-                    var tempExtractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                    Directory.CreateDirectory(tempExtractPath);
-
-                    try
-                    {
-                        ZipFile.ExtractToDirectory(downloadPath, tempExtractPath, overwriteFiles: true);
-
-                        var tarGzFile = Directory.GetFiles(tempExtractPath, "*.tar.gz", SearchOption.AllDirectories)
-                            .FirstOrDefault();
-
-                        if (!string.IsNullOrEmpty(tarGzFile))
-                        {
-                            await ExtractTarGz(tarGzFile, gamePath).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            // Move contents to game path
-                            MoveDirectoryContents(tempExtractPath, gamePath);
-                        }
-                    }
-                    finally
-                    {
-                        if (Directory.Exists(tempExtractPath))
-                        {
-                            try { Directory.Delete(tempExtractPath, true); } catch { }
-                        }
-                    }
-                }
-            }
-            else if (assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-            {
-                await ExtractTarGz(downloadPath, gamePath).ConfigureAwait(false);
-            }
-
-            try
-            {
-                TryEnsureExecutableAtRoot(gamePath);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Warning: EnsureExecutableAtRoot failed: {ex.Message}");
-            }
-
-            var versionFile = Path.Combine(gamePath, "version.txt");
-            await File.WriteAllTextAsync(versionFile, version).ConfigureAwait(false);
+            await GameInstallationService.InstallOrUpdateGameAsync(
+                downloadPath,
+                gamePath,
+                assetName,
+                version,
+                GetInstallationOptions()).ConfigureAwait(false);
 
             var portableFilePath = Path.Combine(gamePath, "portable.txt");
             if (!File.Exists(portableFilePath))
@@ -2306,405 +1901,31 @@ namespace N64RecompLauncher.Models
             }
         }
 
-        static void MoveDirectoryContents(string sourceDir, string destDir)
+        static GameInstallationOptions GetInstallationOptions()
         {
-            Directory.CreateDirectory(destDir);
-
-            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            return new GameInstallationOptions
             {
-                var relative = Path.GetRelativePath(sourceDir, file);
-                var destFile = Path.Combine(destDir, relative);
-
-                var destParent = Path.GetDirectoryName(destFile);
-                if (!string.IsNullOrEmpty(destParent))
-                    Directory.CreateDirectory(destParent);
-
-                File.Move(file, destFile, true);
-            }
-        }
-
-        static async Task ExtractTarGz(string sourceFilePath, string destinationDirectoryPath)
-        {
-            Directory.CreateDirectory(destinationDirectoryPath);
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                await ExtractTarGzWindows(sourceFilePath, destinationDirectoryPath).ConfigureAwait(false);
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
-                     RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                await ExtractTarGzUnix(sourceFilePath, destinationDirectoryPath).ConfigureAwait(false);
-            }
-            else
-            {
-                throw new PlatformNotSupportedException("Unsupported operating system for tar.gz extraction");
-            }
-        }
-
-        static async Task ExtractTarGzWindows(string sourceFilePath, string destinationDirectoryPath)
-        {
-            try
-            {
-                using var inputStream = File.OpenRead(sourceFilePath);
-                using var gzipStream = new System.IO.Compression.GZipStream(inputStream, System.IO.Compression.CompressionMode.Decompress);
-                ExtractTarFromStream(gzipStream, destinationDirectoryPath);
-            }
-            catch (Exception ex)
-            {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await ShowMessageBoxAsync($"Error extracting tar.gz: {ex.Message}", "Extraction Error");
-                });
-                throw;
-            }
-        }
-
-        static string GetSafeExtractionPath(string destinationDirectoryPath, string archivePath)
-        {
-            var sanitizedArchivePath = archivePath.Replace('/', Path.DirectorySeparatorChar)
-                .Replace('\\', Path.DirectorySeparatorChar);
-            var fullDestinationRoot = Path.GetFullPath(destinationDirectoryPath)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var fullDestinationPath = Path.GetFullPath(Path.Combine(fullDestinationRoot, sanitizedArchivePath));
-
-            if (!fullDestinationPath.StartsWith(fullDestinationRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
-                !fullDestinationPath.Equals(fullDestinationRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException($"Archive entry escapes the destination directory: {archivePath}");
-            }
-
-            return fullDestinationPath;
-        }
-
-        static void ExtractTarFromStream(Stream tarStream, string destinationDirectoryPath)
-        {
-            using var reader = new BinaryReader(tarStream);
-            while (true)
-            {
-                var headerBytes = reader.ReadBytes(512);
-                if (headerBytes.Length < 512) break;
-
-                var fileName = Encoding.ASCII.GetString(headerBytes, 0, 100).TrimEnd('\0');
-                if (string.IsNullOrWhiteSpace(fileName)) break;
-
-                var fileSizeStr = Encoding.ASCII.GetString(headerBytes, 124, 12).TrimEnd('\0');
-                var fileSize = Convert.ToInt64(fileSizeStr, 8);
-
-                var fileType = headerBytes[156];
-
-                var destPath = GetSafeExtractionPath(destinationDirectoryPath, fileName);
-
-                if (fileType == '5')
-                {
-                    Directory.CreateDirectory(destPath);
-                }
-                else
-                {
-                    var destinationDirectory = Path.GetDirectoryName(destPath);
-                    if (string.IsNullOrEmpty(destinationDirectory))
-                    {
-                        throw new InvalidDataException($"Invalid archive entry path: {fileName}");
-                    }
-
-                    Directory.CreateDirectory(destinationDirectory);
-
-                    using var fileStream = File.Create(destPath);
-                    int blocksToRead = (int)Math.Ceiling((double)fileSize / 512);
-
-                    byte[] fileBytes = new byte[blocksToRead * 512];
-                    reader.Read(fileBytes, 0, fileBytes.Length);
-
-                    fileStream.Write(fileBytes, 0, (int)fileSize);
-                }
-
-                int paddingBytes = 512 - (int)(fileSize % 512);
-                if (paddingBytes < 512)
-                {
-                    reader.ReadBytes(paddingBytes);
-                }
-            }
-        }
-
-        static async Task ExtractTarGzUnix(string sourceFilePath, string destinationDirectoryPath)
-        {
-            try
-            {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "tar",
-                    Arguments = $"-xzf \"{sourceFilePath}\" -C \"{destinationDirectoryPath}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var process = Process.Start(startInfo);
-                process?.WaitForExit();
-
-                if (process?.ExitCode != 0)
-                {
-                    string errorOutput = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
-                    throw new Exception($"Tar extraction failed: {errorOutput}");
-                }
-            }
-            catch (Exception ex)
-            {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await ShowMessageBoxAsync($"Error extracting tar.gz: {ex.Message}", "Extraction Error");
-                });
-                throw;
-            }
-        }
-
-        static void CopyDirectory(string sourceDir, string destDir)
-        {
-            Directory.CreateDirectory(destDir);
-
-            foreach (var file in Directory.GetFiles(sourceDir))
-            {
-                var destFile = Path.Combine(destDir, Path.GetFileName(file));
-                File.Copy(file, destFile, true);
-            }
-
-            foreach (var dir in Directory.GetDirectories(sourceDir))
-            {
-                var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
-                CopyDirectory(dir, destSubDir);
-            }
-        }
-
-        static void CopyDirectoryContentsInto(string sourceDir, string destDir)
-        {
-            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
-            {
-                var relative = Path.GetRelativePath(sourceDir, file);
-                var destFile = Path.Combine(destDir, relative);
-
-                if (File.Exists(destFile))
-                {
-                    Debug.WriteLine($"Skipping duplicate file: {destFile}");
-                    continue;
-                }
-
-                var destParent = Path.GetDirectoryName(destFile);
-                if (!string.IsNullOrEmpty(destParent))
-                    Directory.CreateDirectory(destParent);
-                File.Copy(file, destFile, overwrite: false);
-            }
-        }
-
-        static bool IsLauncherMetadataFile(string path)
-        {
-            var fileName = Path.GetFileName(path);
-            return fileName.Equals("version.txt", StringComparison.OrdinalIgnoreCase) ||
-                   fileName.Equals("portable.txt", StringComparison.OrdinalIgnoreCase) ||
-                   fileName.Equals("portable_disabled.txt", StringComparison.OrdinalIgnoreCase) ||
-                   fileName.Equals("LastPlayed.txt", StringComparison.OrdinalIgnoreCase) ||
-                   fileName.Equals("selected_executable.txt", StringComparison.OrdinalIgnoreCase);
-        }
-
-        static int GetPathDepth(string rootPath, string targetPath)
-        {
-            var relativePath = Path.GetRelativePath(rootPath, targetPath);
-            return relativePath.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar);
+                AdditionalMetadataFileNames =
+                [
+                    "portable.txt",
+                    "portable_disabled.txt"
+                ],
+                Log = message => Debug.WriteLine(message)
+            };
         }
 
         internal static void EnsureExecutableAtRoot(string gamePath)
         {
-            TryEnsureExecutableAtRoot(gamePath);
+            GameInstallationService.EnsureExecutableAtRoot(gamePath, GetInstallationOptions());
         }
 
         internal static List<string> GetExecutableCandidates(string gamePath, SearchOption searchOption, out bool needsWine)
         {
-            return FindExecutableCandidates(gamePath, searchOption, out needsWine);
-        }
-
-        static List<string> FindExecutableCandidates(string path, SearchOption searchOption, out bool needsWine)
-        {
-            needsWine = false;
-
-            if (!Directory.Exists(path))
-                return [];
-
-            var executables = new List<string>();
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                executables.AddRange(Directory.GetFiles(path, "*.exe", searchOption));
-                executables.AddRange(Directory.GetFiles(path, "*.bat", searchOption));
-                executables.AddRange(Directory.GetFiles(path, "*.cmd", searchOption));
-
-                var launchBatFiles = Directory.GetFiles(path, "launch.bat", searchOption);
-                executables.AddRange(launchBatFiles);
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                executables.AddRange(Directory.GetDirectories(path, "*.app", searchOption));
-                executables.AddRange(Directory.GetFiles(path, "*", searchOption)
-                    .Where(f =>
-                    {
-                        try
-                        {
-                            return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
-                        }
-                        catch { return false; }
-                    }));
-            }
-            else
-            {
-                var allFiles = Directory.GetFiles(path, "*", searchOption);
-
-                executables.AddRange(allFiles.Where(f =>
-                {
-                    var fileName = Path.GetFileName(f).ToLowerInvariant();
-                    return fileName.EndsWith(".x86_64") ||
-                           fileName.EndsWith(".appimage") ||
-                           fileName.EndsWith(".arm64") ||
-                           fileName.EndsWith(".aarch64");
-                }));
-
-                executables.AddRange(allFiles.Where(f =>
-                {
-                    var fileName = Path.GetFileName(f).ToLowerInvariant();
-
-                    if (fileName.EndsWith(".appimage") || fileName.EndsWith(".x86_64") ||
-                        fileName.EndsWith(".arm64") || fileName.EndsWith(".aarch64") ||
-                        fileName.EndsWith(".txt") || fileName.EndsWith(".dll") ||
-                        fileName.EndsWith(".so") || fileName.EndsWith(".json") ||
-                        fileName.EndsWith(".sh") ||
-                        fileName.EndsWith(".exe"))
-                    {
-                        return false;
-                    }
-
-                    try
-                    {
-                        return !Path.HasExtension(f) && new FileInfo(f).Length > 1024;
-                    }
-                    catch { return false; }
-                }));
-
-                if (executables.Count == 0)
-                {
-                    var exeFiles = allFiles.Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)).ToList();
-                    if (exeFiles.Count > 0)
-                    {
-                        executables.AddRange(exeFiles);
-                        needsWine = true;
-                    }
-                }
-
-                executables.AddRange(allFiles.Where(f => f.EndsWith(".sh", StringComparison.OrdinalIgnoreCase)));
-            }
-
-            return executables
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(f => GetPathDepth(path, f))
-                .ThenBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        static bool HasTopLevelExecutable(string path)
-        {
-            if (!Directory.Exists(path))
-                return false;
-
-            return FindExecutableCandidates(path, SearchOption.TopDirectoryOnly, out _).Count > 0;
-        }
-
-        static void TryEnsureExecutableAtRoot(string gamePath)
-        {
-            if (!Directory.Exists(gamePath))
-                return;
-
-            while (!HasTopLevelExecutable(gamePath))
-            {
-                var topLevelDirs = Directory.GetDirectories(gamePath, "*", SearchOption.TopDirectoryOnly);
-                var topLevelFiles = Directory.GetFiles(gamePath, "*", SearchOption.TopDirectoryOnly)
-                    .Where(f => !IsLauncherMetadataFile(f))
-                    .ToList();
-
-                bool flattened = false;
-
-                if (topLevelDirs.Length == 1)
-                {
-                    var singleDir = topLevelDirs[0];
-                    var singleDirCandidates = FindExecutableCandidates(singleDir, SearchOption.AllDirectories, out _);
-
-                    if (singleDirCandidates.Count > 0)
-                    {
-                        try
-                        {
-                            var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                            Directory.Move(singleDir, tempDir);
-
-                            MoveDirectoryContents(tempDir, gamePath);
-
-                            try { Directory.Delete(tempDir, true); } catch { }
-
-                            Debug.WriteLine($"Moved contents from subdirectory to root: {singleDir}");
-                            flattened = true;
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Failed to flatten directory structure: {ex.Message}");
-                        }
-                    }
-                }
-
-                if (flattened)
-                    continue;
-
-                var nestedCandidates = FindExecutableCandidates(gamePath, SearchOption.AllDirectories, out _)
-                    .Where(f => !IsInRootDirectory(f, gamePath))
-                    .ToList();
-
-                if (nestedCandidates.Count == 0)
-                    return;
-
-                var candidateFile = nestedCandidates[0];
-                var parentDir = Path.GetDirectoryName(candidateFile);
-
-                if (!string.IsNullOrEmpty(parentDir) &&
-                    topLevelDirs.Contains(parentDir, StringComparer.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                        Directory.Move(parentDir, tempDir);
-
-                        MoveDirectoryContents(tempDir, gamePath);
-
-                        try { Directory.Delete(tempDir, true); } catch { }
-
-                        Debug.WriteLine($"Flattened directory containing executable: {parentDir}");
-                        continue;
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Failed to flatten directory: {ex.Message}");
-                    }
-                }
-
-                if (topLevelFiles.Count > 0)
-                {
-                    Debug.WriteLine("Leaving wrapper folder structure in place because nested executable cannot be safely flattened.");
-                }
-
-                return;
-            }
-        }
-
-        static bool IsInRootDirectory(string path, string rootPath)
-        {
-            var parentDir = Path.GetDirectoryName(path);
-            return parentDir != null &&
-                   Path.GetFullPath(parentDir).TrimEnd(Path.DirectorySeparatorChar)
-                       .Equals(Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar),
-                               StringComparison.OrdinalIgnoreCase);
+            return GameInstallationService.FindExecutableCandidates(
+                gamePath,
+                searchOption,
+                GetInstallationOptions(),
+                out needsWine);
         }
 
         static void SetAttributesNormal(DirectoryInfo dir)
@@ -2757,44 +1978,8 @@ namespace N64RecompLauncher.Models
 
         public static string GetPlatformIdentifier(AppSettings settings)
         {
-            if (settings.Platform == TargetOS.Auto)
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    return "Windows";
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    return "macOS";
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    var arch = RuntimeInformation.OSArchitecture;
-                    return arch switch
-                    {
-                        Architecture.Arm64 => "Linux-ARM64",
-                        Architecture.X64 => "Linux-X64",
-                        Architecture.X86 => "Linux-X86",
-                        Architecture.Arm => "Linux-ARM",
-                        _ => "Linux-X64"
-                    };
-                }
-
-                throw new PlatformNotSupportedException("Unsupported operating system");
-            }
-            else
-            {
-                return settings.Platform switch
-                {
-                    TargetOS.Windows => "Windows",
-                    TargetOS.MacOS => "macOS",
-                    TargetOS.LinuxX64 => "Linux-X64",
-                    TargetOS.LinuxARM64 => "Linux-ARM64",
-                    _ => throw new PlatformNotSupportedException("Unsupported target OS in settings")
-                };
-            }
+            return PlatformAssetMatcher.GetPlatformIdentifier(settings.Platform);
         }
-
         private async Task LaunchAsync(string gamesFolder)
         {
             if (string.IsNullOrEmpty(FolderName))
@@ -2813,14 +1998,22 @@ namespace N64RecompLauncher.Models
                     return;
                 }
 
-                TryEnsureExecutableAtRoot(gamePath);
+                GameInstallationService.EnsureExecutableAtRoot(gamePath, GetInstallationOptions());
 
                 // Find all available executables
-                var executables = FindExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out bool needsWine);
+                var executables = GameInstallationService.FindExecutableCandidates(
+                    gamePath,
+                    SearchOption.TopDirectoryOnly,
+                    GetInstallationOptions(),
+                    out bool needsWine);
 
                 if (executables.Count == 0)
                 {
-                    executables = FindExecutableCandidates(gamePath, SearchOption.AllDirectories, out needsWine);
+                    executables = GameInstallationService.FindExecutableCandidates(
+                        gamePath,
+                        SearchOption.AllDirectories,
+                        GetInstallationOptions(),
+                        out needsWine);
                 }
 
                 if (executables.Count == 0)

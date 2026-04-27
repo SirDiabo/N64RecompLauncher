@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -111,7 +111,7 @@ namespace N64RecompLauncher.Services
         public ThunderstoreService()
         {
             _client = new HttpClient();
-            _client.DefaultRequestHeaders.UserAgent.ParseAdd("N64RecompLauncher/1.0");
+            _client.DefaultRequestHeaders.UserAgent.ParseAdd(N64RecompLauncherProfile.Instance.UserAgent);
             _client.Timeout = TimeSpan.FromSeconds(30);
         }
 

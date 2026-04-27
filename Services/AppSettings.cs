@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
+using GitHubLauncher.Core.Models;
 
 namespace N64RecompLauncher
 {
