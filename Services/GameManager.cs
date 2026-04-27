@@ -574,33 +574,8 @@ namespace N64RecompLauncher.Services
             List<Dictionary<string, object?>> existing,
             List<object> defaults)
         {
-            var merged = new List<Dictionary<string, object?>>();
-            var defaultRepositories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var merged = new List<Dictionary<string, object?>>(existing);
 
-            // Collect all default repositories
-            foreach (var defaultGame in defaults)
-            {
-                var defaultDict = ObjectToDict(defaultGame);
-                var gameRepository = defaultDict.ContainsKey("repository") ? defaultDict["repository"]?.ToString() : null;
-
-                if (!string.IsNullOrEmpty(gameRepository))
-                {
-                    defaultRepositories.Add(gameRepository);
-                }
-            }
-
-            // Keep only existing games that are still in defaults
-            foreach (var existingGame in existing)
-            {
-                var gameRepository = existingGame.ContainsKey("repository") ? existingGame["repository"]?.ToString() : null;
-
-                if (!string.IsNullOrEmpty(gameRepository) && defaultRepositories.Contains(gameRepository))
-                {
-                    merged.Add(existingGame);
-                }
-            }
-
-            // Add new default games
             foreach (var defaultGame in defaults)
             {
                 var defaultDict = ObjectToDict(defaultGame);
@@ -609,8 +584,8 @@ namespace N64RecompLauncher.Services
                 if (string.IsNullOrEmpty(gameRepository))
                     continue;
 
-                // Check if game already exists in merged
-                bool exists = merged.Any(g =>
+                // Check if game already exists
+                bool exists = existing.Any(g =>
                     g.ContainsKey("repository") &&
                     g["repository"]?.ToString()?.Equals(gameRepository, StringComparison.OrdinalIgnoreCase) == true);
 
