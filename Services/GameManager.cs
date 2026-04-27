@@ -682,50 +682,30 @@ namespace N64RecompLauncher.Services
 
             var custom = new List<object>
     {
-        new { name = "Star Fox 64 (Starship)",
-            repository = "harbourmasters/starship",
-            folderName = "harbourmasters.starship",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/dc2ee2a5add7154447a4644326e33386/32/256x256.png" },
-
         new { name = "Zelda OoT (Ship of Harkinian)",
             repository = "harbourmasters/shipwright",
             folderName = "harbourmasters.shipofharkinian",
             gameIconUrl  = "https://cdn2.steamgriddb.com/icon/d1cd0a8c9b28f58703a097d5a25534e3/32/256x256.png" },
-
-        new { name = "Mario Kart 64 (SpaghettiKart)",
-            repository = "harbourmasters/spaghettikart",
-            folderName = "harbourmasters.spaghettikart",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/5e5e0bd5ad7c2ca72b0c5ff8b6debbba.png" },
 
         new { name = "Zelda MM (2 Ship 2 Harkinian)",
             repository = "harbourmasters/2ship2harkinian",
             folderName = "harbourmasters.2ship2harkinian",
             gameIconUrl  = "https://cdn2.steamgriddb.com/icon/6c7dbdd98cd70f67f102524761f3b4d2/24/256x256.png" },
 
+        new { name = "Star Fox 64 (Starship)",
+            repository = "harbourmasters/starship",
+            folderName = "harbourmasters.starship",
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/dc2ee2a5add7154447a4644326e33386/32/256x256.png" },
+
+        new { name = "Mario Kart 64 (SpaghettiKart)",
+            repository = "harbourmasters/spaghettikart",
+            folderName = "harbourmasters.spaghettikart",
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/5e5e0bd5ad7c2ca72b0c5ff8b6debbba.png" },
+
         new { name = "Super Mario 64 (Ghostship)",
             repository = "harbourmasters/ghostship",
             folderName = "harbourmasters.ghostship",
             gameIconUrl  = "https://raw.githubusercontent.com/HarbourMasters/Ghostship/refs/heads/develop/nx-logo.jpg" },
-
-        new { name = "Sonic Unleashed Recompiled",
-            repository = "hedge-dev/UnleashedRecomp",
-            folderName = "Sonic Unleashed Recompiled",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63a99723ebb3af94d52b474c3b21dbe1/24/512x512.png" },
-
-        new { name = "Super Metroid Launcher",
-            repository = "RadzPrower/Super-Metroid-Launcher",
-            folderName = "RadzPrower.Super-Metroid-Launcher",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/26e3dcb90aa10011db5b660c463f325f/32/256x256.png" },
-
-        new { name = "Zelda: ALttP (Zelda 3 Launcher)",
-            repository = "RadzPrower/Zelda-3-Launcher",
-            folderName = "RadzPrower.Zelda-3-Launcher",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/1b39a10cc39ee53e5b2fdc1eda1eb5da.png" },
-
-        new { name = "WipeOut Phantom Edition",
-            repository = "wipeout-phantom-edition/wipeout-phantom-edition",
-            folderName = "WipeOut Phantom Edition",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/9fcb5252180dc29b22976c5c63b322e7.png" },
 
         new { name = "Perfect Dark",
             repository = "fgsfdsfgs/perfect_dark",
@@ -735,72 +715,7 @@ namespace N64RecompLauncher.Services
         new { name = "SM64 CoopDX",
             repository = "coop-deluxe/sm64coopdx",
             folderName = "coop-deluxe.sm64coopdx",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/e3dd863ef4277e82f712a5bd8fefe7d7.png" },
-
-        new { name = "LoD: Severed Chains",
-            repository = "Legend-of-Dragoon-Modding/Severed-Chains",
-            folderName = "Legend-of-Dragoon-Modding.Severed-Chains",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/ddc2c94d27d2c6d46b33acf21b21a641.png" },
-
-        new { name = "REDRIVER 2",
-            repository = "OpenDriver2/REDRIVER2",
-            folderName = "OpenDriver2.REDRIVER2",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/ca0739bf1344242a820fe79d0ac17d65.png" },
-
-        new { name = "Super Mario World",
-            repository = "snesrev/smw",
-            folderName = "snesrev.smw",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/5ba01c0e82cd96577309302faf900a0d/32/1024x1024.png" },
-
-        new {name = "Super Mario Bros. Remastered",
-            repository = "JHDev2006/Super-Mario-Bros.-Remastered-Public",
-            folderName = "JHDev2006.SuperMarioBrosRemastered",
-            gameIconUrl  = "https://raw.githubusercontent.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/refs/heads/main/icon.png" },
-
-        new {name = "Link's Awakening DX HD",
-            repository = "BigheadSMZ/Zelda-LA-DX-HD-Updated",
-            folderName = "BigheadSMZ.ZeldaLAHD",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/17ba4b0f5b8bff185d7359c88548f8b7/32/256x256.png" },
-
-        new {name = "Dragon Ball Z Budokai",
-            repository = "WistfulHopes/DBZ1",
-            folderName = "DBZ1Recompiled",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/61501c1f651da2774f8bb6bbec365d84.png" },
-
-        new {name = "Animal Crossing (Game Cube)",
-            repository = "flyngmt/ACGC-PC-Port",
-            folderName = "flyngmt.acgc_pcport",
-            gameIconUrl  = "https://cdn2.steamgriddb.com/icon/63d9e8a72c3a2f029c635f9b194839d2.png" },
-
-        new {name = "Banjo-Kazooie: Nuts & Bolts",
-            repository = "masterspike52/reNut",
-            folderName = "masterspike52.re-nut",
-            gameIconUrl  = "https://raw.githubusercontent.com/masterspike52/reNut/refs/heads/main/icon/app.ico" },
-
-        new {name = "Infinite Mario 64",
-            repository = "Brawmario/infinite-mario-64-ever",
-            folderName = "Brawmario.infinite-mario-64-ever",
-            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/9b1347ebd516dd05210fcc9e8291b9d1.png" },
-        
-        new {name = "Sonic 1 Forever",
-            repository = "ElspethThePict/S1Forever",
-            folderName = "ElspethThePict.S1Forever",
-            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/7884a9652e94555c70f96b6be63be216.png" },
-
-        new {name = "Sonic 3 AIR",
-            repository = "Eukaryot/sonic3air",
-            folderName = "Eukaryot.sonic3air",
-            gameIconUrl = "https://cdn2.steamgriddb.com/icon/a70dab11c90d06b809d0be230731762a/32/256x256.png" },
-
-        new {name = "Viva Pinata Trouble in Paradise",
-            repository = "SolarCookies/TiP-Recomp",
-            folderName = "SolarCookies.TiP-Recomp",
-            gameIconUrl = "https://raw.githubusercontent.com/SolarCookies/TiP-Recomp/refs/heads/main/icon/app.ico" },
-
-        new {name = "Jak & Daxter",
-            repository = "open-goal/jak-project",
-            folderName = "open-goal.jak-project",
-            gameIconUrl = "https://cdn2.steamgriddb.com/icon_thumb/48ecd78598456095d654c9196f973b00.png" }
+            gameIconUrl  = "https://cdn2.steamgriddb.com/icon_thumb/e3dd863ef4277e82f712a5bd8fefe7d7.png" }
     };
 
             return (standard, experimental, custom);
