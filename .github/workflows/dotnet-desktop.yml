@@ -30,7 +30,7 @@ jobs:
       run: dotnet restore N64RecompLauncher.sln
 
     - name: Publish Windows x64
-      run: dotnet publish N64RecompLauncher.sln -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/win-x64
+      run: dotnet publish N64RecompLauncher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/win-x64
 
     - name: Upload Windows x64
       uses: actions/upload-artifact@v4
@@ -61,10 +61,10 @@ jobs:
       run: dotnet restore N64RecompLauncher.sln
 
     - name: Publish Linux x64
-      run: dotnet publish N64RecompLauncher.sln -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/linux-x64
+      run: dotnet publish N64RecompLauncher.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/linux-x64
 
     - name: Publish Linux ARM64
-      run: dotnet publish N64RecompLauncher.sln -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/linux-arm64
+      run: dotnet publish N64RecompLauncher.csproj -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/linux-arm64
 
     - name: Upload Linux x64
       uses: actions/upload-artifact@v4
@@ -103,7 +103,7 @@ jobs:
       run: dotnet restore N64RecompLauncher.sln
 
     - name: Publish macOS x64
-      run: dotnet publish N64RecompLauncher.sln -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/osx-x64
+      run: dotnet publish N64RecompLauncher.csproj -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish/osx-x64
 
     - name: Create macOS .app bundle
       run: |
