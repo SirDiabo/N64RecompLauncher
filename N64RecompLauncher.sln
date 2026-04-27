@@ -5,7 +5,7 @@ VisualStudioVersion = 17.14.36310.24
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "N64RecompLauncher", "N64RecompLauncher.csproj", "{71EB560C-A7EB-C4F2-645D-9FB2ADA2916C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHubLauncher.Core", "..\GitHubLauncher.Core\GitHubLauncher.Core.csproj", "{2C32DAAB-3EBA-4B2D-8323-BFB0C2426855}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHubLauncher.Core", "lib\GitHubLauncher.Core\GitHubLauncher.Core.csproj", "{2C32DAAB-3EBA-4B2D-8323-BFB0C2426855}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

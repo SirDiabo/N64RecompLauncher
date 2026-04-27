@@ -45,4 +45,10 @@
 	<ItemGroup>
 		<ProjectReference Include="lib/GitHubLauncher.Core/GitHubLauncher.Core.csproj" />
 	</ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="lib\GitHubLauncher.Core\**\*.cs" />
+    <EmbeddedResource Remove="lib\GitHubLauncher.Core\**\*.*" />
+    <None Remove="lib\GitHubLauncher.Core\**\*.*" />
+  </ItemGroup>
 </Project>
