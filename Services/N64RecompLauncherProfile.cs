@@ -2,7 +2,7 @@ using GitHubLauncher.Core.Services;
 
 namespace N64RecompLauncher.Services
 {
-    public sealed class N64RecompLauncherProfile : LauncherProfile
+    public sealed class N64RecompLauncherProfile : LauncherProfile 
     {
         public static N64RecompLauncherProfile Instance { get; } = new();
 
