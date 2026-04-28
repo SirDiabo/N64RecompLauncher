@@ -2115,20 +2115,17 @@ namespace N64RecompLauncher.Models
                 var gameProcess = Process.Start(startInfo);
                 GameProcessStarted?.Invoke(gameProcess);
 
-                if (GameManager != null)
+                if (GameManager != null && Application.Current != null)
                 {
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        GameManager.OnPropertyChanged(nameof(GameManager.Games));
-                    });
+                    GameManager.OnPropertyChanged(nameof(GameManager.Games));
                 }
             }
             catch (Exception ex)
             {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
+                if (Application.Current != null)
                 {
                     await ShowMessageBoxAsync($"Error launching {Name}: {ex.Message}", "Launch Error");
-                });
+                }
             }
         }
 
