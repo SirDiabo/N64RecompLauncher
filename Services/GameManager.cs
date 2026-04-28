@@ -916,7 +916,32 @@ namespace N64RecompLauncher.Services
 
             var hiddenKey = GetHiddenGameKey(game);
             return settings.HiddenGames.Contains(hiddenKey) ||
-                   (!string.IsNullOrWhiteSpace(game.Name) && settings.HiddenGames.Contains(game.Name));
+                   (!string.IsNullOrWhiteSpace(game.Name) && settings.HiddenGames.Contains(game.Name)) ||
+                   IsGameManuallyHidden(settings, game);
+        }
+
+        public void ToggleUserHide(GameInfo game)
+        {
+            if (game == null)
+                return;
+
+            var settings = AppSettings.Load();
+            if (IsGameManuallyHidden(settings, game))
+            {
+                RemoveManuallyHiddenGame(settings, game);
+            }
+            else
+            {
+                AddManuallyHiddenGame(settings, game);
+            }
+            AppSettings.Save(settings);
+            FilterGames(settings);
+        }
+
+        public bool IsManuallyHidden(GameInfo game)
+        {
+            var settings = AppSettings.Load();
+            return IsGameManuallyHidden(settings, game);
         }
 
         private static void AddHiddenGame(AppSettings settings, GameInfo game)
@@ -1120,6 +1145,34 @@ namespace N64RecompLauncher.Services
                     Games.RemoveAt(i);
                 }
             }
+        }
+
+        private static bool IsGameManuallyHidden(AppSettings settings, GameInfo game)
+        {
+            if (settings?.ManuallyHiddenGames == null)
+                return false;
+            var key = GetHiddenGameKey(game);
+            return settings.ManuallyHiddenGames.Contains(key) ||
+                   (!string.IsNullOrWhiteSpace(game.Name) && settings.ManuallyHiddenGames.Contains(game.Name));
+        }
+
+        private static void AddManuallyHiddenGame(AppSettings settings, GameInfo game)
+        {
+            if (settings?.ManuallyHiddenGames == null)
+                return;
+            var key = GetHiddenGameKey(game);
+            if (!settings.ManuallyHiddenGames.Contains(key))
+                settings.ManuallyHiddenGames.Add(key);
+        }
+
+        private static void RemoveManuallyHiddenGame(AppSettings settings, GameInfo game)
+        {
+            if (settings?.ManuallyHiddenGames == null)
+                return;
+            var key = GetHiddenGameKey(game);
+            settings.ManuallyHiddenGames.Remove(key);
+            if (!string.IsNullOrWhiteSpace(game.Name))
+                settings.ManuallyHiddenGames.Remove(game.Name);
         }
 
         public void RefreshGamesWithFilter(AppSettings settings)

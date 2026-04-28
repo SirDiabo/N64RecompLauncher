@@ -2776,6 +2776,48 @@ namespace N64RecompLauncher
             }
         }
 
+        private async void UnhideAllManuallyHidden_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button button || button.Tag is not string category)
+                return;
+
+            try
+            {
+                var settings = AppSettings.Load();
+                var games = await LoadGamesFromJsonAsync();
+
+                var targets = category switch
+                {
+                    "Stable" => games.Where(g => !g.IsExperimental && !g.IsCustom),
+                    "Experimental" => games.Where(g => g.IsExperimental && !g.IsCustom),
+                    "Custom" => games.Where(g => g.IsCustom),
+                    _ => Enumerable.Empty<GameInfo>()
+                };
+
+                foreach (var game in targets)
+                {
+                    var key = !string.IsNullOrWhiteSpace(game.FolderName)
+                        ? $"folder:{game.FolderName}"
+                        : !string.IsNullOrWhiteSpace(game.Repository)
+                            ? $"repo:{game.Repository}"
+                            : $"name:{game.Name ?? string.Empty}";
+
+                    settings.ManuallyHiddenGames.Remove(key);
+                    if (!string.IsNullOrWhiteSpace(game.Name))
+                        settings.ManuallyHiddenGames.Remove(game.Name);
+                }
+
+                AppSettings.Save(settings);
+                await _gameManager.LoadGamesAsync();
+                ApplySorting();
+                LoadGamesFromJson();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to unhide games: {ex.Message}", "Error");
+            }
+        }
+
         private async void HideNonInstalledButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -2964,19 +3006,15 @@ namespace N64RecompLauncher
                 return;
             }
 
-            var result = await ShowMessageBoxAsync($"Hide {game.Name} from the game list?", "Confirm Hide", true);
-            if (result)
+            try
             {
-                try
-                {
-                    _gameManager.HideGame(game);
-                    await _gameManager.LoadGamesAsync();
-                    ApplySorting();
-                }
-                catch (Exception ex)
-                {
-                    _ = ShowMessageBoxAsync($"Failed to hide game: {ex.Message}", "Error");
-                }
+                _gameManager.ToggleUserHide(game);
+                await _gameManager.LoadGamesAsync();
+                ApplySorting();
+            }
+            catch (Exception ex)
+            {
+                _ = ShowMessageBoxAsync($"Failed to hide game: {ex.Message}", "Error");
             }
         }
 
@@ -4074,15 +4112,15 @@ namespace N64RecompLauncher
             try
             {
                 var games = await LoadGamesFromJsonAsync();
+                var settings = AppSettings.Load();
 
                 var stableGames = games.Where(g => !g.IsExperimental && !g.IsCustom).ToList();
                 var experimentalGames = games.Where(g => g.IsExperimental && !g.IsCustom).ToList();
                 var customGames = games.Where(g => g.IsCustom).ToList();
 
-                // Pass all custom games over, but only user created ones get the Remove button
-                UpdateGamesListControl("StableGamesListControl", stableGames);
-                UpdateGamesListControl("ExperimentalGamesListControl", experimentalGames);
-                UpdateGamesListControl("CustomGamesListControl", customGames);
+                UpdateGamesListControl("StableGamesListControl", stableGames, settings);
+                UpdateGamesListControl("ExperimentalGamesListControl", experimentalGames, settings);
+                UpdateGamesListControl("CustomGamesListControl", customGames, settings);
             }
             catch (Exception ex)
             {
@@ -4090,7 +4128,7 @@ namespace N64RecompLauncher
             }
         }
 
-        private void UpdateGamesListControl(string controlName, List<GameInfo> games)
+        private void UpdateGamesListControl(string controlName, List<GameInfo> games, AppSettings settings)
         {
             var gamesListControl = this.FindControl<ItemsControl>(controlName);
             if (gamesListControl != null)
@@ -4104,11 +4142,28 @@ namespace N64RecompLauncher
                     GameIconUrl = g.GameIconUrl,
                     IconUrl = g.IconUrl,
                     IsInstalled = !string.IsNullOrEmpty(g.FolderName) && Directory.Exists(g.GetInstallPath(_gameManager.GamesFolder)),
-                    CanRemove = g.IsCustom && !_gameManager.IsDefaultGame(g.Repository ?? string.Empty)
+                    CanRemove = g.IsCustom && !_gameManager.IsDefaultGame(g.Repository ?? string.Empty),
+                    HideGameLabel = _gameManager.IsManuallyHidden(g) ? "Unhide" : "Hide",
+                    GameInfoRef = g
                 }).ToList();
 
                 gamesListControl.ItemsSource = gameViewModels;
             }
+        }
+
+        private void ToggleHideGame_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button button || button.Tag is not object gameData)
+                return;
+
+            var gameInfoProp = gameData.GetType().GetProperty("GameInfoRef");
+            var game = gameInfoProp?.GetValue(gameData) as GameInfo;
+
+            if (game == null)
+                return;
+
+            _gameManager.ToggleUserHide(game);
+            LoadGamesFromJson();
         }
 
         private void SwitchToManageGamesTab(object sender, RoutedEventArgs e)

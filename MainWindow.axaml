@@ -1832,10 +1832,24 @@
 											CornerRadius="8"
 											Padding="16">
 										<StackPanel Spacing="12">
-											<TextBlock Text="STABLE"
-													   FontSize="16"
-													   FontWeight="Bold"
-													   Foreground="{DynamicResource ThemeText}"/>
+											<Grid>
+												<Grid.ColumnDefinitions>
+													<ColumnDefinition Width="*"/>
+													<ColumnDefinition Width="Auto"/>
+												</Grid.ColumnDefinitions>
+												<TextBlock Grid.Column="0"
+														   Text="STABLE"
+														   FontSize="16"
+														   FontWeight="Bold"
+														   Foreground="{DynamicResource ThemeText}"
+														   VerticalAlignment="Center"/>
+												<Button Grid.Column="1"
+														Classes="options"
+														Content="Unhide All"
+														FontSize="12"
+														Tag="Stable"
+														Click="UnhideAllManuallyHidden_Click"/>
+											</Grid>
 											<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,4,0,8"/>
 							
 											<ItemsControl x:Name="StableGamesListControl">
@@ -1875,6 +1889,12 @@
 																			Width="80"
 																			Click="EditGameEntry_Click"
 																			Tag="{Binding}"/>
+																	<Button Classes="options"
+																			Content="{Binding HideGameLabel}"
+																			FontSize="12"
+																			Width="80"
+																			Click="ToggleHideGame_Click"
+																			Tag="{Binding}"/>
 																</StackPanel>
 															</Grid>
 														</Border>
@@ -1890,10 +1910,24 @@
 											CornerRadius="8"
 											Padding="16">
 										<StackPanel Spacing="12">
-											<TextBlock Text="EXPERIMENTAL"
-													   FontSize="16"
-													   FontWeight="Bold"
-													   Foreground="{DynamicResource ThemeText}"/>
+											<Grid>
+												<Grid.ColumnDefinitions>
+													<ColumnDefinition Width="*"/>
+													<ColumnDefinition Width="Auto"/>
+												</Grid.ColumnDefinitions>
+												<TextBlock Grid.Column="0"
+														   Text="EXPERIMENTAL"
+														   FontSize="16"
+														   FontWeight="Bold"
+														   Foreground="{DynamicResource ThemeText}"
+														   VerticalAlignment="Center"/>
+												<Button Grid.Column="1"
+														Classes="options"
+														Content="Unhide All"
+														FontSize="12"
+														Tag="Experimental"
+														Click="UnhideAllManuallyHidden_Click"/>
+											</Grid>
 											<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,4,0,8"/>
 							
 											<ItemsControl x:Name="ExperimentalGamesListControl">
@@ -1933,6 +1967,12 @@
 																			Width="80"
 																			Click="EditGameEntry_Click"
 																			Tag="{Binding}"/>
+																	<Button Classes="options"
+																			Content="{Binding HideGameLabel}"
+																			FontSize="12"
+																			Width="80"
+																			Click="ToggleHideGame_Click"
+																			Tag="{Binding}"/>
 																</StackPanel>
 															</Grid>
 														</Border>
@@ -1948,10 +1988,24 @@
 											CornerRadius="8"
 											Padding="16">
 										<StackPanel Spacing="12">
-											<TextBlock Text="CUSTOM"
-													   FontSize="16"
-													   FontWeight="Bold"
-													   Foreground="{DynamicResource ThemeText}"/>
+											<Grid>
+												<Grid.ColumnDefinitions>
+													<ColumnDefinition Width="*"/>
+													<ColumnDefinition Width="Auto"/>
+												</Grid.ColumnDefinitions>
+												<TextBlock Grid.Column="0"
+														   Text="CUSTOM"
+														   FontSize="16"
+														   FontWeight="Bold"
+														   Foreground="{DynamicResource ThemeText}"
+														   VerticalAlignment="Center"/>
+												<Button Grid.Column="1"
+														Classes="options"
+														Content="Unhide All"
+														FontSize="12"
+														Tag="Custom"
+														Click="UnhideAllManuallyHidden_Click"/>
+											</Grid>
 											<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,4,0,8"/>
 							
 											<ItemsControl x:Name="CustomGamesListControl">
@@ -1990,6 +2044,12 @@
 																			FontSize="12"
 																			Width="80"
 																			Click="EditGameEntry_Click"
+																			Tag="{Binding}"/>
+																	<Button Classes="options"
+																			Content="{Binding HideGameLabel}"
+																			FontSize="12"
+																			Width="80"
+																			Click="ToggleHideGame_Click"
 																			Tag="{Binding}"/>
 																	<Button Classes="options"
 																			Content="Remove"
