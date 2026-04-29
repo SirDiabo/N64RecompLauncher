@@ -82,6 +82,11 @@ namespace N64RecompLauncher.Services
             repository = "Rainchus/Quest64-Recomp",
             folderName = "Quest64Recompiled",
             gameIconUrl  = "https://raw.githubusercontent.com/Rainchus/Quest64-Recomp/refs/heads/main/icons/512.png" },
+
+        new { name = "Bomberman Hero",
+            repository = "RevoSucks/BMHeroRecomp",
+            folderName = "BMHeroRecomp",
+            gameIconUrl  = "https://raw.githubusercontent.com/RevoSucks/BMHeroRecomp/refs/heads/master/icons/app.png" },
     };
 
             var custom = new List<object>
