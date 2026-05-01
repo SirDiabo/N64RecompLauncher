@@ -2429,7 +2429,9 @@ namespace N64RecompLauncher.Models
                 Path.Combine(homePath, ".steam", "root"),
                 Path.Combine(homePath, ".steam", "steam"),
                 Path.Combine(homePath, ".local", "share", "Steam"),
-                Path.Combine(homePath, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")
+                Path.Combine(homePath, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+                // Batocera Linux stores Flatpak app data under /userdata/saves/flatpak/data rather than $HOME/.var
+                Path.Combine("/userdata", "saves", "flatpak", "data", ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")
             };
 
             return steamRoots
